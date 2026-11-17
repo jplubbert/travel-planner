@@ -8,7 +8,7 @@ Take-home: plataforma de planificación de viajes en grupo. Viajes compartidos c
 
 ## Stack
 
-Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (FastMCP, SDK oficial) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
+Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (FastMCP, SDK oficial) · Anthropic SDK (`claude-sonnet-4-5`, sin LangChain/LangGraph) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
 
 ## Estructura
 
@@ -40,10 +40,10 @@ Por ahora solo arranca PostgreSQL.
 
 | Día | Fecha | Objetivo |
 | --- | --- | --- |
-| 1 | mar 17 nov | Andamiaje, ADRs iniciales. **Mock del proveedor** completo según el contrato (búsqueda con resultados parciales, quotes con expiración/revisión, reservas idempotentes, lookup por referencia, fallos inyectables, persistencia). Modelo de dominio de viajes y permisos, migraciones. **US-01, US-02.** |
-| 2 | mié 18 nov | Cliente HTTP del proveedor (timeouts, 429/503, mapeo de errores). **US-03** búsqueda, **US-04** itinerario, **US-05** costes y redondeo, **US-06** concurrencia optimista (ADR 0001). Tests de concurrencia reales contra Postgres. |
-| 3 | jue 19 nov | **US-07/US-08** reservas: revalidación de términos, idempotencia, estado desconocido y worker de reconciliación. **US-09/US-10** documentos: generación en segundo plano, estados, recuperación y descarga autorizada. |
-| 4 | vie 20 nov | **US-11/US-12** servidor MCP de solo lectura y asistente con permisos por usuario; evaluaciones deterministas y con modelo. Frontend mínimo para los flujos. Docker Compose completo, README final, explicación de arquitectura, nota de uso de IA, guion de demo. |
+| 1 | mar 17 nov | **Mock del proveedor** completo según el contrato (búsqueda con resultados parciales, quotes con expiración/revisión, reservas idempotentes, lookup por referencia, fallos inyectables, persistencia). **Modelo de dominio** de viajes y permisos, migraciones. **US-01, US-02, US-03, US-04, US-05, US-06.** |
+| 2 | mié 18 nov | **US-07, US-08** reservas (revalidación de términos, idempotencia, estado desconocido, reconciliación). **US-09, US-10** documentos (generación en segundo plano, estados, recuperación, descarga autorizada). **Servidor MCP** de solo lectura, **asistente**, **frontend mínimo**. **Objetivo: todo el PRD funcional al final del día.** |
+| 3 | jue 19 nov | Tests de fallos y concurrencia, evaluaciones del asistente (deterministas y con modelo), README, explicación de arquitectura, guion de demo. |
+| 4 | vie 20 nov | Colchón, revisión final y entrega. **Código congelado a las 18:00.** |
 
 Criterio transversal: ninguna historia se considera hecha sin tests que prueben sus criterios de aceptación (ver `CLAUDE.md`).
 

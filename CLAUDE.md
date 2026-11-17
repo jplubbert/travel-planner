@@ -24,6 +24,7 @@ Plazo: **viernes 20 nov 2026, 23:59**.
   - `backend/app/api/`, `backend/app/mcp/` y `backend/app/workers/` son puntos de entrada que orquestan casos de uso; no contienen reglas de negocio.
 - **Mock del proveedor:** servicio separado en `mock/` (FastAPI). La aplicación lo consume **solo por HTTP** según `openAPI.json`; nunca su base de datos ni sus endpoints de control.
 - **MCP:** servidor con el SDK oficial de Python (FastMCP), **solo lectura**. No expone modificación de itinerario ni reservas. Los permisos se evalúan con la identidad del usuario que actúa, no solo con el `trip_id`.
+- **Asistente:** usa la API de Anthropic directamente con el SDK oficial de Python (`anthropic`), modelo `claude-sonnet-4-5`. El bucle de tool use es propio: el asistente actúa como cliente MCP, descubre las herramientas del servidor MCP y las pasa al modelo. **Sin LangChain ni LangGraph** ni otros frameworks de agentes. Modelo y API key se configuran por entorno (`ANTHROPIC_MODEL`, `ANTHROPIC_API_KEY`).
 - **Frontend:** mínimo; se define más adelante.
 - **Infraestructura:** Docker Compose para todo.
 
