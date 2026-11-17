@@ -19,6 +19,7 @@ from typing import Any
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
+from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.sqlalchemy.uow import SqlUnitOfWork
@@ -61,7 +62,7 @@ def _dump(model: Any) -> dict[str, Any]:
 
 def build_mcp_server(
     sessions: async_sessionmaker[AsyncSession], provider: ProviderClient, clock: Clock,
-    token_secret: str,
+    token_secret: SecretStr,
 ) -> MCPServer:
     server: MCPServer = MCPServer(name="travel-planner", instructions=INSTRUCTIONS,
                                   version="1")

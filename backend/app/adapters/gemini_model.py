@@ -4,8 +4,14 @@ The conversation keeps the SDK's own ``Content`` objects: Gemini 3 models requir
 previous turns (including thought signatures) to be sent back unchanged when continuing a
 function-calling exchange. Automatic function calling is disabled: the application's
 loop decides which tools run.
+
+Transient API errors (rate limit, overload, and the sporadic 403 seen with valid keys)
+are retried once after a short wait; client errors such as 400/401/402 are not, because
+the same request would fail again. The assistant loop's overall timeout still applies.
 """
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from google import genai
@@ -13,13 +19,19 @@ from google.genai import errors, types
 
 from app.ports.assistant import ModelError, ModelTurn, ToolCall, ToolResult, ToolSpec, UserText
 
+RETRYABLE_STATUS = frozenset({403, 429, 500, 502, 503, 504})
+Sleep = Callable[[float], Awaitable[None]]
+
 
 class GeminiConversation:
     def __init__(self, client: genai.Client, model: str, config: types.GenerateContentConfig,
-                 history: list[tuple[str, str]]) -> None:
+                 history: list[tuple[str, str]], retry_delay_seconds: float = 1.0,
+                 sleep: Sleep = asyncio.sleep) -> None:
         self._client = client
         self._model = model
         self._config = config
+        self._retry_delay = retry_delay_seconds
+        self._sleep = sleep
         self._contents: list[types.Content] = [
             types.Content(role="model" if role == "assistant" else "user",
                           parts=[types.Part(text=text)])
@@ -39,11 +51,7 @@ class GeminiConversation:
                     part.function_response.id = item.call.id
                 parts.append(part)
         self._contents.append(types.Content(role="user", parts=parts))
-        try:
-            response = await self._client.aio.models.generate_content(
-                model=self._model, contents=self._contents, config=self._config)
-        except errors.APIError as exc:
-            raise ModelError(f"Gemini API error {exc.code}: {exc.message}") from exc
+        response = await self._generate()
         if not response.candidates or response.candidates[0].content is None:
             raise ModelError("Gemini returned no candidate (possibly blocked).")
         content = response.candidates[0].content
@@ -53,13 +61,28 @@ class GeminiConversation:
         text = "".join(p.text for p in content.parts or [] if p.text and not p.thought)
         return ModelTurn(text=text or None, tool_calls=calls)
 
+    async def _generate(self) -> types.GenerateContentResponse:
+        for attempt in (1, 2):
+            try:
+                return await self._client.aio.models.generate_content(
+                    model=self._model, contents=self._contents, config=self._config)
+            except errors.APIError as exc:
+                if attempt == 1 and exc.code in RETRYABLE_STATUS:
+                    await self._sleep(self._retry_delay)
+                    continue
+                raise ModelError(f"Gemini API error {exc.code}: {exc.message}") from exc
+        raise AssertionError("unreachable")
+
 
 class GeminiChatModel:
     def __init__(self, api_key: str, model: str, temperature: float = 0.2,
-                 thinking_level: str | None = "LOW", client: Any = None) -> None:
+                 thinking_level: str | None = "LOW", client: Any = None,
+                 retry_delay_seconds: float = 1.0, sleep: Sleep = asyncio.sleep) -> None:
         self.name = model
         self._client = client or genai.Client(api_key=api_key)
         self._temperature = temperature
+        self._retry_delay = retry_delay_seconds
+        self._sleep = sleep
         # gemini-3.8-flash supports LOW/MEDIUM/HIGH; MINIMAL is rejected by that model.
         self._thinking = (types.ThinkingConfig(thinking_level=types.ThinkingLevel(
             thinking_level.upper())) if thinking_level else None)
@@ -76,4 +99,5 @@ class GeminiChatModel:
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             thinking_config=self._thinking,
         )
-        return GeminiConversation(self._client, self.name, config, history)
+        return GeminiConversation(self._client, self.name, config, history,
+                                  self._retry_delay, self._sleep)

@@ -5,6 +5,7 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pydantic import SecretStr
 
 from app.mcp.identity import issue_token
 from app.mcp.server import EXPECTED_TOOLS, NOT_FOUND
@@ -77,9 +78,9 @@ async def test_nonparticipant_gets_not_found_on_every_trip_tool(mcp_as, planned)
 
 @pytest.mark.parametrize("token", [
     None, "not-a-token",
-    issue_token("wrong-secret", "ana", datetime.now(UTC), 300),
-    issue_token("dev-only-insecure-mcp-secret", "ana", datetime.now(UTC) - timedelta(hours=1),
-                60),
+    issue_token(SecretStr("wrong-secret"), "ana", datetime.now(UTC), 300),
+    issue_token(SecretStr("dev-only-insecure-mcp-secret"), "ana",
+                datetime.now(UTC) - timedelta(hours=1), 60),
 ])
 async def test_sessions_without_a_valid_identity_get_nothing(mcp_as, planned, token):
     async with mcp_as(token=token or "") as tools:

@@ -80,6 +80,7 @@ La respuesta incluye **todas las llamadas a tools** con sus argumentos, resultad
   - `GeminiChatModel`: `google-genai`, modelo en `GEMINI_MODEL`, clave en `GEMINI_API_KEY`, `thinking_level` bajo.
   - `ScriptedModel`: determinista, para tests y evaluaciones.
 - **Elección del modelo:** `gemini-3.8-flash`, verificado el 2026-11-17 en la documentación de modelos de Google AI Studio. Es el Flash estable más reciente y su ficha marca "Function calling: supported". `gemini-2.5-flash` está marcado como obsoleto y se redirige a otro modelo desde el 01-12-2026. Ese modelo no admite el nivel de razonamiento `minimal`.
+- **Errores transitorios:** el adaptador Gemini reintenta **una vez**, tras una espera corta, los 403 esporádicos, 429 y 5xx; nunca 400, 401, 402 ni 404, que fallarían igual. El límite de tiempo del bucle sigue acotando el total. Si el reintento también falla, el endpoint responde `502 ASSISTANT_MODEL_ERROR`.
 - **Sin clave**, el endpoint responde `503 ASSISTANT_UNAVAILABLE`, y las evaluaciones con modelo se saltan con un mensaje claro.
 
 ## Consecuencias
@@ -101,6 +102,7 @@ La respuesta incluye **todas las llamadas a tools** con sus argumentos, resultad
   - las tools son exactamente las 7 esperadas, todas con `read_only_hint`, y ninguna tiene un parámetro de identidad;
   - el núcleo del asistente no importa ningún SDK de proveedor.
 - `tests/unit/test_mcp_identity.py`: tokens falsificados, con otro secreto o caducados.
-- `tests/unit/test_gemini_adapter.py`: forma de la petición y conversión de la respuesta, con un cliente falso.
+- `tests/unit/test_gemini_adapter.py`: forma de la petición, conversión de la respuesta y reintento único de errores transitorios, con un cliente falso.
+- `tests/unit/test_config.py`: `GEMINI_API_KEY` y `MCP_TOKEN_SECRET` son `SecretStr` y no aparecen en `repr`, `str`, JSON ni tracebacks con variables locales.
 - `evals/deterministic/`: contrato y permisos de cada tool, relevancia de búsqueda y bucle con modelo guionizado.
 - `evals/llm/`: verificación automática de precios, falta de opciones, afirmaciones de reserva y presupuesto.

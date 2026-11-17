@@ -77,8 +77,54 @@ async def test_tool_errors_are_sent_as_errors():
     assert sent.response == {"error": "Trip not found"}
 
 
+def api_error(code: int) -> errors.APIError:
+    return errors.APIError(code, {"error": {"message": f"status {code}", "status": "X"}})
+
+
+class Sleeps:
+    def __init__(self) -> None:
+        self.waits: list[float] = []
+
+    async def __call__(self, seconds: float) -> None:
+        self.waits.append(seconds)
+
+
+@pytest.mark.parametrize("code", [429, 503, 403, 500])
+async def test_transient_errors_are_retried_once_after_a_short_wait(code):
+    client = FakeClient([api_error(code), response(types.Part(text="ok"))])
+    sleeps = Sleeps()
+    conversation = GeminiChatModel("k", "m", client=client, retry_delay_seconds=0.5,
+                                   sleep=sleeps).start("s", [], [])
+    turn = await conversation.send([UserText("hi")])
+    assert turn.text == "ok"
+    assert sleeps.waits == [0.5]
+    first, second = client.aio.models.calls
+    assert first["contents"] == second["contents"]  # same request, nothing appended twice
+    assert [c.role for c in second["contents"]] == ["user"]
+
+
+@pytest.mark.parametrize("code", [429, 503, 403])
+async def test_a_second_transient_error_is_not_retried_again(code):
+    client = FakeClient([api_error(code), api_error(code), response(types.Part(text="ok"))])
+    sleeps = Sleeps()
+    conversation = GeminiChatModel("k", "m", client=client, sleep=sleeps).start("s", [], [])
+    with pytest.raises(ModelError, match=str(code)):
+        await conversation.send([UserText("hi")])
+    assert len(client.aio.models.calls) == 2 and len(sleeps.waits) == 1
+
+
+@pytest.mark.parametrize("code", [400, 401, 402, 404])
+async def test_client_errors_are_not_retried(code):
+    client = FakeClient([api_error(code), response(types.Part(text="ok"))])
+    sleeps = Sleeps()
+    conversation = GeminiChatModel("k", "m", client=client, sleep=sleeps).start("s", [], [])
+    with pytest.raises(ModelError, match=str(code)):
+        await conversation.send([UserText("hi")])
+    assert len(client.aio.models.calls) == 1 and sleeps.waits == []
+
+
 @pytest.mark.parametrize("failure", [
-    errors.APIError(429, {"error": {"message": "quota", "status": "RESOURCE_EXHAUSTED"}}),
+    errors.APIError(400, {"error": {"message": "bad", "status": "INVALID_ARGUMENT"}}),
     types.GenerateContentResponse(candidates=[]),
 ])
 async def test_provider_failures_become_model_errors(failure):

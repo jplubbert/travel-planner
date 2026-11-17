@@ -69,7 +69,7 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | US-09: generar documento (202, copia inmutable, worker con escritura atómica, estados, reintento, recuperación por lease) | ✅ Hecho (ADR 0005) |
 | US-10: documento correcto (versión y hora, inmutable frente a ediciones, descarga verificada por hash, regeneración, barrido de huérfanos) | ✅ Hecho (ADR 0005) |
 | Canal de estado SSE por viaje (avisos de reservas, documentos y viaje; mismos permisos; se cierra al perder acceso) | ✅ Hecho (ADR 0005) |
-| US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Las evaluaciones con modelo están listas pero **sin ejecutar todavía (falta la clave de Gemini)** |
+| US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Evaluaciones con modelo: 5 de 5 con `gemini-3.8-flash` el 2026-11-17 (`evals/README.md`) |
 | US-12: tools de solo lectura por MCP (SDK oficial, identidad por sesión firmada, permisos del usuario) | ✅ Hecho (ADR 0006), con evaluaciones deterministas |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |

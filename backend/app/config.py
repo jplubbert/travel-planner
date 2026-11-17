@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     events_heartbeat_seconds: float = 15.0
 
     # MCP server (ADR 0006). The token secret signs the identity of MCP sessions.
-    mcp_token_secret: str = "dev-only-insecure-mcp-secret"
+    mcp_token_secret: SecretStr = SecretStr("dev-only-insecure-mcp-secret")  # masked, like below
     mcp_token_ttl_seconds: float = 300.0
     mcp_allowed_hosts: list[str] = ["localhost", "localhost:*", "127.0.0.1:*", "api:*"]
 

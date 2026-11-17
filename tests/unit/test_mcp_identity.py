@@ -3,11 +3,12 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pydantic import SecretStr
 
 from app.mcp.identity import InvalidToken, bearer, issue_token, verify_token
 
 NOW = datetime(2030, 6, 1, 12, tzinfo=UTC)
-SECRET = "test-secret"
+SECRET = SecretStr("test-secret")
 
 
 def test_valid_token_identifies_the_user():
@@ -31,7 +32,7 @@ def test_tampered_tokens_are_rejected(mutate):
 def test_other_secret_and_expiry_are_rejected():
     token = issue_token(SECRET, "carla", NOW, 300)
     with pytest.raises(InvalidToken):
-        verify_token("another-secret", token, NOW)
+        verify_token(SecretStr("another-secret"), token, NOW)
     with pytest.raises(InvalidToken, match="expired"):
         verify_token(SECRET, token, NOW + timedelta(seconds=300))
 

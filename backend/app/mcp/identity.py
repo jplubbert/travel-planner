@@ -13,6 +13,8 @@ import hmac
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from pydantic import SecretStr
+
 PREFIX = "tpmcp1"
 
 
@@ -26,18 +28,20 @@ class McpIdentity:
     expires_at: datetime
 
 
-def _sign(secret: str, payload: str) -> str:
-    return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+def _sign(secret: SecretStr, payload: str) -> str:
+    # Unwrapped inline, never bound to a name: tracebacks with locals only show SecretStr.
+    return hmac.new(secret.get_secret_value().encode(), payload.encode(),
+                    hashlib.sha256).hexdigest()
 
 
-def issue_token(secret: str, user_id: str, now: datetime, ttl_seconds: float) -> str:
+def issue_token(secret: SecretStr, user_id: str, now: datetime, ttl_seconds: float) -> str:
     expires = int((now + timedelta(seconds=ttl_seconds)).timestamp())
     user = base64.urlsafe_b64encode(user_id.encode()).decode().rstrip("=")
     payload = f"{PREFIX}.{user}.{expires}"
     return f"{payload}.{_sign(secret, payload)}"
 
 
-def verify_token(secret: str, token: str, now: datetime) -> McpIdentity:
+def verify_token(secret: SecretStr, token: str, now: datetime) -> McpIdentity:
     try:
         prefix, user, expires, signature = token.split(".")
         if prefix != PREFIX:

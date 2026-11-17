@@ -48,6 +48,12 @@ Cada caso verifica la respuesta automáticamente (`evals/support.py`):
 | Presupuesto de 500 USD | Los precios están respaldados por las tools; si menciona algo por encima del presupuesto, lo señala. |
 | Búsqueda fallida (los dos suppliers caídos) | Ve el error de la tool y dice que la búsqueda falló, en lugar de decir que no hay resultados. |
 
+### Resultados registrados
+
+| Fecha | Modelo | Repeticiones | Resultado | Notas |
+| --- | --- | --- | --- | --- |
+| 2026-11-17 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **5 de 5 pasan** | Ejecutadas por el responsable del proyecto con clave real. Un caso recibió un 403 transitorio de la API y pasó al repetirlo. Desde entonces el adaptador reintenta una vez los errores transitorios (403, 429 y 5xx) tras una espera corta. |
+
 **Limitaciones:** las comprobaciones son heurísticas (expresiones regulares en inglés y español). La de importes acepta sumas de hasta 3 términos y restas de 2, así que un cálculo más complejo, aunque correcto, se marcaría como no respaldado. El modelo es probabilístico, y por eso existe `EVAL_REPEATS` para medir la tasa de acierto.
 
 ### Coste aproximado
@@ -61,4 +67,4 @@ Modelo por defecto: `gemini-3.8-flash`, con `thinking_level=low`. Precios de la 
 | Tokens de salida (respuesta y razonamiento) | ~1–3 k | ~5–15 k |
 | **Coste** | ~0,02–0,04 USD | **~0,10–0,20 USD** (~0,20–0,40 USD desde 2027) |
 
-Con `EVAL_REPEATS=3`, el triple. Las cifras de tokens son una estimación del diseño, todavía no medida, porque aún no hay clave: hay que confirmarlas en la primera ejecución con el panel de uso de AI Studio.
+Con `EVAL_REPEATS=3`, el triple. Las cifras de tokens son una estimación del diseño: la ejecución del 2026-11-17 no midió el consumo, así que siguen pendientes de confirmar con el panel de uso de AI Studio.

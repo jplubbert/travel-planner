@@ -1,4 +1,5 @@
-"""Secrets in Settings never show up in reprs, logs or tracebacks."""
+"""Secrets in Settings (Gemini key, MCP token secret) never show up in reprs, logs or
+tracebacks."""
 
 import traceback
 
@@ -7,6 +8,7 @@ import pytest
 from app.config import Settings
 
 KEY = "AIza-test-secret-value-1234567890"
+MCP_SECRET = "prod-mcp-signing-secret-0987654321"  # module level: not a frame local
 
 
 def settings(**overrides: object) -> Settings:
@@ -48,3 +50,32 @@ def test_empty_gemini_api_key_counts_as_unset(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     assert not settings(gemini_api_key="").gemini_api_key
     assert settings().gemini_api_key is None
+
+
+def test_mcp_token_secret_is_masked_and_still_signs() -> None:
+    from datetime import UTC, datetime
+
+    from app.mcp.identity import issue_token, verify_token
+
+    configured = settings(mcp_token_secret=MCP_SECRET)
+    assert MCP_SECRET not in repr(configured)
+    assert MCP_SECRET not in str(configured)
+    assert MCP_SECRET not in configured.model_dump_json()
+    now = datetime(2030, 6, 1, tzinfo=UTC)
+    token = issue_token(configured.mcp_token_secret, "ana", now, 60)
+    assert verify_token(configured.mcp_token_secret, token, now).user_id == "ana"
+
+
+def test_mcp_token_secret_is_masked_in_tracebacks_from_token_code() -> None:
+    from datetime import UTC, datetime
+
+    from app.mcp.identity import InvalidToken, verify_token
+
+    configured = settings(mcp_token_secret=MCP_SECRET)
+    try:
+        verify_token(configured.mcp_token_secret, "tpmcp1.YW5h.1.bad", datetime.now(UTC))
+    except InvalidToken as exc:
+        rendered = "".join(traceback.TracebackException.from_exception(
+            exc, capture_locals=True).format())
+    assert "signature" in rendered
+    assert MCP_SECRET not in rendered
