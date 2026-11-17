@@ -212,6 +212,9 @@ class DocumentRow(Base):
             name="complete_has_file",
         ),
         Index("ix_documents_trip_id", "trip_id"),
+        # US-09: repeated requests for one trip version share the running document.
+        Index("uq_documents_one_active_per_version", "trip_id", "trip_version", unique=True,
+              postgresql_where=text("status IN ('waiting', 'in_progress')")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -223,6 +226,10 @@ class DocumentRow(Base):
     content_sha256: Mapped[str | None] = mapped_column(String(64))
     size_bytes: Mapped[int | None] = mapped_column(BigInteger)
     error: Mapped[str | None] = mapped_column(Text)
+    # Immutable copy of what the document represents (ADR 0005).
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    snapshot_at: Mapped[datetime] = mapped_column(TZ)
+    snapshot_sha256: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(TZ)
     updated_at: Mapped[datetime] = mapped_column(TZ)
     completed_at: Mapped[datetime | None] = mapped_column(TZ)

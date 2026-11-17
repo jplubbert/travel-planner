@@ -66,7 +66,7 @@ Reglas:
 - `True` (`ProviderTimeout`, `ProviderTransportError`, `ProviderProtocolError`): pasa a `unknown`.
 - `False`: `ProviderUnreachable` (no hubo conexión), `ProviderRateLimited` y `ProviderUnavailable` (con cuerpo `Error` del contrato) vuelven a `draft`. `ProviderBadRequest`, `ProviderNotFound`, `OfferChanged` y `OfferUnavailable` pasan a `rejected`.
 
-**Implementación (2026-11-18, US-07/US-08).**
+**Implementación (2026-11-17, US-07/US-08).**
 
 - **Antes de enviar.** `POST /trips/{id}/itinerary/items/{itemId}/bookings` exige `expectedRevision` y `expectedPrice`, lo que el usuario revisó. El backend vuelve a pedir la oferta. Si la revisión o el precio difieren, o la oferta no está disponible, **no envía nada** y responde `409` (`TERMS_CHANGED` / `OFFER_UNAVAILABLE`) con `currentTerms`.
 - **Un intento activo por ítem.** Lo garantiza el índice único parcial `uq_bookings_one_active_per_item` (estados `draft`, `submitted`, `unknown`, `pending`, `confirmed`); un doble clic simultáneo da `409 BOOKING_IN_PROGRESS`. `failed` y `rejected` no bloquean un intento nuevo.

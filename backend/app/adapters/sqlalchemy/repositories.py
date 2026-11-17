@@ -336,9 +336,10 @@ def _document(row: DocumentRow) -> Document:
     return Document(
         id=row.id, trip_id=row.trip_id, trip_version=row.trip_version,
         requested_by=row.requested_by, status=DocumentStatus(row.status),
-        created_at=row.created_at, updated_at=row.updated_at, storage_key=row.storage_key,
-        content_sha256=row.content_sha256, size_bytes=row.size_bytes, error=row.error,
-        completed_at=row.completed_at,
+        created_at=row.created_at, updated_at=row.updated_at, snapshot=row.snapshot,
+        snapshot_at=row.snapshot_at, snapshot_sha256=row.snapshot_sha256,
+        storage_key=row.storage_key, content_sha256=row.content_sha256,
+        size_bytes=row.size_bytes, error=row.error, completed_at=row.completed_at,
     )
 
 
@@ -349,8 +350,16 @@ class SqlDocumentRepository:
     async def add(self, document: Document) -> None:
         values = asdict(document)
         values["status"] = document.status.value
-        self.session.add(DocumentRow(**values))
-        await self.session.flush()
+        try:
+            async with self.session.begin_nested():
+                self.session.add(DocumentRow(**values))
+                await self.session.flush()
+        except IntegrityError as exc:
+            if "uq_documents_one_active_per_version" in str(exc.orig):
+                raise Conflict("DOCUMENT_IN_PROGRESS",
+                               "A document for this trip version is already being "
+                               "generated.") from None
+            raise
 
     async def get(self, document_id: UUID) -> Document | None:
         row = await self.session.get(DocumentRow, document_id, populate_existing=True)
@@ -360,17 +369,29 @@ class SqlDocumentRepository:
         rows = await self.session.scalars(
             select(DocumentRow).where(DocumentRow.trip_id == trip_id)
             .order_by(DocumentRow.created_at)
+            .execution_options(populate_existing=True)
         )
         return [_document(r) for r in rows]
 
-    async def save(self, document: Document) -> None:
+    async def list_all(self) -> list[Document]:
+        rows = await self.session.scalars(
+            select(DocumentRow).order_by(DocumentRow.created_at)
+            .execution_options(populate_existing=True))
+        return [_document(r) for r in rows]
+
+    async def save(self, document: Document, *, expected_status: str) -> bool:
         values = asdict(document)
         values["status"] = document.status.value
-        for key in ("id", "trip_id", "trip_version", "requested_by", "created_at"):
-            values.pop(key)
-        await self.session.execute(
-            update(DocumentRow).where(DocumentRow.id == document.id).values(**values)
+        for key in ("id", "trip_id", "trip_version", "requested_by", "created_at",
+                    "snapshot", "snapshot_at", "snapshot_sha256"):
+            values.pop(key)  # never rewritten (and guarded by a trigger)
+        result = await self.session.execute(
+            update(DocumentRow)
+            .where(DocumentRow.id == document.id, DocumentRow.status == str(expected_status))
+            .values(**values)
+            .returning(DocumentRow.id)
         )
+        return result.scalar_one_or_none() is not None
 
 
 def _job(row: JobRow) -> Job:

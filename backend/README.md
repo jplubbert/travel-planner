@@ -20,8 +20,13 @@
 - **Reservas (US-07/08, ADR 0003):**
   - `app/domain/bookings.py`: máquina de estados y `nextStep`.
   - `app/domain/reservations.py`: casos de uso y reconciliación.
-  - `app/workers/`: worker de la tabla `jobs`, que se arranca con `python -m app.workers`.
+  - `app/workers/worker.py`: worker de la tabla `jobs` (reservas y documentos), que se arranca con `python -m app.workers`.
   - La base de datos garantiza un intento activo por ítem y que los datos aceptados son inmutables (índice parcial y trigger, migración 0004).
+- **Documentos (US-09/10, ADR 0005):**
+  - `app/domain/document_service.py`: copia, petición, generación, descarga verificada y barrido.
+  - Puertos `app/ports/documents.py` (`DocumentStorage`, `DocumentRenderer`) con sus adaptadores `local_storage.py` (disco, escritura atómica) y `document_html.py` (HTML determinista).
+  - Los archivos viven en `DOCUMENT_STORAGE_DIR`, un volumen `documents` compartido por `api` y `worker`.
+- **Canal de estado:** `GET /trips/{id}/events` (SSE). `app/domain/status_feed.py` vuelve a comprobar el acceso en cada sondeo.
 
 ## Endpoints
 
@@ -48,6 +53,11 @@
 | `POST /trips/{id}/bookings/{bookingId}/retry` | Editor | solo `draft`; misma `Idempotency-Key` |
 | `GET /trips/{id}/bookings` | Viewer | estado, `booked`, `lastError`, `nextStep`, oferta y precio aceptados |
 | `GET /trips/{id}/bookings/{bookingId}` | Viewer | |
+| `POST /trips/{id}/documents` | Editor | US-09; `202` con el documento en `waiting` (o el existente equivalente) |
+| `GET /trips/{id}/documents`, `GET /trips/{id}/documents/{docId}` | Viewer | estado, versión, hora de la copia, sha256, `downloadUrl` cuando está listo |
+| `POST /trips/{id}/documents/{docId}/retry` | Editor | solo `failed` |
+| `GET /trips/{id}/documents/{docId}/download` | Viewer | verifica el hash; si el archivo falta o no coincide, `409` y se regenera |
+| `GET /trips/{id}/events` | Viewer | SSE: `ready`, `trip`, `booking`, `document`, `access-revoked`; son avisos, relee con `GET` |
 | `GET /healthz`, `GET /readyz` | — | vida del proceso; base de datos accesible |
 
 OpenAPI interactivo en `/docs`.

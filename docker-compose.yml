@@ -26,8 +26,11 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PROVIDER_BASE_URL: http://provider-mock:4010/v1
       PROVIDER_TOKEN: ${PROVIDER_TOKEN:-travel-demo-token}
+      DOCUMENT_STORAGE_DIR: /data/documents
     ports:
       - "${API_PORT:-8000}:8000"
+    volumes:
+      - documents:/data/documents
     depends_on:
       db:
         condition: service_healthy
@@ -39,7 +42,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Worker de jobs en segundo plano (reconciliación de reservas, ADR 0003). Se puede escalar:
+  # Worker de jobs en segundo plano (reservas, ADR 0003; documentos, ADR 0005). Se puede escalar:
   # los jobs se reclaman con FOR UPDATE SKIP LOCKED y lease.
   worker:
     build:
@@ -54,6 +57,9 @@ services:
       PROVIDER_TOKEN: ${PROVIDER_TOKEN:-travel-demo-token}
       BOOKING_UNKNOWN_GRACE_SECONDS: ${BOOKING_UNKNOWN_GRACE_SECONDS:-30}
       BOOKING_SUBMITTED_STALE_SECONDS: ${BOOKING_SUBMITTED_STALE_SECONDS:-60}
+      DOCUMENT_STORAGE_DIR: /data/documents
+    volumes:
+      - documents:/data/documents  # shared with the API, which serves downloads
     depends_on:
       api:
         condition: service_healthy  # the API container runs the migrations
@@ -79,3 +85,4 @@ services:
 volumes:
   pgdata:
   mockdata:
+  documents:

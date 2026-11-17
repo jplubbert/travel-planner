@@ -11,7 +11,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY backend ./backend
 
-RUN useradd --system --uid 10001 app
+RUN useradd --system --uid 10001 app && mkdir -p /data/documents && chown app /data/documents
 USER app
 EXPOSE 8000
 

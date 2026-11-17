@@ -95,6 +95,18 @@ La API devuelve estas reglas en `rules` en cada lectura del itinerario (fuente: 
 
 ## Documentos (US-09, US-10)
 
+> **Supuesto:** El formato es un **HTML autocontenido** (CSS en línea, sin scripts ni recursos externos), que se descarga como adjunto y se puede imprimir a PDF desde el navegador. — **Afecta a:** US-09 — **Motivo:** el PRD deja libre el formato; HTML no necesita dependencias, es determinista y se verifica por hash.
+
+> **Supuesto:** Pedir un documento es una acción de editor (el PRD: los viewers no pueden "start document generation"); listarlo, consultarlo y descargarlo, de cualquier participante. Reintentar uno `failed` es de editor. — **Afecta a:** US-02, US-09, US-10.
+
+> **Supuesto:** Pedir de nuevo un documento devuelve el mismo si hay uno en curso para la misma versión del viaje (`202`), o si hay uno `complete` cuyo contenido es idéntico, sin contar la hora de la copia (`200`). Si cambiaron el viaje o el estado de alguna reserva, se crea uno nuevo. — **Afecta a:** US-09.
+
+> **Supuesto:** Si al descargar el archivo falta o no coincide con su hash, la propia descarga, aunque la haga un viewer, devuelve el documento a `waiting` y lo reencola para regenerarlo desde la copia. Es mantenimiento del sistema, no un cambio del usuario. Como el render es determinista, sale el mismo hash. — **Afecta a:** US-10.
+
+> **Supuesto:** Tras `DOCUMENT_MAX_ATTEMPTS` fallos de generación el documento queda `failed` con el error, y no se reintenta solo. — **Afecta a:** US-09.
+
+> **Supuesto:** El canal de estado es SSE por viaje (`GET /trips/{id}/events`) y anuncia cambios de versión del viaje, reservas y documentos; no repite eventos tras reconectar. Los clientes deben releer con `GET` al recibir `ready` o cualquier aviso. — **Afecta a:** US-02, US-08, US-09.
+
 ## Asistente y MCP (US-11, US-12)
 
 ## Datos de ejemplo y límites (destinos, reglas simplificadas)

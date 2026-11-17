@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     worker_job_lease_seconds: float = 120.0
     worker_batch_size: int = 10
 
+    # Documents (US-09/US-10, ADR 0005).
+    document_storage_dir: str = "data/documents"
+    document_max_attempts: int = 3
+    document_sweep_interval_seconds: float = 300.0
+
+    # Status channel (SSE): how often a stream re-checks state and access.
+    events_poll_seconds: float = 1.0
+    events_heartbeat_seconds: float = 15.0
+
     def reconcile_policy(self) -> "ReconcilePolicy":
         from app.domain.reservations import ReconcilePolicy
         return ReconcilePolicy(

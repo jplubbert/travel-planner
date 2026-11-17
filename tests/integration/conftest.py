@@ -132,7 +132,14 @@ AppFactory = Callable[..., FastAPI]
 
 
 @pytest.fixture
-async def make_app(database_url: str, mock_provider_url: str) -> AsyncIterator[AppFactory]:
+def storage_dir(tmp_path: Path) -> Path:
+    """Document storage shared by every app instance and worker of one test."""
+    return tmp_path / "documents"
+
+
+@pytest.fixture
+async def make_app(database_url: str, mock_provider_url: str,
+                   storage_dir: Path) -> AsyncIterator[AppFactory]:
     created: list[FastAPI] = []
 
     def factory(provider: Any = None, **overrides: object) -> FastAPI:
@@ -142,6 +149,8 @@ async def make_app(database_url: str, mock_provider_url: str) -> AsyncIterator[A
             "provider_base_url": f"{mock_provider_url}/v1",
             "provider_token": PROVIDER_TOKEN,
             "provider_timeout_seconds": 3.0,
+            "document_storage_dir": str(storage_dir),
+            "events_poll_seconds": 0.05,
             **overrides,
         })
         application = create_app(settings, provider=provider)
@@ -272,18 +281,24 @@ async def provider_client(mock_provider_url: str) -> AsyncIterator[Any]:
 
 
 @pytest.fixture
-def make_worker(app: FastAPI, provider_client: Any) -> Callable[..., Any]:
-    """A BookingWorker on the test database and the real mock. Defaults make every
-    reconciliation step due immediately so tests can drive it with run_once()."""
+def make_worker(app: FastAPI, provider_client: Any, storage_dir: Path) -> Callable[..., Any]:
+    """A JobWorker on the test database, the real mock and the test's document storage.
+    Defaults make every step due immediately so tests can drive it with run_once()."""
     from app.adapters.clock import SystemClock
+    from app.adapters.document_html import HtmlDocumentRenderer
+    from app.adapters.local_storage import LocalDocumentStorage
     from app.domain.reservations import ReconcilePolicy
-    from app.workers.booking_worker import BookingWorker
+    from app.workers.worker import JobWorker
 
-    def make(name: str = "worker", provider: Any = None, **policy: float) -> BookingWorker:
+    def make(name: str = "worker", provider: Any = None, storage: Any = None,
+             renderer: Any = None, lease_seconds: float = 120.0, **policy: float) -> JobWorker:
         defaults = {"unknown_grace_seconds": 0.0, "submitted_stale_seconds": 0.0,
                     "pending_poll_seconds": 0.0, "retry_base_seconds": 0.0,
                     "retry_max_seconds": 0.0}
-        return BookingWorker(app.state.sessions, provider or provider_client, SystemClock(),
-                             ReconcilePolicy(**{**defaults, **policy}), name=name)
+        return JobWorker(app.state.sessions, provider or provider_client,
+                         storage or LocalDocumentStorage(storage_dir),
+                         renderer or HtmlDocumentRenderer(), SystemClock(),
+                         ReconcilePolicy(**{**defaults, **policy}),
+                         lease_seconds=lease_seconds, name=name)
 
     return make

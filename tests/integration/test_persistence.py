@@ -148,7 +148,8 @@ async def test_python_none_is_sql_null_so_the_snapshot_constraint_holds(uow_fact
 
 async def test_document_round_trip_and_complete_requires_file(uow_factory):
     trip = await make_trip(uow_factory)
-    doc = Document(uuid4(), trip.id, 1, "ana", DocumentStatus.WAITING, NOW, NOW)
+    doc = Document(uuid4(), trip.id, 1, "ana", DocumentStatus.WAITING, NOW, NOW,
+                   snapshot={"trip": {"name": "T"}}, snapshot_at=NOW, snapshot_sha256="0" * 64)
     async with uow_factory() as uow:
         await uow.documents.add(doc)
         await uow.commit()
@@ -157,7 +158,7 @@ async def test_document_round_trip_and_complete_requires_file(uow_factory):
         doc.move(DocumentStatus.IN_PROGRESS, NOW)
         doc.move(DocumentStatus.COMPLETE, NOW)  # but no file recorded
         with pytest.raises(IntegrityError):
-            await uow.documents.save(doc)
+            await uow.documents.save(doc, expected_status=DocumentStatus.WAITING)
 
 
 async def test_job_round_trip(uow_factory):

@@ -58,14 +58,17 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | Worker de jobs en segundo plano (`python -m app.workers`, servicio `worker`) | ✅ Hecho |
 | ADR 0003: estados de reserva y reconciliación (máquina de estados en el dominio, con tests) | ✅ Hecho |
 | US-01: crear viaje y volver a él (persistencia tras reinicio, validación accionable, edición con versión) | ✅ Hecho, con tests contra Postgres |
-| US-02: compartir con roles | 🟡 Parcial: las peticiones HTTP directas están cubiertas y probadas (404 para no participantes, 403 por rol). Faltan los criterios sobre documentos, suscripciones de estado y herramientas del asistente, que se probarán al construir esas piezas |
+| US-02: compartir con roles | 🟡 Parcial: peticiones HTTP directas, documentos (descarga y generación) y suscripciones de estado (SSE) cubiertos y probados. Falta el criterio sobre herramientas del asistente (US-11/US-12) |
 | US-03: buscar y comparar (completa / parcial / vacía / fallida, frescura, estimaciones, timeout, permisos) | ✅ Hecho, con tests contra el mock real por HTTP |
 | US-04: itinerario (añadir con la cotización del proveedor, quitar, reordenar, actualizar cotización; marcas de expirado, no disponible, fuera de fechas, solapes, grupo; información que falta) | ✅ Hecho (ADR 0004) |
 | US-05: costes por ítem, totales y presupuesto (estimado vs confirmado, redondeo documentado) | ✅ Hecho; probado también con reservas reales (confirmada, pendiente, fallida, rechazada) |
 | US-06: ediciones concurrentes (versión por viaje, 409 con estado actual y cambios, 403 antes que 409) | ✅ Hecho, con tests de concurrencia contra Postgres |
 | US-07: reservar con los términos revisados (re-chequeo con el proveedor, 409 con términos actuales) | ✅ Hecho, con tests contra el mock real |
 | US-08: resultados inciertos y parciales (unknown/draft/rejected/pending/confirmed/failed, worker de reconciliación, sin duplicados) | ✅ Hecho, con tests contra el mock real (respuesta perdida, reinicio a mitad de envío, doble clic, 429/503) |
-| US-09 … US-12 | ⏳ Pendiente |
+| US-09: generar documento (202, copia inmutable, worker con escritura atómica, estados, reintento, recuperación por lease) | ✅ Hecho (ADR 0005) |
+| US-10: documento correcto (versión y hora, inmutable frente a ediciones, descarga verificada por hash, regeneración, barrido de huérfanos) | ✅ Hecho (ADR 0005) |
+| Canal de estado SSE por viaje (avisos de reservas, documentos y viaje; mismos permisos; se cierra al perder acceso) | ✅ Hecho (ADR 0005) |
+| US-11 … US-12 | ⏳ Pendiente |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |
 | Despliegue propuesto, demo, nota de uso de IA | ⏳ Pendiente |

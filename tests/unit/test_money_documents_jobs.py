@@ -32,20 +32,27 @@ def test_round_usd_is_half_up():
     assert round_usd(Decimal("0.124")) == Decimal("0.12")
 
 
+def doc() -> Document:
+    return Document(uuid4(), uuid4(), 1, "ana", DocumentStatus.WAITING, NOW, NOW,
+                    snapshot={}, snapshot_at=NOW, snapshot_sha256="0" * 64)
+
+
 def test_document_lifecycle_and_retry():
-    d = Document(uuid4(), uuid4(), 1, "ana", DocumentStatus.WAITING, NOW, NOW)
+    d = doc()
     d.move(DocumentStatus.IN_PROGRESS, NOW)
     d.move(DocumentStatus.FAILED, NOW)
     d.move(DocumentStatus.WAITING, NOW)  # retry
     d.move(DocumentStatus.IN_PROGRESS, NOW)
     d.move(DocumentStatus.COMPLETE, NOW)
-    for target in DocumentStatus:
+    # A complete document only goes back to waiting (file lost: regenerate the snapshot).
+    for target in (DocumentStatus.IN_PROGRESS, DocumentStatus.FAILED, DocumentStatus.COMPLETE):
         with pytest.raises(InvalidTransition):
             d.move(target, NOW)
+    d.move(DocumentStatus.WAITING, NOW)
 
 
 def test_document_cannot_complete_without_being_generated():
-    d = Document(uuid4(), uuid4(), 1, "ana", DocumentStatus.WAITING, NOW, NOW)
+    d = doc()
     with pytest.raises(InvalidTransition):
         d.move(DocumentStatus.COMPLETE, NOW)
 

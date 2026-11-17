@@ -6,10 +6,12 @@ import signal
 import socket
 
 from app.adapters.clock import SystemClock
+from app.adapters.document_html import HtmlDocumentRenderer
+from app.adapters.local_storage import LocalDocumentStorage
 from app.adapters.provider_http import HttpProviderClient
 from app.adapters.sqlalchemy.uow import make_engine, session_factory
 from app.config import Settings
-from app.workers.booking_worker import BookingWorker
+from app.workers.worker import JobWorker
 
 
 async def main() -> None:
@@ -19,9 +21,11 @@ async def main() -> None:
     engine = make_engine(settings.database_url)
     provider = HttpProviderClient(settings.provider_base_url, settings.provider_token,
                                   settings.provider_timeout_seconds)
-    worker = BookingWorker(
-        session_factory(engine), provider, SystemClock(), settings.reconcile_policy(),
+    worker = JobWorker(
+        session_factory(engine), provider, LocalDocumentStorage(settings.document_storage_dir),
+        HtmlDocumentRenderer(), SystemClock(), settings.reconcile_policy(),
         lease_seconds=settings.worker_job_lease_seconds, batch_size=settings.worker_batch_size,
+        document_sweep_seconds=settings.document_sweep_interval_seconds,
         name=f"worker@{socket.gethostname()}",
     )
     stop = asyncio.Event()

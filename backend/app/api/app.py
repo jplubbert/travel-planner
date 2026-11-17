@@ -7,10 +7,12 @@ from fastapi import FastAPI, Request, Response
 from sqlalchemy import text
 
 from app.adapters.clock import SystemClock
+from app.adapters.document_html import HtmlDocumentRenderer
+from app.adapters.local_storage import LocalDocumentStorage
 from app.adapters.provider_http import HttpProviderClient
 from app.adapters.sqlalchemy.uow import make_engine, session_factory
 from app.api.errors import error_response, install_error_handlers
-from app.api.routes import bookings, itinerary, search, trips
+from app.api.routes import bookings, documents, itinerary, search, trips
 from app.config import Settings
 from app.observability import request_id_var
 from app.ports.clock import Clock
@@ -48,6 +50,9 @@ def create_app(
     app.state.sessions = session_factory(engine)
     app.state.clock = clock or SystemClock()
     app.state.provider = provider
+    app.state.settings = settings
+    app.state.storage = LocalDocumentStorage(settings.document_storage_dir)
+    app.state.renderer = HtmlDocumentRenderer()
     app.state.shutdown = shutdown  # for callers that do not run the lifespan (tests)
 
     @app.middleware("http")
@@ -73,6 +78,7 @@ def create_app(
     app.include_router(search.router)
     app.include_router(itinerary.router)
     app.include_router(bookings.router)
+    app.include_router(documents.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:
