@@ -45,8 +45,11 @@ Plazo: **viernes 20 nov 2026, 23:59**.
 cp .env.example .env
 docker compose up -d --build   # Postgres + mock del proveedor en :4010
 uv sync                        # entorno Python 3.12 (.venv)
-uv run pytest                  # todos los tests (excluye los marcados llm)
+uv run pytest                  # todos los tests (excluye los marcados llm); necesita `db` levantado
+uv run mypy backend/app        # tipos (estricto)
 uv run ruff check .            # lint
 ```
+
+Migraciones: `cd backend && DATABASE_URL=... uv run alembic revision --autogenerate -m "..."`, siempre revisando el resultado. `tests/integration/test_persistence.py` falla si los modelos y las migraciones divergen. Identidad de prueba: header `X-User-Id` (`ana`, `beto`, `carla`, `dani`).
 
 El mock se documenta en `mock/README.md`. Sus endpoints `/_control/*` solo se usan desde tests y demos; el código de `backend/` nunca debe llamarlos.

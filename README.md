@@ -31,8 +31,8 @@ docs/         ADRs y supuestos
 
 ```bash
 cp .env.example .env
-docker compose up -d --build   # Postgres + mock del proveedor (http://localhost:4010/v1)
-uv sync && uv run pytest       # tests
+docker compose up -d --build   # Postgres + API (http://localhost:8000/docs) + mock (http://localhost:4010/v1)
+uv sync && uv run pytest       # tests (los de integración necesitan el servicio db en marcha)
 ```
 
 Ver [`mock/README.md`](mock/README.md) para las fixtures y los escenarios de fallo.
@@ -54,7 +54,11 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | --- | --- |
 | Andamiaje del repo, CLAUDE.md, ADR 0001, Postgres en Compose | ✅ Hecho |
 | Mock del proveedor (`mock/`, ADR 0002): 5 operaciones del contrato, escenarios de fallo, reloj, persistencia; 99 tests validados contra el schema | ✅ Hecho |
-| US-01 … US-12 | ⏳ Pendiente |
+| Modelo de dominio y persistencia (Trip, TripMember, ItineraryItem, Booking, Document, Job), migraciones Alembic, usuarios de prueba | ✅ Hecho |
+| ADR 0003: estados de reserva y reconciliación (máquina de estados en el dominio, con tests) | ✅ Hecho |
+| US-01: crear viaje y volver a él (persistencia tras reinicio, validación accionable, edición con versión) | ✅ Hecho, con tests contra Postgres |
+| US-02: compartir con roles | 🟡 Parcial: las peticiones HTTP directas están cubiertas y probadas (404 para no participantes, 403 por rol). Faltan los criterios sobre documentos, suscripciones de estado y herramientas del asistente, que se probarán al construir esas piezas |
+| US-03 … US-12 | ⏳ Pendiente |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |
 | Despliegue propuesto, demo, nota de uso de IA | ⏳ Pendiente |

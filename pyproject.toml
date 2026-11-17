@@ -50,6 +50,10 @@ src = ["backend", "mock", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# Migraciones autogeneradas por Alembic: se revisan, no se reformatean.
+"backend/migrations/versions/*" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

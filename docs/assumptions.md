@@ -8,7 +8,25 @@ Registro de ambigüedades del PRD (`assignment/prd.md`), el candidate guide y el
 
 ## Identidad y permisos (US-02, US-12)
 
+> **Supuesto:** La identidad es de prueba: el header `X-User-Id` nombra a uno de los usuarios precargados por la migración `0002` (`ana`, `beto`, `carla`, `dani`). Sin header, o con un usuario desconocido, se responde `401`. — **Afecta a:** todas las historias — **Motivo:** el PRD permite identidades de prueba y no exige un sistema de identidad. — **Impacto:** en producción se sustituiría por autenticación real sin tocar el dominio, porque la autorización ya trabaja con `user_id`.
+
+> **Supuesto:** Cada viaje tiene exactamente un organizador, su creador. El organizador solo puede conceder los roles `editor` y `viewer`, y su propio rol no se puede cambiar ni quitar (`409 ORGANIZER_ROLE_FIXED`). — **Afecta a:** US-02 — **Motivo:** el PRD describe al organizador como quien crea el viaje y gestiona a los participantes; transferir la organización queda fuera de alcance.
+
+> **Supuesto:** Los editores pueden cambiar los datos del viaje (nombre, destinos, fechas, viajeros y presupuesto), además del itinerario. Solo el organizador gestiona a los participantes. — **Afecta a:** US-02 — **Motivo:** el PRD dice "editors can perform planning actions; viewers cannot change the trip", y fechas y presupuesto forman parte de la planificación.
+
+> **Supuesto:** Un no participante recibe `404 TRIP_NOT_FOUND` en todas las operaciones del viaje, con la misma respuesta que para un viaje inexistente o un id mal formado; así no se revela que el viaje existe. Un participante sin el rol necesario recibe `403`. — **Afecta a:** US-02, US-12.
+
+> **Supuesto:** Los cambios de participantes no usan control de versión: `PUT` fija el rol (es idempotente) y solo el organizador, que es único, puede hacerlos. — **Afecta a:** US-02/US-06 — **Impacto:** dos pestañas del mismo organizador cambiando el rol de la misma persona dejan el último valor; no se pierde ninguna edición de otro participante.
+
 ## Viajes e itinerario (US-01, US-04, US-06)
+
+> **Supuesto:** Además de destinos, fechas y presupuesto, un viaje registra el número de viajeros (de 1 a 20, el rango del contrato del proveedor). — **Afecta a:** US-01, US-03 — **Motivo:** la búsqueda en el proveedor exige `travelers`, y el precio de cada oferta cubre a todo el grupo. Los participantes de la aplicación no tienen por qué viajar todos (un viewer puede no viajar).
+
+> **Supuesto:** Las fechas del viaje no pueden empezar antes de hoy (UTC). Esto se comprueba solo al crear el viaje o al cambiar sus fechas, de modo que un viaje ya empezado se puede seguir editando. — **Afecta a:** US-01.
+
+> **Supuesto:** El presupuesto se envía como cadena decimal con hasta 2 decimales (`"1500"`, `"1500.5"`, `"1500.00"`) y se guarda como `numeric(12,2)`. Los números JSON se rechazan para evitar errores de coma flotante. — **Afecta a:** US-01, US-05.
+
+> **Supuesto:** Los errores de entrada devuelven `422 VALIDATION_ERROR` con `details.fields[]` (campo y mensaje) y se informan todos a la vez. Una edición sin `version` devuelve `400 VERSION_REQUIRED` (ADR 0001); la versión se envía en el cuerpo (`"version": n`) y `GET` también la expone en `ETag`. — **Afecta a:** US-01, US-06.
 
 ## Búsqueda y proveedor (US-03, contrato OpenAPI)
 

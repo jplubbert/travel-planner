@@ -163,5 +163,5 @@ Borra reservas, idempotencia, referencias y quotes, y limpia escenarios y reloj.
 
 - Los datos (reservas, idempotencia, referencias y quotes) se escriben en un JSON de forma atómica (archivo temporal, `fsync` y `rename`) **antes de responder**, así que sobreviven a reinicios y a respuestas perdidas. Las claves de idempotencia no caducan; el contrato exige al menos 7 días.
 - Los escenarios y el reloj **no** se persisten: un reinicio los limpia.
-- El mock corre en **un solo proceso con un solo worker**. La garantía de "exactamente una reserva" ante peticiones concurrentes depende de eso; con varios workers no se cumpliría.
+- El mock corre en **un solo proceso con un solo worker**. La garantía de "exactamente una reserva" ante peticiones concurrentes depende de eso; con varios workers no se cumpliría. Los tests activan `yield_in_critical_section`, que cede el event loop entre la comprobación de clave/referencia y la escritura; así los tests de concurrencia fallan si se quita el lock (verificado: sin lock se crean 20 y 10 reservas).
 - No guarda tokens: cada caller se identifica por un hash del token.

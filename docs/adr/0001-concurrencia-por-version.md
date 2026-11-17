@@ -53,7 +53,7 @@ Cada viaje tiene un entero `version`. Toda lectura lo devuelve; toda escritura d
 
 - `Trip` (metadatos + itinerario) es un agregado con un único `version: int`.
 - Las respuestas de lectura incluyen `version` (cuerpo y cabecera `ETag`).
-- Toda mutación exige la versión esperada (`If-Match` o campo `expectedVersion`; el detalle se fija al implementar la API). Falta de versión → `400` con código `VERSION_REQUIRED` y un mensaje que explique que hay que enviar la versión leída; no se aplica. (Se descartó `428 Precondition Required`: es semánticamente correcto pero poco conocido, y el objetivo es que los errores sean entendibles.)
+- Toda mutación exige la versión esperada (campo `version` en el cuerpo del `PATCH`; las lecturas también la exponen en `ETag`. Corrección menor del 2026-11-17 al implementarlo). Falta de versión → `400` con código `VERSION_REQUIRED` y un mensaje que explique que hay que enviar la versión leída; no se aplica. (Se descartó `428 Precondition Required`: es semánticamente correcto pero poco conocido, y el objetivo es que los errores sean entendibles.)
 - La comprobación y el incremento ocurren en la **misma sentencia/transacción** que la escritura, en el adaptador de persistencia; el dominio expresa la regla mediante el puerto de repositorio (`save(trip, expected_version)` → éxito o `VersionConflict`).
 - En conflicto: `409` con código `TRIP_VERSION_CONFLICT`, la versión actual y el estado actual del viaje (y, cuando sea posible, quién/cuándo lo cambió), para que el cliente muestre la diferencia y el usuario reaplique o descarte.
 - La autorización se evalúa **antes** de comprobar la versión y de nuevo en el reintento: un conflicto nunca revela datos a quien no tiene acceso ni permite a un viewer escribir.

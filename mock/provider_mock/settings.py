@@ -13,6 +13,9 @@ class Settings:
     # How long an aggregated search waits for a supplier in "timeout" mode before
     # reporting PROVIDER_TIMEOUT for it.
     supplier_deadline_seconds: float = 2.0
+    # Test-only: yield to the event loop between the idempotency/reference checks and
+    # the write, so concurrency tests fail if the booking lock is removed.
+    yield_in_critical_section: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":

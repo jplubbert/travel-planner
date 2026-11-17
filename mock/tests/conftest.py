@@ -85,6 +85,7 @@ def settings(tmp_path: Path) -> Settings:
         state_file=tmp_path / "state.json",
         quote_ttl_seconds=900,
         supplier_deadline_seconds=0.01,
+        yield_in_critical_section=True,
     )
 
 

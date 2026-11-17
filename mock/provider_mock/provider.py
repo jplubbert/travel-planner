@@ -249,6 +249,8 @@ class Provider:
                     raise not_found(f"Offer '{req.offerId}' does not exist.")
                 template, travelers = parsed
                 delay = self._gate(template.provider_id)
+                if self.settings.yield_in_critical_section:
+                    await asyncio.sleep(0)
                 result = self._accept(caller, key, fingerprint, req, template, travelers)
                 status = 201
 
