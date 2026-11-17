@@ -66,6 +66,23 @@ Reglas:
 - `True` (`ProviderTimeout`, `ProviderTransportError`, `ProviderProtocolError`): pasa a `unknown`.
 - `False`: `ProviderUnreachable` (no hubo conexión), `ProviderRateLimited` y `ProviderUnavailable` (con cuerpo `Error` del contrato) vuelven a `draft`. `ProviderBadRequest`, `ProviderNotFound`, `OfferChanged` y `OfferUnavailable` pasan a `rejected`.
 
+**Implementación (2026-11-18, US-07/US-08).**
+
+- **Antes de enviar.** `POST /trips/{id}/itinerary/items/{itemId}/bookings` exige `expectedRevision` y `expectedPrice`, lo que el usuario revisó. El backend vuelve a pedir la oferta. Si la revisión o el precio difieren, o la oferta no está disponible, **no envía nada** y responde `409` (`TERMS_CHANGED` / `OFFER_UNAVAILABLE`) con `currentTerms`.
+- **Un intento activo por ítem.** Lo garantiza el índice único parcial `uq_bookings_one_active_per_item` (estados `draft`, `submitted`, `unknown`, `pending`, `confirmed`); un doble clic simultáneo da `409 BOOKING_IN_PROGRESS`. `failed` y `rejected` no bloquean un intento nuevo.
+- **`clientReference` e `Idempotency-Key`.** Se generan por intento y se guardan en `submitted` en una transacción confirmada **antes** del `POST`. Reintentar un `draft` (`POST /trips/{id}/bookings/{bookingId}/retry`) reutiliza la misma clave y el mismo cuerpo.
+- **Inmutabilidad en la base de datos.** Un trigger (`bookings_guard`, migración 0004) rechaza:
+  - cualquier cambio de estado desde `confirmed`, `failed` o `rejected`;
+  - cambiar `provider_booking_id`, `accepted_offer` o `accepted_price` una vez fijados;
+  - cambiar `client_reference` o `idempotency_key`.
+- **`last_error`** es un JSON (`code`, `message`, `providerRequestId`, `retryAfterSeconds`, `at`) que la lectura de reservas devuelve junto a `nextStep` (regla 8 cumplida).
+- **Rechazo por términos cambiados.** Guarda en `rejection_terms` la oferta vigente, si se pudo obtener, para que el usuario vea los términos nuevos.
+- **`REFERENCE_CONFLICT` en un primer envío** pasa a `unknown`: indica que existe una reserva con esa referencia, y solo la reconciliación puede saber cuál.
+- **Worker** (`python -m app.workers`, servicio `worker` en Compose):
+  - procesa la tabla `jobs` con `FOR UPDATE SKIP LOCKED` y lease;
+  - en cada iteración, también al arrancar, programa la reconciliación de los `submitted` más antiguos que `BOOKING_SUBMITTED_STALE_SECONDS`;
+  - el job `sync_booking` (deduplicado entre jobs activos) aplica las reglas 3-5 y se reprograma con backoff hasta llegar a un estado terminal. No hay un número máximo de intentos: dejar de reconciliar convertiría la incertidumbre en silencio.
+
 ## Opciones descartadas
 
 - **Solo `pending`/`confirmed`/`failed` (espejo del proveedor).** Obliga a elegir un estado falso cuando no sabemos si se aceptó; viola US-08 ("no convertir la incertidumbre en éxito").

@@ -81,7 +81,7 @@ def install_error_handlers(app: FastAPI, conflict_details: Any) -> None:
             NotFound: 404, Forbidden: 403, Conflict: 409, VersionRequired: 400,
             InvalidTransition: 409,
         }.get(type(exc), 400)
-        return error_response(request, status, exc.code, exc.message)
+        return error_response(request, status, exc.code, exc.message, exc.details)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:

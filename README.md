@@ -31,7 +31,7 @@ docs/         ADRs y supuestos
 
 ```bash
 cp .env.example .env
-docker compose up -d --build   # Postgres + API (http://localhost:8000/docs) + mock (http://localhost:4010/v1)
+docker compose up -d --build   # Postgres + API (http://localhost:8000/docs) + worker + mock (http://localhost:4010/v1)
 uv sync && uv run pytest       # tests (los de integración necesitan el servicio db en marcha)
 ```
 
@@ -55,14 +55,17 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | Andamiaje del repo, CLAUDE.md, ADR 0001, Postgres en Compose | ✅ Hecho |
 | Mock del proveedor (`mock/`, ADR 0002): 5 operaciones del contrato, escenarios de fallo, reloj, persistencia; 99 tests validados contra el schema | ✅ Hecho |
 | Modelo de dominio y persistencia (Trip, TripMember, ItineraryItem, Booking, Document, Job), migraciones Alembic, usuarios de prueba | ✅ Hecho |
+| Worker de jobs en segundo plano (`python -m app.workers`, servicio `worker`) | ✅ Hecho |
 | ADR 0003: estados de reserva y reconciliación (máquina de estados en el dominio, con tests) | ✅ Hecho |
 | US-01: crear viaje y volver a él (persistencia tras reinicio, validación accionable, edición con versión) | ✅ Hecho, con tests contra Postgres |
 | US-02: compartir con roles | 🟡 Parcial: las peticiones HTTP directas están cubiertas y probadas (404 para no participantes, 403 por rol). Faltan los criterios sobre documentos, suscripciones de estado y herramientas del asistente, que se probarán al construir esas piezas |
 | US-03: buscar y comparar (completa / parcial / vacía / fallida, frescura, estimaciones, timeout, permisos) | ✅ Hecho, con tests contra el mock real por HTTP |
 | US-04: itinerario (añadir con la cotización del proveedor, quitar, reordenar, actualizar cotización; marcas de expirado, no disponible, fuera de fechas, solapes, grupo; información que falta) | ✅ Hecho (ADR 0004) |
-| US-05: costes por ítem, totales y presupuesto (estimado vs confirmado, redondeo documentado) | ✅ Hecho; el camino "confirmado" se prueba con reservas insertadas directamente hasta tener US-07 |
+| US-05: costes por ítem, totales y presupuesto (estimado vs confirmado, redondeo documentado) | ✅ Hecho; probado también con reservas reales (confirmada, pendiente, fallida, rechazada) |
 | US-06: ediciones concurrentes (versión por viaje, 409 con estado actual y cambios, 403 antes que 409) | ✅ Hecho, con tests de concurrencia contra Postgres |
-| US-07 … US-12 | ⏳ Pendiente |
+| US-07: reservar con los términos revisados (re-chequeo con el proveedor, 409 con términos actuales) | ✅ Hecho, con tests contra el mock real |
+| US-08: resultados inciertos y parciales (unknown/draft/rejected/pending/confirmed/failed, worker de reconciliación, sin duplicados) | ✅ Hecho, con tests contra el mock real (respuesta perdida, reinicio a mitad de envío, doble clic, 429/503) |
+| US-09 … US-12 | ⏳ Pendiente |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |
 | Despliegue propuesto, demo, nota de uso de IA | ⏳ Pendiente |

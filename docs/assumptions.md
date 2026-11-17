@@ -83,6 +83,16 @@ La API devuelve estas reglas en `rules` en cada lectura del itinerario (fuente: 
 
 > **Supuesto:** `clientReference` es única por caller durante toda la vida del dataset del mock. — **Afecta a:** `createBooking` — **Motivo:** el schema la define como "unique within the caller's dataset".
 
+> **Supuesto:** Reservar no exige la versión del viaje (ADR 0001): no modifica el viaje ni el itinerario, y su concurrencia la protege el índice de un intento activo por ítem. Sí exige los términos revisados (`expectedRevision`, `expectedPrice`). — **Afecta a:** US-06, US-07.
+
+> **Supuesto:** Si al reservar la oferta ya está cotizada para otro número de viajeros (porque cambió el grupo del viaje), se responde `409 PARTY_SIZE_MISMATCH` sin enviar nada. — **Afecta a:** US-07.
+
+> **Supuesto:** Un `201` al reservar significa que **se registró un intento**, no que se reservó. El estado (`confirmed`, `pending`, `unknown`, `draft`, `failed` o `rejected`), `booked` (verdadero solo con `confirmed`) y `nextStep` dicen qué pasó. Los rechazos detectados antes de enviar no crean intento y responden `409`. — **Afecta a:** US-07, US-08.
+
+> **Supuesto:** La reconciliación no se rinde: un job `sync_booking` se reprograma con backoff (hasta `BOOKING_RETRY_MAX_SECONDS`) mientras la reserva no llegue a un estado terminal. Un proveedor caído deja la reserva en `unknown` con `lastError`, nunca en un éxito supuesto. — **Afecta a:** US-08.
+
+> **Supuesto:** La cancelación y el reembolso están fuera de alcance (PRD). Una reserva `confirmed` impide quitar su ítem del itinerario. — **Afecta a:** US-04, US-08.
+
 ## Documentos (US-09, US-10)
 
 ## Asistente y MCP (US-11, US-12)

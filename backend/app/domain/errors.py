@@ -4,6 +4,8 @@ from typing import Any
 
 class DomainError(Exception):
     code = "DOMAIN_ERROR"
+    # Optional machine-readable context returned to the client with the error.
+    details: dict[str, Any] | None = None
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -35,9 +37,11 @@ class Forbidden(DomainError):
 
 
 class Conflict(DomainError):
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str,
+                 details: dict[str, Any] | None = None) -> None:
         super().__init__(message)
         self.code = code
+        self.details = details
 
 
 class VersionConflict(DomainError):

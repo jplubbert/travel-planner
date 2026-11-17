@@ -10,7 +10,7 @@ from app.adapters.clock import SystemClock
 from app.adapters.provider_http import HttpProviderClient
 from app.adapters.sqlalchemy.uow import make_engine, session_factory
 from app.api.errors import error_response, install_error_handlers
-from app.api.routes import itinerary, search, trips
+from app.api.routes import bookings, itinerary, search, trips
 from app.config import Settings
 from app.observability import request_id_var
 from app.ports.clock import Clock
@@ -72,6 +72,7 @@ def create_app(
     app.include_router(trips.router)
     app.include_router(search.router)
     app.include_router(itinerary.router)
+    app.include_router(bookings.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

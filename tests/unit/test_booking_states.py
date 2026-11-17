@@ -53,7 +53,7 @@ def test_unknown_cannot_go_back_to_draft_or_submitted():
 
 def test_pending_never_degrades_to_unknown():
     with pytest.raises(InvalidTransition):
-        booking(S.PENDING).record_unknown("poll failed", NOW)
+        booking(S.PENDING).record_unknown({"code": "PROVIDER_TIMEOUT"}, NOW)
 
 
 def test_happy_path_keeps_accepted_snapshot():
@@ -83,15 +83,15 @@ def test_rejected_has_no_provider_booking():
 
 def test_not_accepted_returns_to_draft_and_can_be_resubmitted():
     b = booking(S.SUBMITTED)
-    b.record_not_accepted("503 PROVIDER_UNAVAILABLE", NOW)
-    assert b.status == S.DRAFT and b.last_error == "503 PROVIDER_UNAVAILABLE"
+    b.record_not_accepted({"code": "PROVIDER_UNAVAILABLE", "providerRequestId": "r1"}, NOW)
+    assert b.status == S.DRAFT and b.last_error["code"] == "PROVIDER_UNAVAILABLE"
     b.submit(NOW)
     assert b.status == S.SUBMITTED and b.last_error is None
 
 
 def test_lost_response_becomes_unknown_then_reconciles():
     b = booking(S.SUBMITTED)
-    b.record_unknown("timeout", NOW)
+    b.record_unknown({"code": "PROVIDER_TIMEOUT"}, NOW)
     assert b.status == S.UNKNOWN
     accept(b, "confirmed")
     assert b.status == S.CONFIRMED
@@ -108,3 +108,14 @@ def test_draft_cannot_jump_to_an_outcome():
     for target in (S.PENDING, S.CONFIRMED, S.FAILED, S.REJECTED, S.UNKNOWN):
         with pytest.raises(InvalidTransition):
             booking(S.DRAFT)._move(target, NOW)
+
+
+def test_accepted_snapshot_is_never_overwritten_by_later_provider_data():
+    b = booking(S.SUBMITTED)
+    accept(b, "pending")
+    b.record_provider_booking(
+        provider_booking_id="booking-1", provider_status="confirmed",
+        offer={"id": "offer-x-p2", "price": {"amount": "999.00", "currency": "USD"}},
+        price=Decimal("999.00"), failure=None, now=NOW)
+    assert b.status == S.CONFIRMED
+    assert b.accepted_offer == OFFER and b.accepted_price == Decimal("100.00")

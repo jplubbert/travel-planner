@@ -39,6 +39,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # Worker de jobs en segundo plano (reconciliación de reservas, ADR 0003). Se puede escalar:
+  # los jobs se reclaman con FOR UPDATE SKIP LOCKED y lease.
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "app.workers"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-travel}:${POSTGRES_PASSWORD:-travel}@db:5432/${POSTGRES_DB:-travel}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PROVIDER_BASE_URL: http://provider-mock:4010/v1
+      PROVIDER_TOKEN: ${PROVIDER_TOKEN:-travel-demo-token}
+      BOOKING_UNKNOWN_GRACE_SECONDS: ${BOOKING_UNKNOWN_GRACE_SECONDS:-30}
+      BOOKING_SUBMITTED_STALE_SECONDS: ${BOOKING_SUBMITTED_STALE_SECONDS:-60}
+    depends_on:
+      api:
+        condition: service_healthy  # the API container runs the migrations
+
   # Proveedor externo simulado (ADR 0002). La app solo usa /v1; /_control es para tests y demo.
   provider-mock:
     build: ./mock

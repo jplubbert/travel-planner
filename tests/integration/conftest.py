@@ -135,7 +135,7 @@ AppFactory = Callable[..., FastAPI]
 async def make_app(database_url: str, mock_provider_url: str) -> AsyncIterator[AppFactory]:
     created: list[FastAPI] = []
 
-    def factory(**overrides: object) -> FastAPI:
+    def factory(provider: Any = None, **overrides: object) -> FastAPI:
         settings = Settings(**{
             "database_url": database_url,
             "log_level": "WARNING",
@@ -144,7 +144,7 @@ async def make_app(database_url: str, mock_provider_url: str) -> AsyncIterator[A
             "provider_timeout_seconds": 3.0,
             **overrides,
         })
-        application = create_app(settings)
+        application = create_app(settings, provider=provider)
         created.append(application)
         return application
 
@@ -260,3 +260,30 @@ def migration_db(database_url: str) -> tuple[str, Callable[[str], Any]]:
         await asyncio.to_thread(command.upgrade, alembic_config(url), revision)
 
     return url, migrate
+
+
+@pytest.fixture
+async def provider_client(mock_provider_url: str) -> AsyncIterator[Any]:
+    from app.adapters.provider_http import HttpProviderClient
+
+    client = HttpProviderClient(f"{mock_provider_url}/v1", PROVIDER_TOKEN, 3.0)
+    yield client
+    await client.aclose()
+
+
+@pytest.fixture
+def make_worker(app: FastAPI, provider_client: Any) -> Callable[..., Any]:
+    """A BookingWorker on the test database and the real mock. Defaults make every
+    reconciliation step due immediately so tests can drive it with run_once()."""
+    from app.adapters.clock import SystemClock
+    from app.domain.reservations import ReconcilePolicy
+    from app.workers.booking_worker import BookingWorker
+
+    def make(name: str = "worker", provider: Any = None, **policy: float) -> BookingWorker:
+        defaults = {"unknown_grace_seconds": 0.0, "submitted_stale_seconds": 0.0,
+                    "pending_poll_seconds": 0.0, "retry_base_seconds": 0.0,
+                    "retry_max_seconds": 0.0}
+        return BookingWorker(app.state.sessions, provider or provider_client, SystemClock(),
+                             ReconcilePolicy(**{**defaults, **policy}), name=name)
+
+    return make

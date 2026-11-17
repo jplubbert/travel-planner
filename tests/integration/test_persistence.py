@@ -132,6 +132,20 @@ async def test_database_refuses_confirmed_booking_without_snapshot(uow_factory):
             ))
 
 
+async def test_python_none_is_sql_null_so_the_snapshot_constraint_holds(uow_factory):
+    """Regression: JSONB stored None as JSON null, which satisfied "IS NOT NULL"."""
+    trip = await make_trip(uow_factory)
+    async with uow_factory() as uow:
+        with pytest.raises(IntegrityError):
+            await uow.bookings.add(Booking(
+                id=uuid4(), trip_id=trip.id, itinerary_item_id=None, offer_id="o",
+                expected_revision="r", expected_price=Decimal("1.00"), client_reference="r3",
+                idempotency_key="k3", requested_by="ana", status=BookingStatus.CONFIRMED,
+                created_at=NOW, updated_at=NOW, provider_booking_id="b",
+                accepted_offer=None, accepted_price=Decimal("1.00"),
+            ))
+
+
 async def test_document_round_trip_and_complete_requires_file(uow_factory):
     trip = await make_trip(uow_factory)
     doc = Document(uuid4(), trip.id, 1, "ana", DocumentStatus.WAITING, NOW, NOW)

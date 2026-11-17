@@ -4,7 +4,9 @@ from dataclasses import asdict
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, text, update
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.sqlalchemy.models import (
@@ -18,9 +20,10 @@ from app.adapters.sqlalchemy.models import (
     UserRow,
 )
 from app.domain.access import Role, TripMember
-from app.domain.bookings import Booking, BookingStatus
+from app.domain.bookings import ACTIVE, Booking, BookingStatus
 from app.domain.changes import TripChange
 from app.domain.documents import Document, DocumentStatus
+from app.domain.errors import Conflict
 from app.domain.itinerary import ItineraryItem
 from app.domain.jobs import Job, JobStatus
 from app.domain.trips import Trip
@@ -256,7 +259,7 @@ def _booking(row: BookingRow) -> Booking:
         submitted_at=row.submitted_at, provider_booking_id=row.provider_booking_id,
         accepted_offer=row.accepted_offer, accepted_price=row.accepted_price,
         failure_code=row.failure_code, failure_message=row.failure_message,
-        last_error=row.last_error, version=row.version,
+        last_error=row.last_error, rejection_terms=row.rejection_terms, version=row.version,
     )
 
 
@@ -271,17 +274,40 @@ class SqlBookingRepository:
         self.session = session
 
     async def add(self, booking: Booking) -> None:
-        self.session.add(BookingRow(**_booking_values(booking)))
-        await self.session.flush()
+        try:
+            async with self.session.begin_nested():
+                self.session.add(BookingRow(**_booking_values(booking)))
+                await self.session.flush()
+        except IntegrityError as exc:
+            if "uq_bookings_one_active_per_item" in str(exc.orig):
+                raise Conflict("BOOKING_IN_PROGRESS",
+                               "This option already has an active booking attempt.") from None
+            raise
 
     async def get(self, booking_id: UUID) -> Booking | None:
         row = await self.session.get(BookingRow, booking_id, populate_existing=True)
         return _booking(row) if row else None
 
+    async def get_active_for_item(self, item_id: UUID) -> Booking | None:
+        row = await self.session.scalar(
+            select(BookingRow).where(
+                BookingRow.itinerary_item_id == item_id,
+                BookingRow.status.in_([s.value for s in ACTIVE]))
+            .execution_options(populate_existing=True))
+        return _booking(row) if row else None
+
+    async def list_stale_submitted(self, before: datetime) -> list[Booking]:
+        rows = await self.session.scalars(
+            select(BookingRow).where(BookingRow.status == BookingStatus.SUBMITTED.value,
+                                     BookingRow.submitted_at < before)
+            .order_by(BookingRow.submitted_at))
+        return [_booking(r) for r in rows]
+
     async def list_for_trip(self, trip_id: UUID) -> list[Booking]:
         rows = await self.session.scalars(
             select(BookingRow).where(BookingRow.trip_id == trip_id)
             .order_by(BookingRow.created_at)
+            .execution_options(populate_existing=True)
         )
         return [_booking(r) for r in rows]
 
@@ -369,6 +395,40 @@ class SqlJobRepository:
     async def get(self, job_id: UUID) -> Job | None:
         row = await self.session.get(JobRow, job_id, populate_existing=True)
         return _job(row) if row else None
+
+    async def enqueue(self, job: Job) -> bool:
+        values = asdict(job)
+        values["status"] = job.status.value
+        result = await self.session.execute(
+            insert(JobRow).values(**values)
+            .on_conflict_do_nothing(
+                index_elements=["dedupe_key"],
+                # Literal predicate: with bound parameters Postgres cannot match the
+                # partial index once asyncpg switches to a generic prepared plan.
+                index_where=text("status IN ('queued', 'running')"))
+            .returning(JobRow.id))
+        return result.scalar_one_or_none() is not None
+
+    async def claim(self, now: datetime, lease_until: datetime, limit: int) -> list[Job]:
+        due = await self.session.scalars(
+            select(JobRow)
+            .where(or_(
+                (JobRow.status == "queued") & (JobRow.run_after <= now),
+                (JobRow.status == "running") & (JobRow.locked_until < now),  # lease expired
+            ))
+            .order_by(JobRow.run_after)
+            .limit(limit)
+            .with_for_update(skip_locked=True)  # concurrent workers skip rows taken here
+            .execution_options(populate_existing=True))
+        claimed = []
+        for row in due:
+            row.status = "running"
+            row.locked_until = lease_until
+            row.attempts += 1
+            row.updated_at = now
+            claimed.append(_job(row))
+        await self.session.flush()
+        return claimed
 
     async def save(self, job: Job) -> None:
         values = asdict(job)
