@@ -31,10 +31,11 @@ docs/         ADRs y supuestos
 
 ```bash
 cp .env.example .env
-docker compose up -d db
+docker compose up -d --build   # Postgres + mock del proveedor (http://localhost:4010/v1)
+uv sync && uv run pytest       # tests
 ```
 
-Por ahora solo arranca PostgreSQL.
+Ver [`mock/README.md`](mock/README.md) para las fixtures y los escenarios de fallo.
 
 ## Plan (4 días, entrega viernes 20 nov 2026 23:59)
 
@@ -52,7 +53,7 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | Área | Estado |
 | --- | --- |
 | Andamiaje del repo, CLAUDE.md, ADR 0001, Postgres en Compose | ✅ Hecho |
-| Mock del proveedor | ⏳ Pendiente |
+| Mock del proveedor (`mock/`, ADR 0002): 5 operaciones del contrato, escenarios de fallo, reloj, persistencia; 99 tests validados contra el schema | ✅ Hecho |
 | US-01 … US-12 | ⏳ Pendiente |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |

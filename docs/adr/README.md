@@ -44,3 +44,4 @@ Positivas, negativas, riesgos y qué hay que hacer/probar a raíz de esto.
 | Nº | Título | Estado |
 | --- | --- | --- |
 | [0001](0001-concurrencia-por-version.md) | Concurrencia en edición de viajes por versión optimista | Aceptado |
+| [0002](0002-mock-proveedor-con-control.md) | Mock del proveedor con fixtures base, controles fuera del contrato y reloj controlable | Aceptado |

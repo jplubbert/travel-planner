@@ -1,0 +1,4 @@
+# Dependencias de runtime del mock (imagen Docker). Deben coincidir con pyproject.toml.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9

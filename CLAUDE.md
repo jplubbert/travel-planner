@@ -41,9 +41,12 @@ Plazo: **viernes 20 nov 2026, 23:59**.
 
 ## Comandos
 
-_Por definir cuando exista código de aplicación._ Por ahora:
-
 ```bash
 cp .env.example .env
-docker compose up -d db   # solo Postgres
+docker compose up -d --build   # Postgres + mock del proveedor en :4010
+uv sync                        # entorno Python 3.12 (.venv)
+uv run pytest                  # todos los tests (excluye los marcados llm)
+uv run ruff check .            # lint
 ```
+
+El mock se documenta en `mock/README.md`. Sus endpoints `/_control/*` solo se usan desde tests y demos; el código de `backend/` nunca debe llamarlos.

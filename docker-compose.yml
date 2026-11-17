@@ -16,5 +16,24 @@ services:
       timeout: 3s
       retries: 10
 
+  # Proveedor externo simulado (ADR 0002). La app solo usa /v1; /_control es para tests y demo.
+  provider-mock:
+    build: ./mock
+    restart: unless-stopped
+    environment:
+      MOCK_TOKENS: ${PROVIDER_TOKEN:-travel-demo-token}
+      MOCK_QUOTE_TTL_SECONDS: ${MOCK_QUOTE_TTL_SECONDS:-900}
+      MOCK_SUPPLIER_DEADLINE_SECONDS: ${MOCK_SUPPLIER_DEADLINE_SECONDS:-2}
+    ports:
+      - "${MOCK_PORT:-4010}:4010"
+    volumes:
+      - mockdata:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4010/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   pgdata:
+  mockdata:
