@@ -40,6 +40,14 @@ Registro de ambigüedades del PRD (`assignment/prd.md`), el candidate guide y el
 
 > **Supuesto:** Un escenario de supplier también afecta a los replays y a las consultas de reservas de ese supplier, no solo a la búsqueda y a las reservas nuevas. — **Afecta a:** reconciliación (US-08) — **Motivo:** así se puede demostrar que una reconciliación que falla deja el estado como desconocido en lugar de inventarlo.
 
+> **Supuesto:** La búsqueda de la aplicación siempre usa el número de viajeros del viaje; no se puede cambiar en la petición. Las fechas de búsqueda, por defecto las del viaje, deben caer dentro de ellas. El destino es libre, para poder buscar también la vuelta a casa, por ejemplo con destino London. — **Afecta a:** US-03 — **Motivo:** las ofertas deben encajar con el grupo y el viaje.
+
+> **Supuesto:** Una búsqueda fallida responde con el mismo cuerpo que las demás (`outcome: "failed"`), con `error` y los suppliers fallidos, y con un código HTTP de error: `504` por timeout, `502` si la respuesta del proveedor es inválida o el transporte falla, y `503` en el resto de casos (no disponible, límite de tasa con `Retry-After`, sin conexión o credenciales rechazadas). — **Afecta a:** US-03.
+
+> **Supuesto:** Si una búsqueda termina parcial y sin ofertas (unos suppliers fallan y los que responden no encuentran nada), se clasifica como `partial`, no como `empty`, porque no se sabe si los suppliers caídos tenían opciones. — **Afecta a:** US-03.
+
+> **Supuesto:** Los resultados de búsqueda no se cachean todavía; cada búsqueda consulta al proveedor. `quoteExpired` se calcula con el reloj de la aplicación frente al `validUntil` del proveedor. — **Afecta a:** US-03 — **Impacto:** más llamadas al proveedor; la reutilización de resultados se valorará con US-04/US-07.
+
 ## Costes y redondeo (US-05)
 
 > **Supuesto:** Los precios del mock se calculan como `base + por_viajero × viajeros` con `Decimal`, redondeando *half-up* a centavos. La app nunca recalcula un precio del proveedor; solo suma importes ya redondeados. — **Afecta a:** US-05.

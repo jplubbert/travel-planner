@@ -58,7 +58,8 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | ADR 0003: estados de reserva y reconciliación (máquina de estados en el dominio, con tests) | ✅ Hecho |
 | US-01: crear viaje y volver a él (persistencia tras reinicio, validación accionable, edición con versión) | ✅ Hecho, con tests contra Postgres |
 | US-02: compartir con roles | 🟡 Parcial: las peticiones HTTP directas están cubiertas y probadas (404 para no participantes, 403 por rol). Faltan los criterios sobre documentos, suscripciones de estado y herramientas del asistente, que se probarán al construir esas piezas |
-| US-03 … US-12 | ⏳ Pendiente |
+| US-03: buscar y comparar (completa / parcial / vacía / fallida, frescura, estimaciones, timeout, permisos) | ✅ Hecho, con tests contra el mock real por HTTP |
+| US-04 … US-12 | ⏳ Pendiente |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |
 | Despliegue propuesto, demo, nota de uso de IA | ⏳ Pendiente |

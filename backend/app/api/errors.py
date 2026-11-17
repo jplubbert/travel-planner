@@ -17,6 +17,12 @@ from app.domain.errors import (
     VersionConflict,
     VersionRequired,
 )
+from app.domain.provider import (
+    ProviderConflict,
+    ProviderError,
+    ProviderNotFound,
+    ProviderTimeout,
+)
 
 
 class Unauthenticated(Exception):
@@ -66,6 +72,12 @@ def install_error_handlers(app: FastAPI, trip_serializer: Any) -> None:
         if isinstance(exc, VersionConflict):
             return error_response(request, 409, exc.code, exc.message,
                                   {"current": trip_serializer(exc.current)})
+        if isinstance(exc, ProviderError):
+            status = 504 if isinstance(exc, ProviderTimeout) else (
+                409 if isinstance(exc, ProviderConflict) else
+                404 if isinstance(exc, ProviderNotFound) else 503)
+            return error_response(request, status, exc.code, exc.message,
+                                  {"providerRequestId": exc.provider_request_id})
         status = {
             NotFound: 404, Forbidden: 403, Conflict: 409, VersionRequired: 400,
             InvalidTransition: 409,

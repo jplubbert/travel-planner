@@ -10,6 +10,7 @@ from app.api.errors import Unauthenticated
 from app.domain.access import Role, TripAccess, load_access, parse_trip_id
 from app.domain.users import User
 from app.ports.clock import Clock
+from app.ports.provider import ProviderClient
 
 
 async def get_uow(request: Request) -> AsyncIterator[SqlUnitOfWork]:
@@ -22,8 +23,14 @@ def get_clock(request: Request) -> Clock:
     return clock
 
 
+def get_provider(request: Request) -> ProviderClient:
+    provider: ProviderClient = request.app.state.provider
+    return provider
+
+
 UoW = Annotated[SqlUnitOfWork, Depends(get_uow)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
+Provider = Annotated[ProviderClient, Depends(get_provider)]
 
 
 async def current_user(

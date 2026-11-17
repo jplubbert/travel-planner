@@ -59,6 +59,12 @@ Reglas:
 5. **`pending` se consulta** con `GET /bookings/{id}` hasta que llegue a `confirmed` o `failed`. Si la consulta falla, la reserva sigue en `pending` (el proveedor ya la aceptó); nunca se degrada a `unknown`.
 6. **Los datos aceptados son inmutables.** Cuando se adopta una reserva del proveedor se guardan su `id`, la oferta aceptada y el precio, y no se vuelven a sobrescribir con datos posteriores del proveedor (US-05: los precios confirmados siguen siendo comprensibles aunque cambien los del proveedor).
 7. **Cada transición queda registrada** con `updated_at` y `last_error` (código o mensaje y `requestId` del proveedor, si existe) para poder diagnosticarla.
+8. **Al volver a `draft` por `429`/`503` se registra `last_error`** con el código, el mensaje y el `requestId` del proveedor (`Booking.record_not_accepted`). *Pendiente para US-08:* mostrárselo al usuario junto al borrador, para que sepa por qué no se envió y cuándo reintentar (por ejemplo, con `Retry-After`).
+
+**Correspondencia con el adaptador (añadido al implementar US-03).** `ProviderError.delivery_uncertain` decide entre `unknown` y "no aceptado":
+
+- `True` (`ProviderTimeout`, `ProviderTransportError`, `ProviderProtocolError`): pasa a `unknown`.
+- `False`: `ProviderUnreachable` (no hubo conexión), `ProviderRateLimited` y `ProviderUnavailable` (con cuerpo `Error` del contrato) vuelven a `draft`. `ProviderBadRequest`, `ProviderNotFound`, `OfferChanged` y `OfferUnavailable` pasan a `rejected`.
 
 ## Opciones descartadas
 

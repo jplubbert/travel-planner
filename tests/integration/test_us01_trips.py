@@ -4,9 +4,6 @@ import asyncio
 
 import pytest
 
-from app.api.app import create_app
-from app.config import Settings
-
 
 async def create(client, payload):
     r = await client.post("/trips", json=payload)
@@ -52,16 +49,13 @@ async def test_organizer_finds_saved_trip_in_another_session(api, trip_payload):
     assert r.status_code == 200 and r.json() == created
 
 
-async def test_trips_survive_application_restart(api, database_url, trip_payload):
+async def test_trips_survive_application_restart(api, make_app, trip_payload):
     created = await create(api.as_("ana"), trip_payload)
-    await api.app.state.engine.dispose()  # the first instance shuts down
+    await api.app.state.shutdown()  # the first instance shuts down
 
-    restarted = create_app(Settings(database_url=database_url, log_level="WARNING"))
-    try:
-        r = await api.as_("ana", app=restarted).get(f"/trips/{created['id']}")
-        assert r.status_code == 200 and r.json() == created
-    finally:
-        await restarted.state.engine.dispose()
+    restarted = make_app()
+    r = await api.as_("ana", app=restarted).get(f"/trips/{created['id']}")
+    assert r.status_code == 200 and r.json() == created
 
 
 # --- Invalid input gives actionable feedback and saves nothing ----------------------

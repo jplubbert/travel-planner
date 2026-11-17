@@ -7,7 +7,11 @@ tables; seeded users remain.
 
 import asyncio
 import os
-from collections.abc import AsyncIterator
+import socket
+import subprocess
+import sys
+import time
+from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 
 import asyncpg
@@ -24,7 +28,11 @@ from sqlalchemy.pool import NullPool
 from app.api.app import create_app
 from app.config import Settings
 
-BACKEND = Path(__file__).resolve().parents[2] / "backend"
+ROOT = Path(__file__).resolve().parents[2]
+BACKEND = ROOT / "backend"
+PROVIDER_TOKEN = "travel-demo-token"
+# The mock waits this long for a supplier in "timeout" mode before reporting it failed.
+MOCK_SUPPLIER_DEADLINE = 1.0
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://travel:travel@localhost:5432/travel_test"
 )
@@ -75,11 +83,78 @@ async def clean_tables(database_url: str) -> None:
     await engine.dispose()
 
 
+@pytest.fixture(scope="session")
+def mock_provider_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
+    """The provider mock as a real HTTP server (separate process), like in production."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(ROOT / "mock"),
+        "MOCK_TOKENS": PROVIDER_TOKEN,
+        "MOCK_STATE_FILE": str(tmp_path_factory.mktemp("mock") / "state.json"),
+        "MOCK_SUPPLIER_DEADLINE_SECONDS": str(MOCK_SUPPLIER_DEADLINE),
+    }
+    process = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "provider_mock.app:create_app", "--factory",
+         "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
+        env=env,
+    )
+    url = f"http://127.0.0.1:{port}"
+    deadline = time.monotonic() + 15
+    while True:
+        try:
+            if httpx.get(f"{url}/healthz", timeout=0.5).status_code == 200:
+                break
+        except httpx.TransportError:
+            pass
+        if process.poll() is not None or time.monotonic() > deadline:
+            process.kill()
+            pytest.fail("provider mock did not start", pytrace=False)
+        time.sleep(0.1)
+    yield url
+    process.terminate()
+    process.wait(timeout=10)
+
+
 @pytest.fixture
-async def app(database_url: str) -> AsyncIterator[FastAPI]:
-    application = create_app(Settings(database_url=database_url, log_level="WARNING"))
-    yield application
-    await application.state.engine.dispose()
+async def mock_control(mock_provider_url: str) -> AsyncIterator[httpx.AsyncClient]:
+    """Client for the mock's /_control endpoints. Only tests use it, never the app.
+    The mock is reset before each test that requests it."""
+    async with httpx.AsyncClient(base_url=f"{mock_provider_url}/_control") as client:
+        (await client.post("/reset")).raise_for_status()
+        yield client
+
+
+AppFactory = Callable[..., FastAPI]
+
+
+@pytest.fixture
+async def make_app(database_url: str, mock_provider_url: str) -> AsyncIterator[AppFactory]:
+    created: list[FastAPI] = []
+
+    def factory(**overrides: object) -> FastAPI:
+        settings = Settings(**{
+            "database_url": database_url,
+            "log_level": "WARNING",
+            "provider_base_url": f"{mock_provider_url}/v1",
+            "provider_token": PROVIDER_TOKEN,
+            "provider_timeout_seconds": 3.0,
+            **overrides,
+        })
+        application = create_app(settings)
+        created.append(application)
+        return application
+
+    yield factory
+    for application in created:
+        await application.state.shutdown()
+
+
+@pytest.fixture
+def app(make_app: AppFactory) -> FastAPI:
+    return make_app()
 
 
 class Api:
