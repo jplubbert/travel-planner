@@ -75,6 +75,8 @@ Se acepta la granularidad gruesa (versión por viaje) por simplicidad; si los fa
 - El frontend debe manejar el 409 (mostrar estado actual, permitir reaplicar).
 - Todas las rutas de escritura deben pasar por el mismo mecanismo; una ruta que lo salte rompería la garantía.
 
+**Nota de implementación (2026-11-17, US-04/US-06).** Todas las mutaciones del viaje y del itinerario comparten esta versión, y cada versión aceptada deja una entrada en `trip_changes`, que el `409` devuelve en `changesSinceYourVersion` junto al estado actual. La comprobación de versión lee el viaje con `SELECT … FOR UPDATE`. Bajo READ COMMITTED, sin ese bloqueo, una lectura de validación posterior podía ver un commit más nuevo que la versión comprobada y responder `422` en vez de `409`. Lo destapó un test de concurrencia intermitente, y ahora lo reproduce de forma determinista `test_validation_reads_the_same_version_it_checked`. Las operaciones que llaman al proveedor sueltan el bloqueo antes de la llamada de red; el compare-and-set final sigue garantizando que nada se pisa.
+
 **Verificación (tests requeridos)**
 
 - Dos actualizaciones concurrentes con la misma versión base: exactamente una tiene éxito, la otra recibe 409, y el cambio guardado sigue presente.

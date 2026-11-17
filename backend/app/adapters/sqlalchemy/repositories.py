@@ -1,6 +1,7 @@
 """SQLAlchemy implementations of the persistence ports, with explicit row <-> domain mapping."""
 
 from dataclasses import asdict
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -11,12 +12,14 @@ from app.adapters.sqlalchemy.models import (
     DocumentRow,
     ItineraryItemRow,
     JobRow,
+    TripChangeRow,
     TripMemberRow,
     TripRow,
     UserRow,
 )
 from app.domain.access import Role, TripMember
 from app.domain.bookings import Booking, BookingStatus
+from app.domain.changes import TripChange
 from app.domain.documents import Document, DocumentStatus
 from app.domain.itinerary import ItineraryItem
 from app.domain.jobs import Job, JobStatus
@@ -71,6 +74,13 @@ class SqlTripRepository:
         )
         return _trip(row) if row else None
 
+    async def get_for_update(self, trip_id: UUID) -> Trip | None:
+        row = await self.session.scalar(
+            select(TripRow).where(TripRow.id == trip_id).with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return _trip(row) if row else None
+
     async def list_for_user(self, user_id: str) -> list[tuple[Trip, Role]]:
         rows = await self.session.execute(
             select(TripRow, TripMemberRow.role)
@@ -91,6 +101,34 @@ class SqlTripRepository:
             .returning(TripRow.version)
         )
         return result.scalar_one_or_none() is not None
+
+    async def bump_version(self, trip_id: UUID, *, expected_version: int,
+                           now: datetime) -> bool:
+        result = await self.session.execute(
+            update(TripRow)
+            .where(TripRow.id == trip_id, TripRow.version == expected_version)
+            .values(version=TripRow.version + 1, updated_at=now)
+            .returning(TripRow.version)
+        )
+        return result.scalar_one_or_none() is not None
+
+
+class SqlTripChangeRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, change: TripChange) -> None:
+        self.session.add(TripChangeRow(**asdict(change)))
+        await self.session.flush()
+
+    async def list_since(self, trip_id: UUID, after_version: int) -> list[TripChange]:
+        rows = await self.session.scalars(
+            select(TripChangeRow)
+            .where(TripChangeRow.trip_id == trip_id, TripChangeRow.version > after_version)
+            .order_by(TripChangeRow.version)
+        )
+        return [TripChange(r.trip_id, r.version, r.actor_id, r.kind, r.summary, r.at)
+                for r in rows]
 
 
 def _member(row: TripMemberRow) -> TripMember:
@@ -142,14 +180,27 @@ class SqlMemberRepository:
 
 
 def _item(row: ItineraryItemRow) -> ItineraryItem:
+    snapshot = row.offer_snapshot
     return ItineraryItem(
         id=row.id, trip_id=row.trip_id, position=row.position, offer_id=row.offer_id,
         provider_id=row.provider_id, category=row.category,  # type: ignore[arg-type]
-        title=row.title, destination=row.destination, origin=row.origin,
-        starts_at=row.starts_at, ends_at=row.ends_at, travelers=row.travelers, price=row.price,
-        offer_revision=row.offer_revision, valid_until=row.valid_until, quoted_at=row.quoted_at,
-        added_by=row.added_by, created_at=row.created_at, restrictions=tuple(row.restrictions),
+        title=row.title, description=row.description, destination=row.destination,
+        origin=row.origin,
+        # timestamptz keeps the instant but not the provider's local offset; the snapshot
+        # keeps both, and local dates (trip-window checks) depend on the offset.
+        starts_at=datetime.fromisoformat(snapshot["startsAt"]),
+        ends_at=datetime.fromisoformat(snapshot["endsAt"]),
+        travelers=row.travelers, price=row.price, offer_revision=row.offer_revision,
+        available=row.available, valid_until=row.valid_until, quoted_at=row.quoted_at,
+        added_by=row.added_by, created_at=row.created_at, offer_snapshot=snapshot,
+        restrictions=tuple(row.restrictions),
     )
+
+
+def _item_values(item: ItineraryItem) -> dict[str, object]:
+    values = asdict(item)
+    values["restrictions"] = list(item.restrictions)
+    return values
 
 
 class SqlItineraryRepository:
@@ -157,13 +208,29 @@ class SqlItineraryRepository:
         self.session = session
 
     async def add(self, item: ItineraryItem) -> None:
-        values = asdict(item)
-        values["restrictions"] = list(item.restrictions)
-        self.session.add(ItineraryItemRow(**values))
+        self.session.add(ItineraryItemRow(**_item_values(item)))
         await self.session.flush()
 
+    async def save(self, item: ItineraryItem) -> None:
+        values = _item_values(item)
+        for key in ("id", "trip_id", "created_at", "added_by"):
+            values.pop(key)
+        await self.session.execute(
+            update(ItineraryItemRow).where(ItineraryItemRow.id == item.id).values(**values))
+
+    async def remove(self, item_id: UUID) -> None:
+        await self.session.execute(delete(ItineraryItemRow).where(ItineraryItemRow.id == item_id))
+
+    async def set_positions(self, positions: dict[UUID, int]) -> None:
+        for item_id, position in positions.items():
+            await self.session.execute(
+                update(ItineraryItemRow).where(ItineraryItemRow.id == item_id)
+                .values(position=position))
+
     async def get(self, item_id: UUID) -> ItineraryItem | None:
-        row = await self.session.get(ItineraryItemRow, item_id, populate_existing=True)
+        row = await self.session.scalar(
+            select(ItineraryItemRow).where(ItineraryItemRow.id == item_id)
+            .execution_options(populate_existing=True))
         return _item(row) if row else None
 
     async def list_for_trip(self, trip_id: UUID) -> list[ItineraryItem]:
@@ -171,6 +238,7 @@ class SqlItineraryRepository:
             select(ItineraryItemRow)
             .where(ItineraryItemRow.trip_id == trip_id)
             .order_by(ItineraryItemRow.position, ItineraryItemRow.created_at)
+            .execution_options(populate_existing=True)
         )
         return [_item(r) for r in rows]
 

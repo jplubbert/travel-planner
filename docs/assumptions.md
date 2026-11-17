@@ -28,6 +28,25 @@ Registro de ambigüedades del PRD (`assignment/prd.md`), el candidate guide y el
 
 > **Supuesto:** Los errores de entrada devuelven `422 VALIDATION_ERROR` con `details.fields[]` (campo y mensaje) y se informan todos a la vez. Una edición sin `version` devuelve `400 VERSION_REQUIRED` (ADR 0001); la versión se envía en el cuerpo (`"version": n`) y `GET` también la expone en `ETag`. — **Afecta a:** US-01, US-06.
 
+### Reglas simplificadas del itinerario (US-04)
+
+La API devuelve estas reglas en `rules` en cada lectura del itinerario (fuente: `RULES` en `backend/app/domain/itinerary.py`):
+
+1. Los horarios se comparan como instantes absolutos, usando el offset UTC de cada oferta.
+2. Dos ítems de transporte o actividad entran en conflicto si sus intervalos se solapan. Que uno termine justo cuando empieza el siguiente no es conflicto.
+3. El alojamiento solo entra en conflicto con otro alojamiento (un sitio por noche). Las actividades y el transporte durante una estancia son lo esperado.
+4. No se consideran tiempos de traslado, conexiones, ventanas de check-in ni horarios de apertura.
+5. Un ítem cae fuera del viaje si su fecha local de inicio es anterior al primer día del viaje o su fecha local de fin es posterior al último.
+6. Cada noche, desde el primer día hasta la víspera del último, debería tener alojamiento. Las noches sin cubrir y los destinos sin alojamiento se informan en `missing`.
+7. Un precio se marca como expirado cuando pasa el `validUntil` de su cotización; hay que actualizar el ítem para obtener los términos vigentes. Los ítems con reserva confirmada conservan el precio aceptado.
+8. La disponibilidad y el precio reflejan la última cotización (`quotedAt`) y pueden haber cambiado desde entonces.
+
+> **Supuesto:** No se puede añadir una oferta no disponible (`409 OFFER_UNAVAILABLE`), ni una cotizada para otro número de viajeros (`422`), ni la misma oferta dos veces en un viaje (`409`). Una oferta puede quedar no disponible o fuera de fechas **después** de añadirla, y entonces se marca en lugar de eliminarse. — **Afecta a:** US-04.
+
+> **Supuesto:** No se puede quitar un ítem con una reserva activa (`submitted`, `unknown`, `pending` o `confirmed`): devuelve `409 ITEM_HAS_BOOKING`, porque la cancelación está fuera de alcance y quitarlo ocultaría un gasto real. Sí se puede quitar si sus reservas son `draft`, `failed` o `rejected`; esas reservas se conservan con `itinerary_item_id = NULL`. — **Afecta a:** US-04, US-05, US-08.
+
+> **Supuesto:** Toda mutación del itinerario (añadir, quitar, reordenar, actualizar cotización) y la edición del viaje comparten **una sola versión por viaje** (ADR 0001). `DELETE` recibe la versión como parámetro `?version=`; el resto, en el cuerpo. Cada versión aceptada deja una entrada en `trip_changes` (quién, cuándo, qué), que es lo que el `409` lista en `changesSinceYourVersion`. — **Afecta a:** US-06.
+
 ## Búsqueda y proveedor (US-03, contrato OpenAPI)
 
 > **Supuesto:** "Las opciones encajan con el grupo" significa que cada oferta se cotiza para el tamaño exacto del grupo pedido. El mock materializa cada fixture por número de viajeros (`offer-<fixture>-p<n>`) y excluye las que superan su capacidad. — **Afecta a:** contrato `searchOffers`, US-03, US-05 — **Motivo:** el contrato dice que el precio cubre a todo el grupo y que las opciones deben encajar en él. — **Impacto si es incorrecto:** bajo; solo cambia cómo se generan los IDs en el mock.
@@ -49,6 +68,10 @@ Registro de ambigüedades del PRD (`assignment/prd.md`), el candidate guide y el
 > **Supuesto:** Los resultados de búsqueda no se cachean todavía; cada búsqueda consulta al proveedor. `quoteExpired` se calcula con el reloj de la aplicación frente al `validUntil` del proveedor. — **Afecta a:** US-03 — **Impacto:** más llamadas al proveedor; la reutilización de resultados se valorará con US-04/US-07.
 
 ## Costes y redondeo (US-05)
+
+> **Reglas de redondeo** (también se devuelven en `rounding` en `GET /trips/{id}/costs`): los precios del proveedor y los aceptados ya son centavos exactos, y se suman con `Decimal`, sin coma flotante y sin redondeos intermedios. Cada importe devuelto se normaliza a 2 decimales con *half-up*, lo que no cambia nada si ya son centavos. `usedPercent = total / presupuesto × 100` se redondea *half-up* a 1 decimal, y se omite si el presupuesto es 0. Hay tests en `tests/unit/test_costs.py` (0.10 + 0.20 + 0.30 = 0.60 exacto; 6.25 % → 6.3 %).
+
+> **Supuesto:** El coste de un ítem es `confirmed` solo si tiene una reserva `confirmed`; entonces se usa su `accepted_price`. Con una reserva `pending`, `unknown` o `submitted` sigue siendo `estimate`, con una nota del estado. Con `failed` o `rejected` vuelve a ser la estimación de la cotización. El total suma estimaciones y confirmados, que se muestran también por separado. — **Afecta a:** US-05.
 
 > **Supuesto:** Los precios del mock se calculan como `base + por_viajero × viajeros` con `Decimal`, redondeando *half-up* a centavos. La app nunca recalcula un precio del proveedor; solo suma importes ya redondeados. — **Afecta a:** US-05.
 

@@ -46,3 +46,4 @@ Positivas, negativas, riesgos y qué hay que hacer/probar a raíz de esto.
 | [0001](0001-concurrencia-por-version.md) | Concurrencia en edición de viajes por versión optimista | Aceptado |
 | [0002](0002-mock-proveedor-con-control.md) | Mock del proveedor con fixtures base, controles fuera del contrato y reloj controlable | Aceptado |
 | [0003](0003-estados-de-reserva-y-reconciliacion.md) | Estados locales de reserva y reconciliación | Aceptado |
+| [0004](0004-copia-de-oferta-y-frescura.md) | Copia de la oferta en el ítem y política de frescura | Aceptado |

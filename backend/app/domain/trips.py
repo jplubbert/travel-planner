@@ -7,13 +7,12 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from app.domain.access import ASSIGNABLE_ROLES, Role, TripAccess, TripMember
+from app.domain.changes import TripChange
 from app.domain.errors import (
     Conflict,
     FieldError,
     NotFound,
     ValidationFailed,
-    VersionConflict,
-    VersionRequired,
     trip_not_found,
 )
 from app.domain.money import parse_usd
@@ -59,7 +58,9 @@ class TripFields:
         return {k: v for k, v in self.__dict__.items() if v is not None}
 
 
-def _validate(fields: dict[str, Any], *, today: date, dates_changed: bool) -> list[FieldError]:
+def validate_trip_values(
+    fields: dict[str, Any], *, today: date, dates_changed: bool
+) -> list[FieldError]:
     """Validates a complete set of trip values; collects every problem at once."""
     errors: list[FieldError] = []
 
@@ -117,7 +118,7 @@ def _validate(fields: dict[str, Any], *, today: date, dates_changed: bool) -> li
     return errors
 
 
-def _normalize(fields: dict[str, Any]) -> dict[str, Any]:
+def normalize_trip_values(fields: dict[str, Any]) -> dict[str, Any]:
     return {
         **fields,
         "name": fields["name"].strip(),
@@ -132,16 +133,18 @@ async def create_trip(
     uow: "UnitOfWork", clock: "Clock", actor_id: str, data: TripFields
 ) -> tuple[Trip, Role]:
     values = {k: getattr(data, k) for k in TripFields.__dataclass_fields__}
-    errors = _validate(values, today=clock.today(), dates_changed=True)
+    errors = validate_trip_values(values, today=clock.today(), dates_changed=True)
     if errors:
         raise ValidationFailed(errors)
-    values = _normalize(values)
+    values = normalize_trip_values(values)
     now = clock.now()
     trip = Trip(id=uuid4(), version=1, created_by=actor_id, created_at=now, updated_at=now,
                 **values)
     # Trip and organizer membership are written in one transaction: never one without the other.
     await uow.trips.add(trip)
     await uow.members.add(TripMember(trip.id, actor_id, Role.ORGANIZER, now))
+    await uow.changes.add(TripChange(trip.id, 1, actor_id, "trip_created",
+                                     f"Created trip '{trip.name}'", now))
     await uow.commit()
     return trip, Role.ORGANIZER
 
@@ -156,33 +159,6 @@ async def get_trip(uow: "UnitOfWork", access: TripAccess) -> Trip:
     if trip is None:
         raise trip_not_found()
     return trip
-
-
-async def update_trip(
-    uow: "UnitOfWork", clock: "Clock", access: TripAccess, expected_version: int | None,
-    changes: TripFields,
-) -> Trip:
-    """ADR 0001: authorization first, then validation, then an atomic version check."""
-    access.require(Role.EDITOR)
-    if expected_version is None:
-        raise VersionRequired()
-    current = await get_trip(uow, access)
-    provided = changes.provided()
-    values = {k: getattr(current, k) for k in TripFields.__dataclass_fields__} | provided
-    dates_changed = any(
-        k in provided and provided[k] != getattr(current, k) for k in ("starts_on", "ends_on")
-    )
-    errors = _validate(values, today=clock.today(), dates_changed=dates_changed)
-    if errors:
-        raise ValidationFailed(errors)
-    updated = replace(current, **_normalize(values), version=expected_version + 1,
-                      updated_at=clock.now())
-    if not await uow.trips.update(updated, expected_version=expected_version):
-        await uow.rollback()
-        latest = await get_trip(uow, access)
-        raise VersionConflict(latest)
-    await uow.commit()
-    return updated
 
 
 # --- Participants (US-02) ----------------------------------------------------

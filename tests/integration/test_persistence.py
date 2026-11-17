@@ -1,12 +1,13 @@
 """Schema/migration consistency and repository round-trips against PostgreSQL."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
@@ -21,6 +22,8 @@ from app.domain.jobs import Job, JobStatus
 from app.domain.trips import Trip
 
 NOW = datetime(2030, 6, 1, 12, tzinfo=UTC)
+# Provider-local time: the +01:00 offset must survive a round trip (local dates matter).
+STARTS = datetime(2030, 6, 11, 10, tzinfo=timezone(timedelta(hours=1)))
 
 
 @pytest.fixture
@@ -74,16 +77,20 @@ async def test_itinerary_item_round_trip(uow_factory):
     trip = await make_trip(uow_factory)
     item = ItineraryItem(
         id=uuid4(), trip_id=trip.id, position=0, offer_id="offer-lis-tram-tour-p2",
-        provider_id="supplier-a", category="activity", title="Tram", destination="Lisbon",
-        origin=None, starts_at=NOW, ends_at=NOW + timedelta(hours=2), travelers=2,
-        price=Decimal("56.00"), offer_revision="r1", valid_until=NOW, quoted_at=NOW,
-        added_by="ana", created_at=NOW, restrictions=("Comfortable shoes",),
+        provider_id="supplier-a", category="activity", title="Tram", description="Tour",
+        destination="Lisbon", origin=None, starts_at=STARTS, ends_at=STARTS + timedelta(hours=2),
+        travelers=2, price=Decimal("56.00"), offer_revision="r1", available=True,
+        valid_until=NOW, quoted_at=NOW, added_by="ana", created_at=NOW,
+        offer_snapshot={"startsAt": STARTS.isoformat(),
+                        "endsAt": (STARTS + timedelta(hours=2)).isoformat()},
+        restrictions=("Comfortable shoes",),
     )
     async with uow_factory() as uow:
         await uow.itinerary.add(item)
         await uow.commit()
     async with uow_factory() as uow:
-        assert await uow.itinerary.get(item.id) == item
+        stored = await uow.itinerary.get(item.id)
+        assert stored == item and stored.starts_at.utcoffset() == timedelta(hours=1)
         assert await uow.itinerary.list_for_trip(trip.id) == [item]
 
 
@@ -154,3 +161,38 @@ async def test_job_round_trip(uow_factory):
         await uow.commit()
     async with uow_factory() as uow:
         assert (await uow.jobs.get(job.id)).status == JobStatus.RUNNING
+
+
+
+async def test_migration_0003_backfills_existing_itinerary_rows(migration_db):
+    """Changing the data structure keeps existing data: rows created before 0003 get a
+    snapshot, availability and a starting change-history entry."""
+    url, migrate = migration_db
+    await migrate("0002")
+    engine = create_async_engine(url, poolclass=NullPool)
+    trip_id, item_id = uuid4(), uuid4()
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "INSERT INTO trips VALUES (:id, 'Old trip', ARRAY['Lisbon'], '2030-06-10', "
+            "'2030-06-14', 2, 1000, 'USD', 4, 'ana', now(), now())"), {"id": trip_id})
+        await conn.execute(text(
+            "INSERT INTO itinerary_items (id, trip_id, position, offer_id, provider_id, "
+            "category, title, destination, origin, starts_at, ends_at, travelers, price, "
+            "offer_revision, valid_until, quoted_at, restrictions, added_by, created_at) "
+            "VALUES (:id, :trip, 0, 'offer-old-p2', 'supplier-a', 'activity', 'Old tour', "
+            "'Lisbon', NULL, '2030-06-11T10:00:00+01:00', '2030-06-11T12:00:00+01:00', 2, "
+            "56.5, 'r1', '2030-06-01T12:15:00Z', now(), '[\"x\"]', 'ana', now())"),
+            {"id": item_id, "trip": trip_id})
+    await migrate("head")
+
+    sessions = session_factory(engine)
+    async with SqlUnitOfWork(sessions) as uow:
+        item = await uow.itinerary.get(item_id)
+        assert item.available is True and item.description == "Old tour"
+        assert item.offer_snapshot["price"] == {"amount": "56.50", "currency": "USD"}
+        assert item.offer_snapshot["startsAt"] == "2030-06-11T09:00:00+00:00"  # same instant
+        assert item.starts_at == datetime(2030, 6, 11, 9, tzinfo=UTC)
+        assert item.restrictions == ("x",) and "origin" not in item.offer_snapshot
+        [change] = await uow.changes.list_since(trip_id, 0)
+        assert (change.version, change.kind) == (4, "history_start")
+    await engine.dispose()

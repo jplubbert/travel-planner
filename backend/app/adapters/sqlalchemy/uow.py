@@ -13,6 +13,7 @@ from app.adapters.sqlalchemy.repositories import (
     SqlItineraryRepository,
     SqlJobRepository,
     SqlMemberRepository,
+    SqlTripChangeRepository,
     SqlTripRepository,
     SqlUserRepository,
 )
@@ -22,6 +23,7 @@ from app.ports.repositories import (
     ItineraryRepository,
     JobRepository,
     MemberRepository,
+    TripChangeRepository,
     TripRepository,
     UserRepository,
 )
@@ -44,6 +46,7 @@ class SqlUnitOfWork:
         self.users: UserRepository = SqlUserRepository(self.session)
         self.trips: TripRepository = SqlTripRepository(self.session)
         self.members: MemberRepository = SqlMemberRepository(self.session)
+        self.changes: TripChangeRepository = SqlTripChangeRepository(self.session)
         self.itinerary: ItineraryRepository = SqlItineraryRepository(self.session)
         self.bookings: BookingRepository = SqlBookingRepository(self.session)
         self.documents: DocumentRepository = SqlDocumentRepository(self.session)

@@ -41,16 +41,21 @@ class Conflict(DomainError):
 
 
 class VersionConflict(DomainError):
-    """ADR 0001: the write was based on a stale version; ``current`` is what is saved."""
+    """ADR 0001: the write was based on a stale version. Carries what is saved now
+    (trip and itinerary view) and the changes accepted since the caller's version."""
 
     code = "TRIP_VERSION_CONFLICT"
 
-    def __init__(self, current: Any) -> None:
+    def __init__(self, current: Any, your_version: int, changes: Any, itinerary: Any) -> None:
         super().__init__(
-            "The trip was changed by someone else since you loaded it. "
-            "Review the current version and reapply your change."
+            f"The trip changed since version {your_version}, which your change was based "
+            "on. Nothing was saved. Review the current state and the changes listed, then "
+            "reapply your change with the current version."
         )
         self.current = current
+        self.your_version = your_version
+        self.changes = changes
+        self.itinerary = itinerary
 
 
 class VersionRequired(DomainError):

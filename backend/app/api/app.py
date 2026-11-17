@@ -10,8 +10,7 @@ from app.adapters.clock import SystemClock
 from app.adapters.provider_http import HttpProviderClient
 from app.adapters.sqlalchemy.uow import make_engine, session_factory
 from app.api.errors import error_response, install_error_handlers
-from app.api.routes import search, trips
-from app.api.schemas import trip_out
+from app.api.routes import itinerary, search, trips
 from app.config import Settings
 from app.observability import request_id_var
 from app.ports.clock import Clock
@@ -69,9 +68,10 @@ def create_app(
                     request.headers.get("X-User-Id", "-"))
         return response
 
-    install_error_handlers(app, lambda trip: trip_out(trip).model_dump(mode="json"))
+    install_error_handlers(app, itinerary.conflict_details)
     app.include_router(trips.router)
     app.include_router(search.router)
+    app.include_router(itinerary.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

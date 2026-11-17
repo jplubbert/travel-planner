@@ -1,10 +1,12 @@
 """Persistence ports. The domain depends on these protocols, never on SQLAlchemy."""
 
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from app.domain.access import Role, TripMember
 from app.domain.bookings import Booking
+from app.domain.changes import TripChange
 from app.domain.documents import Document
 from app.domain.itinerary import ItineraryItem
 from app.domain.jobs import Job
@@ -20,11 +22,31 @@ class UserRepository(Protocol):
 class TripRepository(Protocol):
     async def add(self, trip: Trip) -> None: ...
     async def get(self, trip_id: UUID) -> Trip | None: ...
+
+    async def get_for_update(self, trip_id: UUID) -> Trip | None:
+        """Reads the trip and locks its row until the transaction ends, so every later read
+        in the transaction describes this same version."""
+        ...
+
     async def list_for_user(self, user_id: str) -> list[tuple[Trip, Role]]: ...
 
     async def update(self, trip: Trip, *, expected_version: int) -> bool:
         """Writes ``trip`` only if the stored version is still ``expected_version``
         (atomic compare-and-set). Returns False on a version conflict."""
+        ...
+
+    async def bump_version(self, trip_id: UUID, *, expected_version: int,
+                           now: datetime) -> bool:
+        """Compare-and-set ``version`` to ``expected_version + 1``; locks the trip row until
+        the transaction ends. Returns False if the version is no longer expected."""
+        ...
+
+
+class TripChangeRepository(Protocol):
+    async def add(self, change: TripChange) -> None: ...
+
+    async def list_since(self, trip_id: UUID, after_version: int) -> list[TripChange]:
+        """Changes that produced versions greater than ``after_version``, oldest first."""
         ...
 
 
@@ -40,6 +62,9 @@ class ItineraryRepository(Protocol):
     async def add(self, item: ItineraryItem) -> None: ...
     async def get(self, item_id: UUID) -> ItineraryItem | None: ...
     async def list_for_trip(self, trip_id: UUID) -> list[ItineraryItem]: ...
+    async def save(self, item: ItineraryItem) -> None: ...
+    async def remove(self, item_id: UUID) -> None: ...
+    async def set_positions(self, positions: dict[UUID, int]) -> None: ...
 
 
 class BookingRepository(Protocol):
@@ -70,6 +95,7 @@ class UnitOfWork(Protocol):
     users: UserRepository
     trips: TripRepository
     members: MemberRepository
+    changes: TripChangeRepository
     itinerary: ItineraryRepository
     bookings: BookingRepository
     documents: DocumentRepository

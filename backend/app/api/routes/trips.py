@@ -11,7 +11,7 @@ from app.api.schemas import (
     member_out,
     trip_out,
 )
-from app.domain import trips
+from app.domain import planning, trips
 from app.domain.access import Role
 from app.domain.errors import FieldError, ValidationFailed
 
@@ -55,7 +55,7 @@ async def get_trip(access: Viewer, uow: UoW, response: Response) -> TripOut:
 async def update_trip(
     body: TripUpdate, access: Editor, uow: UoW, clock: ClockDep, response: Response
 ) -> TripOut:
-    trip = await trips.update_trip(uow, clock, access, body.version, body.to_fields())
+    trip = await planning.update_trip(uow, clock, access, body.version, body.to_fields())
     response.headers["ETag"] = f'"{trip.version}"'
     return trip_out(trip, access.role)
 

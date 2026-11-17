@@ -50,7 +50,7 @@ def _field_name(loc: tuple[Any, ...]) -> str:
     return name or "body"
 
 
-def install_error_handlers(app: FastAPI, trip_serializer: Any) -> None:
+def install_error_handlers(app: FastAPI, conflict_details: Any) -> None:
     @app.exception_handler(Unauthenticated)
     async def unauthenticated(request: Request, exc: Unauthenticated) -> JSONResponse:
         return error_response(request, 401, "UNAUTHENTICATED", str(exc))
@@ -70,8 +70,7 @@ def install_error_handlers(app: FastAPI, trip_serializer: Any) -> None:
             fields = [{"field": e.field, "message": e.message} for e in exc.errors]
             return error_response(request, 422, exc.code, exc.message, {"fields": fields})
         if isinstance(exc, VersionConflict):
-            return error_response(request, 409, exc.code, exc.message,
-                                  {"current": trip_serializer(exc.current)})
+            return error_response(request, 409, exc.code, exc.message, conflict_details(exc))
         if isinstance(exc, ProviderError):
             status = 504 if isinstance(exc, ProviderTimeout) else (
                 409 if isinstance(exc, ProviderConflict) else

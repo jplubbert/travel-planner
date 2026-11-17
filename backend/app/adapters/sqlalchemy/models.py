@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import (
     ARRAY,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -78,6 +79,19 @@ class TripRow(Base):
 ROLES = ("organizer", "editor", "viewer")
 
 
+class TripChangeRow(Base):
+    __tablename__ = "trip_changes"
+
+    trip_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("trips.id", ondelete="CASCADE"), primary_key=True)
+    # Primary key (trip_id, version): at most one accepted change per version.
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    kind: Mapped[str] = mapped_column(String(32))
+    summary: Mapped[str] = mapped_column(Text)
+    at: Mapped[datetime] = mapped_column(TZ)
+
+
 class TripMemberRow(Base):
     __tablename__ = "trip_members"
     __table_args__ = (
@@ -105,6 +119,7 @@ class ItineraryItemRow(Base):
         CheckConstraint("starts_at < ends_at", name="schedule_ordered"),
         CheckConstraint("price >= 0", name="price_non_negative"),
         Index("ix_itinerary_items_trip_id", "trip_id"),
+        Index("uq_itinerary_items_trip_offer", "trip_id", "offer_id", unique=True),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -114,6 +129,7 @@ class ItineraryItemRow(Base):
     provider_id: Mapped[str] = mapped_column(String(128))
     category: Mapped[str] = mapped_column(String(16))
     title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str] = mapped_column(Text)
     destination: Mapped[str] = mapped_column(Text)
     origin: Mapped[str | None] = mapped_column(Text)
     starts_at: Mapped[datetime] = mapped_column(TZ)
@@ -121,9 +137,12 @@ class ItineraryItemRow(Base):
     travelers: Mapped[int] = mapped_column(Integer)
     price: Mapped[Decimal] = mapped_column(Money)
     offer_revision: Mapped[str] = mapped_column(Text)
+    available: Mapped[bool] = mapped_column(Boolean)
     valid_until: Mapped[datetime] = mapped_column(TZ)
     quoted_at: Mapped[datetime] = mapped_column(TZ)
     restrictions: Mapped[list[str]] = mapped_column(JSONB, server_default="[]")
+    # The quote exactly as the provider returned it (ADR 0004); source of local offsets.
+    offer_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
     added_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(TZ)
 
