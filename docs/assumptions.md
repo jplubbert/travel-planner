@@ -109,6 +109,16 @@ La API devuelve estas reglas en `rules` en cada lectura del itinerario (fuente: 
 
 ## Asistente y MCP (US-11, US-12)
 
+> **Supuesto:** Cualquier participante (también un viewer) puede usar el chat del asistente (`POST /trips/{id}/assistant/chat`); el asistente actúa con los permisos de quien pregunta y siempre es de solo lectura. Un no participante recibe `404` y el modelo ni se invoca. — **Afecta a:** US-02, US-11.
+
+> **Supuesto:** El chat no guarda conversaciones: el cliente envía el historial reciente (`history`, hasta 20 turnos) en cada petición. — **Afecta a:** US-11 — **Motivo:** evita almacenar texto libre de usuarios; no lo pide el PRD.
+
+> **Supuesto:** Las tools MCP actúan solo sobre lo que el usuario de la sesión ve por la API. Una búsqueda `partial` o `empty` es un resultado normal (con su `outcome`); una `failed`, y cualquier error de acceso o validación, es un error de tool (`is_error`), para que el modelo no lo confunda con "no hay resultados". — **Afecta a:** US-11, US-12.
+
+> **Supuesto:** Solo el asistente integrado usa el servidor MCP; emitir tokens MCP a clientes externos queda fuera de alcance (el PRD no lo exige). — **Afecta a:** US-12.
+
+> **Supuesto:** Las respuestas del asistente son texto en el idioma del usuario, con las llamadas a tools realizadas (`toolCalls`) adjuntas para trazabilidad. — **Afecta a:** US-11.
+
 ## Datos de ejemplo y límites (destinos, reglas simplificadas)
 
 > **Supuesto:** Las fixtures cubren Lisbon (10-14 de junio de 2030), Madrid (14-18) y Paris (18-22). London solo aparece como origen o destino de transporte. Fuera de esas fechas las búsquedas devuelven resultado vacío. — **Motivo:** el PRD permite limitar destinos y datos si el comportamiento sigue siendo demostrable. El detalle está en `mock/README.md`.

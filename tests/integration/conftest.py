@@ -141,8 +141,15 @@ def storage_dir(tmp_path: Path) -> Path:
 async def make_app(database_url: str, mock_provider_url: str,
                    storage_dir: Path) -> AsyncIterator[AppFactory]:
     created: list[FastAPI] = []
+    mcp_runs: list[tuple[asyncio.Event, asyncio.Task[None]]] = []
 
-    def factory(provider: Any = None, **overrides: object) -> FastAPI:
+    async def run_mcp(application: FastAPI, ready: asyncio.Event, stop: asyncio.Event) -> None:
+        # The lifespan (not run by ASGITransport) normally starts MCP request handling.
+        async with application.state.mcp_server.session_manager.run():
+            ready.set()
+            await stop.wait()
+
+    def factory(provider: Any = None, chat_model: Any = None, **overrides: object) -> FastAPI:
         settings = Settings(**{
             "database_url": database_url,
             "log_level": "WARNING",
@@ -153,17 +160,23 @@ async def make_app(database_url: str, mock_provider_url: str,
             "events_poll_seconds": 0.05,
             **overrides,
         })
-        application = create_app(settings, provider=provider)
+        application = create_app(settings, provider=provider, chat_model=chat_model)
         created.append(application)
+        ready, stop = asyncio.Event(), asyncio.Event()
+        mcp_runs.append((stop, asyncio.get_running_loop().create_task(
+            run_mcp(application, ready, stop))))
         return application
 
     yield factory
+    for stop, task in mcp_runs:
+        stop.set()
+        await task
     for application in created:
         await application.state.shutdown()
 
 
 @pytest.fixture
-def app(make_app: AppFactory) -> FastAPI:
+async def app(make_app: AppFactory) -> FastAPI:
     return make_app()
 
 

@@ -14,7 +14,7 @@ dependencies = [
     "alembic>=1.14",
     "httpx>=0.28",
     "mcp>=1.2",
-    "anthropic>=0.40",
+    "google-genai>=3.4.0",
 ]
 
 [dependency-groups]
@@ -32,8 +32,8 @@ dev = [
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "mock/tests"]
-pythonpath = ["backend", "mock"]
+testpaths = ["tests", "mock/tests", "evals"]
+pythonpath = ["backend", "mock", "."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
@@ -45,7 +45,7 @@ addopts = "-m 'not llm' --import-mode=importlib"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["backend", "mock", "tests"]
+src = ["backend", "mock", "tests", "."]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM"]

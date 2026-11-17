@@ -8,7 +8,7 @@ Take-home: plataforma de planificación de viajes en grupo. Viajes compartidos c
 
 ## Stack
 
-Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (FastMCP, SDK oficial) · Anthropic SDK (`claude-sonnet-4-5`, sin LangChain/LangGraph) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
+Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (SDK oficial 2.x, `MCPServer`) · Google Gemini con `google-genai` (`gemini-3.8-flash`, sin LangChain/LangGraph) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
 
 ## Estructura
 
@@ -32,7 +32,8 @@ docs/         ADRs y supuestos
 ```bash
 cp .env.example .env
 docker compose up -d --build   # Postgres + API (http://localhost:8000/docs) + worker + mock (http://localhost:4010/v1)
-uv sync && uv run pytest       # tests (los de integración necesitan el servicio db en marcha)
+uv sync && uv run pytest       # tests + evaluaciones deterministas (necesitan el servicio db en marcha)
+GEMINI_API_KEY=... uv run pytest evals/llm -m llm -s   # evaluaciones con modelo (evals/README.md)
 ```
 
 Ver [`mock/README.md`](mock/README.md) para las fixtures y los escenarios de fallo.
@@ -58,7 +59,7 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | Worker de jobs en segundo plano (`python -m app.workers`, servicio `worker`) | ✅ Hecho |
 | ADR 0003: estados de reserva y reconciliación (máquina de estados en el dominio, con tests) | ✅ Hecho |
 | US-01: crear viaje y volver a él (persistencia tras reinicio, validación accionable, edición con versión) | ✅ Hecho, con tests contra Postgres |
-| US-02: compartir con roles | 🟡 Parcial: peticiones HTTP directas, documentos (descarga y generación) y suscripciones de estado (SSE) cubiertos y probados. Falta el criterio sobre herramientas del asistente (US-11/US-12) |
+| US-02: compartir con roles | ✅ Hecho: peticiones HTTP directas, documentos, suscripciones de estado (SSE) y tools del asistente (MCP), todos probados |
 | US-03: buscar y comparar (completa / parcial / vacía / fallida, frescura, estimaciones, timeout, permisos) | ✅ Hecho, con tests contra el mock real por HTTP |
 | US-04: itinerario (añadir con la cotización del proveedor, quitar, reordenar, actualizar cotización; marcas de expirado, no disponible, fuera de fechas, solapes, grupo; información que falta) | ✅ Hecho (ADR 0004) |
 | US-05: costes por ítem, totales y presupuesto (estimado vs confirmado, redondeo documentado) | ✅ Hecho; probado también con reservas reales (confirmada, pendiente, fallida, rechazada) |
@@ -68,11 +69,12 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | US-09: generar documento (202, copia inmutable, worker con escritura atómica, estados, reintento, recuperación por lease) | ✅ Hecho (ADR 0005) |
 | US-10: documento correcto (versión y hora, inmutable frente a ediciones, descarga verificada por hash, regeneración, barrido de huérfanos) | ✅ Hecho (ADR 0005) |
 | Canal de estado SSE por viaje (avisos de reservas, documentos y viaje; mismos permisos; se cierra al perder acceso) | ✅ Hecho (ADR 0005) |
-| US-11 … US-12 | ⏳ Pendiente |
+| US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Las evaluaciones con modelo están listas pero **sin ejecutar todavía (falta la clave de Gemini)** |
+| US-12: tools de solo lectura por MCP (SDK oficial, identidad por sesión firmada, permisos del usuario) | ✅ Hecho (ADR 0006), con evaluaciones deterministas |
 | MCP + asistente | ⏳ Pendiente |
 | Frontend | ⏳ Pendiente (stack por definir) |
 | Despliegue propuesto, demo, nota de uso de IA | ⏳ Pendiente |
 
 ## Uso de IA en el desarrollo
 
-El proyecto se desarrolla con Claude Code. El harness versionado es [`CLAUDE.md`](CLAUDE.md) (reglas y decisiones) junto con `docs/adr/` y `docs/assumptions.md`. La nota completa sobre cómo se usó la IA y cómo se verificó su salida se añadirá antes de la entrega.
+El proyecto se desarrolla con Claude Code (el asistente de la aplicación usa Gemini; son cosas distintas). El harness versionado es [`CLAUDE.md`](CLAUDE.md) (reglas y decisiones) junto con `docs/adr/` y `docs/assumptions.md`. La nota completa sobre cómo se usó la IA y cómo se verificó su salida se añadirá antes de la entrega.

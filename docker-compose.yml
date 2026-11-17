@@ -27,6 +27,9 @@ services:
       PROVIDER_BASE_URL: http://provider-mock:4010/v1
       PROVIDER_TOKEN: ${PROVIDER_TOKEN:-travel-demo-token}
       DOCUMENT_STORAGE_DIR: /data/documents
+      MCP_TOKEN_SECRET: ${MCP_TOKEN_SECRET:-dev-only-insecure-mcp-secret}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:

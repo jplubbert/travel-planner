@@ -48,3 +48,4 @@ Positivas, negativas, riesgos y qué hay que hacer/probar a raíz de esto.
 | [0003](0003-estados-de-reserva-y-reconciliacion.md) | Estados locales de reserva y reconciliación | Aceptado |
 | [0004](0004-copia-de-oferta-y-frescura.md) | Copia de la oferta en el ítem y política de frescura | Aceptado |
 | [0005](0005-jobs-documentos-y-canal-de-estado.md) | Jobs en PostgreSQL, documento como copia inmutable y canal de estado | Aceptado |
+| [0006](0006-mcp-asistente-y-proveedor-de-modelo.md) | MCP en el mismo proceso, identidad por sesión, bucle propio y proveedor de modelo intercambiable | Aceptado |

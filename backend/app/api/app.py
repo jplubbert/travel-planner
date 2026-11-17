@@ -4,17 +4,21 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
+from mcp.server.transport_security import TransportSecuritySettings
 from sqlalchemy import text
 
 from app.adapters.clock import SystemClock
 from app.adapters.document_html import HtmlDocumentRenderer
+from app.adapters.gemini_model import GeminiChatModel
 from app.adapters.local_storage import LocalDocumentStorage
 from app.adapters.provider_http import HttpProviderClient
 from app.adapters.sqlalchemy.uow import make_engine, session_factory
 from app.api.errors import error_response, install_error_handlers
-from app.api.routes import bookings, documents, itinerary, search, trips
+from app.api.routes import assistant, bookings, documents, itinerary, search, trips
 from app.config import Settings
+from app.mcp.server import build_mcp_server
 from app.observability import request_id_var
+from app.ports.assistant import ChatModel
 from app.ports.clock import Clock
 from app.ports.provider import ProviderClient
 
@@ -23,7 +27,7 @@ logger = logging.getLogger("app")
 
 def create_app(
     settings: Settings | None = None, clock: Clock | None = None,
-    provider: ProviderClient | None = None,
+    provider: ProviderClient | None = None, chat_model: ChatModel | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level,
@@ -40,15 +44,29 @@ def create_app(
             await http_provider.aclose()
         await engine.dispose()
 
+    clock = clock or SystemClock()
+    mcp_server = build_mcp_server(session_factory(engine), provider, clock,
+                                  settings.mcp_token_secret)
+    mcp_app = mcp_server.streamable_http_app(
+        streamable_http_path="/", stateless_http=True, json_response=True,
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=settings.mcp_allowed_hosts))
+    if chat_model is None and settings.gemini_api_key:
+        chat_model = GeminiChatModel(settings.gemini_api_key, settings.gemini_model,
+                                     thinking_level=settings.gemini_thinking_level or None)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        yield
+        async with mcp_server.session_manager.run():  # MCP request handling
+            yield
         await shutdown()
 
     app = FastAPI(title="Travel Planner API", version="0.1.0", lifespan=lifespan)
     app.state.engine = engine
     app.state.sessions = session_factory(engine)
-    app.state.clock = clock or SystemClock()
+    app.state.clock = clock
+    app.state.mcp_server = mcp_server
+    app.state.chat_model = chat_model
     app.state.provider = provider
     app.state.settings = settings
     app.state.storage = LocalDocumentStorage(settings.document_storage_dir)
@@ -79,6 +97,8 @@ def create_app(
     app.include_router(itinerary.router)
     app.include_router(bookings.router)
     app.include_router(documents.router)
+    app.include_router(assistant.router)
+    app.mount("/mcp", mcp_app)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

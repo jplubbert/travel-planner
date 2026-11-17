@@ -11,3 +11,5 @@
   - `test_persistence.py`: migraciones == modelos, rollback de trabajo no confirmado, restricciones de la BD, round-trip de cada repositorio.
 
 Los tests del mock del proveedor están en `mock/tests/`.
+
+Las evaluaciones del MCP y del asistente están en `evals/` (ver `evals/README.md`): las deterministas entran en la ejecución por defecto y las de modelo van marcadas `llm`.

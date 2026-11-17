@@ -26,6 +26,11 @@
   - `app/domain/document_service.py`: copia, petición, generación, descarga verificada y barrido.
   - Puertos `app/ports/documents.py` (`DocumentStorage`, `DocumentRenderer`) con sus adaptadores `local_storage.py` (disco, escritura atómica) y `document_html.py` (HTML determinista).
   - Los archivos viven en `DOCUMENT_STORAGE_DIR`, un volumen `documents` compartido por `api` y `worker`.
+- **MCP y asistente (US-11/12, ADR 0006):**
+  - `app/mcp/server.py`: `MCPServer` del SDK oficial, montado en `/mcp`, con 7 tools de solo lectura.
+  - `app/mcp/identity.py`: token de sesión firmado; la identidad nunca es un argumento de tool.
+  - `app/assistant/loop.py`: bucle propio.
+  - Puertos `app/ports/assistant.py` (`ChatModel`, `AssistantTools`) con los adaptadores `gemini_model.py`, `scripted_model.py` y `mcp_client.py` (cliente MCP oficial sobre HTTP, en el mismo proceso).
 - **Canal de estado:** `GET /trips/{id}/events` (SSE). `app/domain/status_feed.py` vuelve a comprobar el acceso en cada sondeo.
 
 ## Endpoints
@@ -57,6 +62,8 @@
 | `GET /trips/{id}/documents`, `GET /trips/{id}/documents/{docId}` | Viewer | estado, versión, hora de la copia, sha256, `downloadUrl` cuando está listo |
 | `POST /trips/{id}/documents/{docId}/retry` | Editor | solo `failed` |
 | `GET /trips/{id}/documents/{docId}/download` | Viewer | verifica el hash; si el archivo falta o no coincide, `409` y se regenera |
+| `POST /trips/{id}/assistant/chat` | Viewer | US-11; `message` e `history`. Responde `answer`, `toolCalls`, `stopReason` (`answered`, `iteration_limit` o `time_limit`); `503` sin `GEMINI_API_KEY`, `502` si falla el modelo |
+| `POST /mcp/` | token MCP | servidor MCP (streamable HTTP); tools: `list_my_trips`, `get_trip`, `get_itinerary`, `get_costs`, `get_bookings`, `get_documents`, `search_offers` |
 | `GET /trips/{id}/events` | Viewer | SSE: `ready`, `trip`, `booking`, `document`, `access-revoked`; son avisos, relee con `GET` |
 | `GET /healthz`, `GET /readyz` | — | vida del proceso; base de datos accesible |
 

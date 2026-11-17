@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, StrictInt, StrictStr
 
 from app.api.deps import ClockDep, Editor, Provider, UoW, Viewer
@@ -223,9 +223,7 @@ async def refresh_item(
                       summary=result.summary)
 
 
-@router.get("/trips/{trip_id}/costs")
-async def get_costs(access: Viewer, uow: UoW, response: Response) -> CostsOut:
-    costs = await planning.get_costs(uow, access)
+def costs_out(costs: planning.TripCosts) -> CostsOut:
     s = costs.summary
     return CostsOut(
         tripId=costs.trip.id, tripVersion=costs.trip.version,
@@ -240,3 +238,8 @@ async def get_costs(access: Viewer, uow: UoW, response: Response) -> CostsOut:
         budget=BudgetOut(amount=_money(s.budget), remaining=_money(s.remaining),
                          overBudget=s.over_budget, usedPercent=s.used_percent),
     )
+
+
+@router.get("/trips/{trip_id}/costs")
+async def get_costs(access: Viewer, uow: UoW) -> CostsOut:
+    return costs_out(await planning.get_costs(uow, access))

@@ -40,6 +40,18 @@ class Settings(BaseSettings):
     events_poll_seconds: float = 1.0
     events_heartbeat_seconds: float = 15.0
 
+    # MCP server (ADR 0006). The token secret signs the identity of MCP sessions.
+    mcp_token_secret: str = "dev-only-insecure-mcp-secret"
+    mcp_token_ttl_seconds: float = 300.0
+    mcp_allowed_hosts: list[str] = ["localhost", "localhost:*", "127.0.0.1:*", "api:*"]
+
+    # Assistant (ADR 0006): Google Gemini through the official google-genai SDK.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.8-flash"
+    gemini_thinking_level: str = "low"
+    assistant_max_iterations: int = 6
+    assistant_timeout_seconds: float = 60.0
+
     def reconcile_policy(self) -> "ReconcilePolicy":
         from app.domain.reservations import ReconcilePolicy
         return ReconcilePolicy(
