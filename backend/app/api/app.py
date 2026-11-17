@@ -52,7 +52,8 @@ def create_app(
         transport_security=TransportSecuritySettings(
             allowed_hosts=settings.mcp_allowed_hosts))
     if chat_model is None and settings.gemini_api_key:
-        chat_model = GeminiChatModel(settings.gemini_api_key, settings.gemini_model,
+        chat_model = GeminiChatModel(settings.gemini_api_key.get_secret_value(),
+                                     settings.gemini_model,
                                      thinking_level=settings.gemini_thinking_level or None)
 
     @asynccontextmanager

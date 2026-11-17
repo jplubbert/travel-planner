@@ -31,14 +31,14 @@ REPEATS = int(os.environ.get("EVAL_REPEATS", "1"))
 
 
 @pytest.fixture
-def llm_app(make_app: Any) -> Any:
+async def llm_app(make_app: Any) -> Any:  # async: make_app needs the running loop
     from app.config import Settings
 
     configured = Settings()  # environment variables, then .env (same as the application)
     if not configured.gemini_api_key:
         pytest.skip("GEMINI_API_KEY is not set (environment or .env); model evaluations "
                     "need it")
-    return make_app(gemini_api_key=configured.gemini_api_key,
+    return make_app(gemini_api_key=configured.gemini_api_key,  # stays a SecretStr
                     gemini_model=configured.gemini_model,
                     gemini_thinking_level=configured.gemini_thinking_level)
 

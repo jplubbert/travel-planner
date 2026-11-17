@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
@@ -46,7 +47,8 @@ class Settings(BaseSettings):
     mcp_allowed_hosts: list[str] = ["localhost", "localhost:*", "127.0.0.1:*", "api:*"]
 
     # Assistant (ADR 0006): Google Gemini through the official google-genai SDK.
-    gemini_api_key: str | None = None
+    # SecretStr: masked in repr/str, logs and tracebacks; unwrapped only to build the client.
+    gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.8-flash"
     gemini_thinking_level: str = "low"
     assistant_max_iterations: int = 6
