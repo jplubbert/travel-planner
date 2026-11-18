@@ -12,7 +12,7 @@
 
 ## Options considered
 
-1. **Keep Spanish and translate backend messages in the UI by `code`** (the `f50d823` approach). The UI reads in one language, but it depends on the wording of free-text messages (the roles in a `403` were parsed from its text), every new code needs a translation, and reviewers read the repository in a language they do not work in.
+1. **Keep Spanish and translate backend messages in the UI by `code`** (the `f50d823` approach). The UI reads in one language, but it depends on the wording of free-text messages (the roles in a `403` were parsed from its text), every new code needs a translation, and the repository would not match the language of the assignment.
 2. **Translate the backend messages in the backend.** Changes the API contract and the texts used by tests, evaluations and the assistant. Rejected.
 3. **Everything in English, backend messages shown as returned.** One language across repository, UI and API, and nothing to keep in sync between backend messages and UI texts.
 
