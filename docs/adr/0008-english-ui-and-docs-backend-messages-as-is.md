@@ -6,7 +6,7 @@
 
 ## Context
 
-- The assignment (`assignment/`) is in English and the reviewers work in English, but the repository was written in Spanish: README, docs, ADRs, UI texts, comments and test names.
+- The assignment (`assignment/`) is in English and the review is expected in English, but the repository was written in Spanish: README, docs, ADRs, UI texts, comments and test names.
 - The backend API, its error messages, the provider contract and the MCP tools were already in English. The UI mixed both languages: Spanish labels next to English backend messages.
 - A previous change (commit `f50d823`) went the other way: Spanish role labels in the UI (`lector` for `viewer`) and Spanish texts for known error codes, with the backend message moved into a collapsible section. That partly superseded decision 4 of ADR 0007 (errors shown as returned).
 
