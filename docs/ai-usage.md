@@ -81,9 +81,9 @@ No hay configuración de Claude Code versionada (permisos, hooks): se usó la co
 - **Seguridad:** secretos como `SecretStr`. Reintentos de Gemini solo para 429, 503 y el 403 esporádico, nunca para 400, 401 o 402; el agente añadió además los 5xx y lo informó.
 - **Frontend:** React + Vite + TypeScript sin librería de UI; SSE leído con `fetch`; 409 con reaplicación; la UI no es la barrera de permisos; orden de bloques con un commit por bloque.
 - **Método:** inyectar errores en cada historia, un commit por tarea, y no presentar como hecho nada sin test ni ejecución.
-- **Evaluaciones con modelo:** las ejecutó el propio candidato con su clave (5 de 5 el 2026-11-17). El 2026-11-18 a las 01:08 ejecutó los 7 casos, incluidos los 2 de US-11 añadidos ese día, y pasaron 7 de 7. El agente no ejecutó ninguna, ni la de huecos añadida después.
+- **Evaluaciones con modelo:** las ejecutó el propio candidato con su clave (5 de 5 el 2026-11-17). El 2026-11-18 a las 01:08 ejecutó los 7 casos, incluidos los 2 de US-11 añadidos ese día, y pasaron 7 de 7. A las 01:31 ejecutó el caso de huecos, añadido a partir de lo que observó en la ejecución anterior, y pasó 1 de 1 (14 s). Los 8 casos han pasado con modelo real, en dos ejecuciones. El agente no ejecutó ninguna.
 - **Prueba del asistente desde la UI con clave real:** la hizo el candidato el 2026-11-17 (ver `docs/demo.md`, paso 7).
-- **Cierre de huecos del 2026-11-18:** respetar `Retry-After` en la reconciliación, propagar el `X-Request-Id` a los jobs del worker y evaluar con modelo la relación con fechas y restricciones y los conflictos de horario.
+- **Cierre de huecos del 2026-11-18:** respetar `Retry-After` en la reconciliación, propagar el `X-Request-Id` a los jobs del worker y evaluar con modelo la relación con fechas y restricciones, los conflictos de horario y las noches sin alojamiento.
 
 ## Cómo se verificó la salida
 

@@ -59,7 +59,9 @@ Cada caso verifica la respuesta automáticamente (`evals/support.py`):
 | --- | --- | --- | --- | --- |
 | 2026-11-17 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **5 de 5 pasan** | Ejecutadas por el responsable del proyecto con clave real. Un caso recibió un 403 transitorio de la API y pasó al repetirlo. Desde entonces el adaptador reintenta una vez los errores transitorios (403, 429 y 5xx) tras una espera corta. |
 | 2026-11-18 01:08 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **7 de 7 pasan**, en 97 s | Ejecutadas por el responsable del proyecto con clave real: los 5 casos originales y los 2 de US-11 (fechas y restricciones, conflicto de horario). En el caso del conflicto, la respuesta **además** señaló las 4 noches sin alojamiento y la falta de transporte, sin que la pregunta lo pidiera. |
-| — | — | — | **Sin ejecutar** | El caso de huecos (noches sin alojamiento), añadido el 2026-11-18 a partir de esa observación, todavía no se ha ejecutado con Gemini. Solo se comprobó, sin llamar al modelo, que se recoge y que sus fixtures se montan (`--setup-only`). |
+| 2026-11-18 01:31 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **1 de 1 pasa**, en 14 s | Ejecutado por el responsable del proyecto con clave real: el caso de huecos (noches sin alojamiento), añadido a partir de la observación de la ejecución de las 01:08. |
+
+**Estado:** los 8 casos han pasado con el modelo real, **en dos ejecuciones** (7 de 7 a las 01:08 y 1 de 1 a las 01:31 del 2026-11-18), no en una sola pasada de los 8. Cada caso se ejecutó una vez, así que no hay todavía una tasa de acierto con `EVAL_REPEATS`.
 
 **Limitaciones:**
 - Las comprobaciones son heurísticas: expresiones regulares y palabras clave en inglés y español.
