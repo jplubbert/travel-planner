@@ -1,6 +1,6 @@
 # Travel Planner
 
-Take-home: plataforma de planificación de viajes en grupo. Viajes compartidos con roles (organizador, editor, viewer), búsqueda en un proveedor externo mockeado, itinerario con costes en USD, reservas simuladas con reconciliación, documentos descargables y un asistente de IA de solo lectura que usa herramientas MCP.
+Take-home: plataforma de planificación de viajes en grupo. Viajes compartidos con roles (organizador, editor, lector; `viewer` en la API), búsqueda en un proveedor externo mockeado, itinerario con costes en USD, reservas simuladas con reconciliación, documentos descargables y un asistente de IA de solo lectura que usa herramientas MCP.
 
 - Enunciado (no modificar): [`assignment/`](assignment/) — [guía](assignment/candidate-guide.md), [PRD](assignment/prd.md), [contrato del proveedor](assignment/openAPI.json).
 - Instrucciones para agentes de IA y reglas de trabajo: [`CLAUDE.md`](CLAUDE.md).
@@ -92,7 +92,7 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Evaluaciones con modelo con `gemini-3.8-flash`: 5 de 5 el 2026-11-17; el 2026-11-18, **7 de 7** a las 01:08 y el caso de huecos **1 de 1** a las 01:31, así que **los 8 casos han pasado con modelo real**, en dos ejecuciones (`evals/README.md`). Probado por el candidato desde la UI con clave real el 2026-11-17 ([`docs/demo.md`](docs/demo.md), paso 7) |
 | Trazabilidad: `X-Request-Id` de la petición original en los jobs del worker, en sus logs y en las llamadas al proveedor que hacen | ✅ Hecho (2026-11-18, migración 0006), con tests. Los jobs que crea el barrido del worker no tienen petición de origen y se siguen por `clientReference` |
 | US-12: tools de solo lectura por MCP (SDK oficial, identidad por sesión firmada, permisos del usuario) | ✅ Hecho (ADR 0006), con evaluaciones deterministas |
-| Frontend (ADR 0007): todos los flujos, 403/409 del backend tal cual, 409 con reaplicación, estado en vivo con relectura al reconectar | ✅ Hecho, con Vitest y Playwright contra Compose desde cero |
+| Frontend (ADR 0007): todos los flujos, 403/409 del backend con estado y código tal cual y mensaje en español (ADR 0008), 409 con reaplicación, estado en vivo con relectura al reconectar | ✅ Hecho, con Vitest y Playwright contra Compose desde cero |
 | Propuesta de despliegue, explicación de arquitectura, guion de demo y nota de uso de IA | ✅ Escritos ([`docs/`](docs/)). El despliegue es solo una propuesta: no se ha desplegado. En [`docs/demo.md`](docs/demo.md) se indica qué pasos se ensayaron y cuáles no |
 
 ## Criterios no cumplidos o con evidencia parcial

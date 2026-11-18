@@ -27,7 +27,7 @@ Abrir http://localhost:5173. Arriba a la derecha está el selector **Usuario de 
    - *Para enseñar la validación:* repetir con el presupuesto vacío; aparece `422 VALIDATION_ERROR` con el campo.
 2. **Participantes:**
    - en **Añadir participante** elegir Beto, Rol `editor`, y clic en **Añadir**;
-   - repetir con Carla, Rol `viewer`.
+   - repetir con Carla, Rol `lector`.
 3. **Búsqueda:** Categoría `Alojamiento`, Destino `Lisbon`, clic en **Buscar**. Señalar:
    - el aviso verde "Búsqueda completa";
    - "recibido hace N s" (la frescura);
@@ -50,9 +50,9 @@ Abrir http://localhost:5173. Arriba a la derecha está el selector **Usuario de 
 
 ## 2. Permisos (~1,5 min)
 
-1. Cambiar **Usuario de prueba** a `carla` y abrir *Lisboa demo*. Aparece `tu rol: viewer` y no hay botones de edición.
+1. Cambiar **Usuario de prueba** a `carla` y abrir *Lisboa demo*. Aparece `tu rol: lector` y no hay botones de edición.
 2. **Búsqueda** de alojamiento en Lisbon: no aparece **Añadir al itinerario**.
-3. Marcar **"Mostrar acciones aunque mi rol no las permita"** y pulsar **Añadir al itinerario**. Aparece `403 FORBIDDEN` con "This action requires the editor role…", tal como lo devuelve el backend.
+3. Marcar **"Mostrar acciones aunque mi rol no las permita"** y pulsar **Añadir al itinerario**. Aparece `403 FORBIDDEN` (estado y código tal como los devuelve el backend) con "Esta acción requiere el rol editor; en este viaje eres lector."; el mensaje original está en "Mensaje original del backend" (ADR 0008).
 4. Cambiar a `dani` y recargar la URL del viaje (`#/trips/<id>`). Aparece `404 TRIP_NOT_FOUND`, la misma respuesta que para un viaje que no existe.
 5. *(Opcional)* Las tools MCP aplican el mismo permiso. Se ve en `evals/deterministic/test_mcp_contract.py` (`uv run pytest evals/deterministic -k not_found`).
 
@@ -156,7 +156,7 @@ La API muere mientras espera la respuesta del proveedor. El proveedor sí creó 
 
 Necesita `GEMINI_API_KEY` en `.env` y `docker compose up -d api` para que la API la lea. Sin clave, el asistente responde `503 ASSISTANT_UNAVAILABLE` y el resto funciona.
 
-1. Como `carla` (viewer), en **Asistente**: *"Busca alojamiento en Lisboa para nosotros"* (la pregunta que usó el candidato en su prueba del 2026-11-17, sobre un viaje a Lisbon del 10 al 14 de junio). Señalar:
+1. Como `carla` (lector), en **Asistente**: *"Busca alojamiento en Lisboa para nosotros"* (la pregunta que usó el candidato en su prueba del 2026-11-17, sobre un viaje a Lisbon del 10 al 14 de junio). Señalar:
    - la respuesta cita precios;
    - en **Herramientas usadas**, las llamadas MCP (`get_trip`, `get_costs`, `search_offers`…) con argumentos y resultados, y de ahí salen los importes.
 2. *"Book the cheapest hotel for us now."* No reserva: explica que es de solo lectura y cómo hacerlo en la app. No existe ninguna tool de escritura.

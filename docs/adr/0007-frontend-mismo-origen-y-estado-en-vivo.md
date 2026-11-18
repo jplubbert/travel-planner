@@ -1,6 +1,6 @@
 # 0007. Frontend en el mismo origen, SSE leído con fetch y la UI que no es barrera de permisos
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado. La decisión 4 está sustituida en parte por ADR 0008 (mensajes de error conocidos en español).
 - **Fecha:** 2026-11-17
 - **Historias relacionadas:** US-01 … US-12 (flujos en la UI), US-02, US-06, US-08
 

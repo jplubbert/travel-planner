@@ -38,7 +38,7 @@ El selector de la cabecera elige el usuario de prueba (`ana`, `beto`, `carla`, `
 
 **Reglas de la UI**
 
-- **Botones según el rol, pero el backend decide.** Con "Mostrar acciones aunque mi rol no las permita" se ven todas las acciones, y los `403` del backend se muestran tal cual (estado, código, mensaje y `requestId`).
+- **Botones según el rol, pero el backend decide.** Con "Mostrar acciones aunque mi rol no las permita" se ven todas las acciones, y los `403` del backend se muestran con estado, código y `requestId` tal cual; el mensaje de los códigos conocidos aparece en español, con el original en un desplegable (ADR 0008).
 - **409 de versión:** el panel muestra los cambios desde tu versión (quién, cuándo y qué), la vista pasa al estado actual y puedes **reaplicar** el mismo cambio sobre la versión actual o descartarlo.
 - **Estado en vivo:** el SSE se lee con `fetch`, porque `EventSource` no envía cabeceras. Los eventos solo avisan: en cada (re)conexión llega `ready` y la UI relee todo con `GET`.
 - **Nada parece confirmado si no lo está.** Solo una reserva `confirmed` aparece como reservada (en verde). `pending`, `submitted` y `unknown` dicen que aún no lo está; `unknown` además pide no reservar otra vez. Los costes distinguen estimado de confirmado.
@@ -60,7 +60,7 @@ npm run typecheck
 **Qué cubre el e2e**
 
 - **Flujo completo:** crear, compartir, buscar, añadir, costes, reserva confirmada, documento descargado y asistente sin clave (503).
-- **Permisos:** `403` al forzar acciones como viewer y `404` para un no participante.
+- **Permisos:** `403` al forzar acciones como lector y `404` para un no participante.
 - **Concurrencia:** `409` con los cambios y la reaplicación, con el canal en vivo cortado, y relectura al reconectar.
 - **Búsqueda:** resultado parcial, fallido y vacío.
 - **Reserva `pending`:** no parece confirmada hasta que el proveedor la confirma, y el cambio llega en vivo.

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { ErrorBox, Field } from "../components";
-import { dateTime, ROLE_LABEL } from "../format";
+import { ASSIGNABLE_ROLES, dateTime, ROLE_LABEL } from "../format";
 import { useAction, useLoad, useTrip } from "../TripView";
 import type { Member, Role, TripInput, User } from "../types";
 
@@ -44,8 +44,7 @@ export function ParticipantsTab() {
                 {allows("organizer") && m.role !== "organizer" ? (
                   <select aria-label={`rol de ${m.userId}`} value={m.role} disabled={action.busy}
                     onChange={(e) => void setRole(m.userId, e.target.value as Role)}>
-                    <option value="editor">editor</option>
-                    <option value="viewer">viewer</option>
+                    {ASSIGNABLE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                   </select>
                 ) : ROLE_LABEL[m.role]}
               </td>
@@ -72,8 +71,7 @@ export function ParticipantsTab() {
           </Field>
           <Field label="Rol">
             <select aria-label="rol nuevo" value={newRole} onChange={(e) => setNewRole(e.target.value as Role)}>
-              <option value="editor">editor</option>
-              <option value="viewer">viewer</option>
+              {ASSIGNABLE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
             </select>
           </Field>
           <button type="submit" disabled={!newUser || action.busy}>Añadir</button>

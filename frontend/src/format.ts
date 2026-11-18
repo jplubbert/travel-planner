@@ -22,8 +22,11 @@ export type Tone = "ok" | "warn" | "bad" | "info" | "neutral";
 export const ROLE_LABEL: Record<Role, string> = {
   organizer: "organizador",
   editor: "editor",
-  viewer: "viewer",
+  viewer: "lector",
 };
+
+/** Roles a participant can be given (the organizer role is not assignable). */
+export const ASSIGNABLE_ROLES = ["editor", "viewer"] as const satisfies readonly Role[];
 
 /** Only "confirmed" is presented as booked; every other state says it is not (yet). */
 export const BOOKING: Record<BookingStatus, { label: string; tone: Tone }> = {
@@ -57,3 +60,29 @@ export const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export const canEdit = (role: Role | null | undefined) => role === "organizer" || role === "editor";
+
+const ROLES = Object.keys(ROLE_LABEL) as Role[];
+const isRole = (r: string): r is Role => (ROLES as string[]).includes(r);
+
+/** Spanish text for the error codes the UI knows (ADR 0008). Status, code, details and
+ *  requestId are still shown as returned; unknown codes keep the backend's message. */
+export function errorMessage(code: string, message: string): string {
+  switch (code) {
+    case "FORBIDDEN": {
+      // "This action requires the editor role; you are a viewer of this trip."
+      const m = /requires the (\w+) role; you are an? (\w+)/.exec(message);
+      return m && isRole(m[1]) && isRole(m[2])
+        ? `Esta acción requiere el rol ${ROLE_LABEL[m[1]]}; en este viaje eres ${ROLE_LABEL[m[2]]}.`
+        : "Tu rol en este viaje no permite esta acción.";
+    }
+    case "TRIP_VERSION_CONFLICT":
+      return "El viaje cambió desde la versión en la que se basaba tu cambio. No se guardó nada: "
+        + "revisa el estado actual y los cambios, y vuelve a aplicar el tuyo sobre la versión actual.";
+    case "VERSION_REQUIRED":
+      return "Falta la versión del viaje que cargaste; se pide para no perder ediciones simultáneas.";
+    case "VALIDATION_ERROR":
+      return "Algunos campos no son válidos; revisa el detalle.";
+    default:
+      return message;
+  }
+}

@@ -81,10 +81,10 @@ test("flujo completo: crear, compartir, buscar, planificar, reservar, documento 
   await expect(page.getByText("503 ASSISTANT_UNAVAILABLE")).toBeVisible();
 });
 
-test("permisos: el viewer no ve acciones y, si las fuerza, el backend responde 403", async ({ page }) => {
+test("permisos: el lector no ve acciones y, si las fuerza, el backend responde 403", async ({ page }) => {
   const tripId = await seedTrip(LISBON, "ana", { carla: "viewer" });
   await openAs(page, "carla", tripId);
-  await expect(page.getByText("tu rol: viewer")).toBeVisible();
+  await expect(page.getByText("tu rol: lector")).toBeVisible();
   await searchStays(page, "Lisbon");
   await expect(page.getByText("Búsqueda completa")).toBeVisible();
   await expect(page.getByRole("button", { name: "Añadir al itinerario" })).toHaveCount(0);
@@ -93,7 +93,7 @@ test("permisos: el viewer no ve acciones y, si las fuerza, el backend responde 4
   await page.locator("article.offer", { hasText: "Four-night central hotel stay" })
     .getByRole("button", { name: "Añadir al itinerario" }).click();
   await expect(page.getByText("403 FORBIDDEN")).toBeVisible();
-  await expect(page.getByText(/requires the editor role/)).toBeVisible();
+  await expect(page.getByText("Esta acción requiere el rol editor; en este viaje eres lector.")).toBeVisible();
 
   // A non-participant gets the same 404 as a trip that does not exist.
   const dani = await page.context().newPage();

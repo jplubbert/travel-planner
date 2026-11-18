@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { ApiError } from "./api";
-import { dateTime, type Tone } from "./format";
+import { dateTime, errorMessage, type Tone } from "./format";
 import type { VersionConflictDetails } from "./types";
 
 export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
@@ -12,7 +12,8 @@ export function Notice({ tone, children }: { tone: Tone; children: ReactNode }) 
   return <div className={`notice ${tone}`} role={tone === "bad" ? "alert" : "status"}>{children}</div>;
 }
 
-/** Shows a backend error as returned: status, code, message and details. */
+/** Shows a backend error: status, code, details and requestId as returned; the message in
+ *  Spanish for known codes, with the backend's original one kept alongside (ADR 0008). */
 export function ErrorBox({ error, onClose }: { error: unknown; onClose?: () => void }) {
   if (!error) return null;
   const e = error instanceof ApiError ? error : null;
@@ -25,7 +26,10 @@ export function ErrorBox({ error, onClose }: { error: unknown; onClose?: () => v
         </strong>
         {onClose && <button className="link" onClick={onClose}>cerrar</button>}
       </div>
-      <div>{e ? e.message : String(error)}</div>
+      <div>{e ? errorMessage(e.code, e.message) : String(error)}</div>
+      {e && errorMessage(e.code, e.message) !== e.message && (
+        <details><summary>Mensaje original del backend</summary><small>{e.message}</small></details>
+      )}
       {fields.length > 0 && (
         <ul>{fields.map((f, i) => <li key={i}><code>{f.field}</code>: {f.message}</li>)}</ul>
       )}

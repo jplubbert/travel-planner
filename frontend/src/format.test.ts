@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { age, BOOKING, SEARCH } from "./format";
+import { age, BOOKING, errorMessage, ROLE_LABEL, SEARCH } from "./format";
 import type { BookingStatus } from "./types";
 
 describe("booking presentation", () => {
@@ -38,5 +38,36 @@ describe("search presentation", () => {
     expect(age("2030-06-01T11:59:48Z", now)).toBe("hace 12 s");
     expect(age("2030-06-01T11:55:00Z", now)).toBe("hace 5 min");
     expect(age(null, now)).toBe("—");
+  });
+});
+
+describe("roles in Spanish", () => {
+  it("labels every role in Spanish", () => {
+    expect(ROLE_LABEL).toEqual({ organizer: "organizador", editor: "editor", viewer: "lector" });
+  });
+});
+
+describe("known error codes in Spanish", () => {
+  it("translates FORBIDDEN with the roles named by the backend", () => {
+    expect(errorMessage("FORBIDDEN", "This action requires the editor role; you are a viewer of this trip."))
+      .toBe("Esta acción requiere el rol editor; en este viaje eres lector.");
+    expect(errorMessage("FORBIDDEN", "This action requires the organizer role; you are an editor of this trip."))
+      .toBe("Esta acción requiere el rol organizador; en este viaje eres editor.");
+  });
+
+  it("falls back to a generic FORBIDDEN text when the message has another shape", () => {
+    expect(errorMessage("FORBIDDEN", "Nope.")).toBe("Tu rol en este viaje no permite esta acción.");
+  });
+
+  it.each([
+    ["TRIP_VERSION_CONFLICT", /^El viaje cambió desde la versión/],
+    ["VERSION_REQUIRED", /^Falta la versión del viaje/],
+    ["VALIDATION_ERROR", /^Algunos campos no son válidos/],
+  ])("translates %s", (code, text) => {
+    expect(errorMessage(code, "English text from the backend.")).toMatch(text);
+  });
+
+  it("keeps the backend message for unknown codes", () => {
+    expect(errorMessage("TERMS_CHANGED", "The provider changed the terms.")).toBe("The provider changed the terms.");
   });
 });

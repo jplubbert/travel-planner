@@ -35,20 +35,39 @@ describe("ConflictPanel", () => {
 });
 
 describe("ErrorBox", () => {
-  it("shows the backend's status, code, message, field errors and requestId as returned", () => {
+  it("shows status, code, field errors and requestId as returned, with the message in Spanish", () => {
     render(<ErrorBox error={new ApiError(422, "VALIDATION_ERROR", "Some fields are invalid; see details.",
       { fields: [{ field: "budget", message: "must be positive" }] }, "req-42")} />);
     expect(screen.getByText("422 VALIDATION_ERROR")).toBeInTheDocument();
-    expect(screen.getByText("Some fields are invalid; see details.")).toBeInTheDocument();
+    expect(screen.getByText("Algunos campos no son válidos; revisa el detalle.")).toBeInTheDocument();
+    expect(screen.getByText("Some fields are invalid; see details.").closest("details")).not.toBeNull();
     expect(screen.getByText("budget")).toBeInTheDocument();
     expect(screen.getByText(/must be positive/)).toBeInTheDocument();
     expect(screen.getByText("requestId: req-42")).toBeInTheDocument();
   });
 
-  it("shows a 403 from the backend without rewording it", () => {
+  it("shows a 403 with its status and code, the roles in Spanish and the original message kept", () => {
     render(<ErrorBox error={new ApiError(403, "FORBIDDEN", "This action requires the editor role; you are a viewer of this trip.")} />);
-    expect(screen.getByRole("alert")).toHaveTextContent("403 FORBIDDEN");
-    expect(screen.getByRole("alert")).toHaveTextContent("requires the editor role");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("403 FORBIDDEN");
+    expect(screen.getByText("Esta acción requiere el rol editor; en este viaje eres lector.")).toBeInTheDocument();
+    expect(screen.getByText("Mensaje original del backend")).toBeInTheDocument();
+    expect(alert).toHaveTextContent("requires the editor role");
+  });
+
+  it.each([
+    [409, "TRIP_VERSION_CONFLICT", /^El viaje cambió desde la versión/],
+    [400, "VERSION_REQUIRED", /^Falta la versión del viaje/],
+  ])("translates %i %s", (status, code, text) => {
+    render(<ErrorBox error={new ApiError(status, code, "English message.")} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(`${status} ${code}`);
+    expect(screen.getByText(text)).toBeInTheDocument();
+  });
+
+  it("shows unknown codes with the backend message and no duplicate original", () => {
+    render(<ErrorBox error={new ApiError(404, "TRIP_NOT_FOUND", "Trip not found.")} />);
+    expect(screen.getByText("Trip not found.")).toBeInTheDocument();
+    expect(screen.queryByText("Mensaje original del backend")).toBeNull();
   });
 
   it("renders nothing without an error", () => {
