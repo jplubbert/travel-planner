@@ -30,6 +30,7 @@ export type TripCtx = {
 };
 
 const Ctx = createContext<TripCtx | null>(null);
+export const TripContext = Ctx; // tests mount tabs with a fake context
 
 export function useTrip(): TripCtx {
   const ctx = useContext(Ctx);
