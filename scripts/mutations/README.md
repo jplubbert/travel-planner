@@ -45,7 +45,7 @@ Ejecutadas el 2026-11-18 con este runner, **sin nada más en marcha**. Se compro
 
 | Suite | Mutaciones | Detectadas | Supervivientes |
 | --- | --- | --- | --- |
-| `bookings` | 16 | 16 | — |
+| `bookings` | 16 (+1 el 2026-11-18) | 16 (+1) | — |
 | `documents` | 12 | 11 | "sin deduplicar peticiones en curso" (ver abajo) |
 | `mcp` | 16 | 16 | — |
 | `secrets` | 7 | 7 | — |
@@ -64,4 +64,18 @@ Ejecutadas el 2026-11-18 con este runner, **sin nada más en marcha**. Se compro
 - **Parser SSE.** La mutación borraba una línea y dejaba un `else` colgando, así que se "detectaba" por un error de sintaxis y no por un test. Se reescribió para ser válida, y ahora la detectan 4 tests de Vitest y el e2e.
 - **"Ignorar eventos de reserva" en el e2e.** El 2026-11-17 se detectó, pero el 2026-11-18 sobrevivió. El test volvía a abrir la pestaña Reservas después de confirmar la reserva en el proveedor, y esa relectura con `GET` podía ocultar la falta del evento en vivo según el momento. Se corrigió el test: la pestaña queda abierta mostrando `pending` antes de la confirmación. Desde entonces se detecta en 2 de 2 ejecuciones.
 
-**Total:** 62 mutaciones distintas. Solo una no la detecta ninguna capa de tests, la de defensa en profundidad de documentos, y quitar sus dos capas sí se detecta.
+**Mutaciones añadidas el 2026-11-18** (ejecutadas con el runner después del commit `be8ee86`, sin nada más en marcha):
+
+| Suite | Mutación | Resultado |
+| --- | --- | --- |
+| `bookings` | reconciliación ignora `Retry-After` | Detectada (3 tests) |
+| `tracing` | el repositorio no copia el id de la petición al job | Detectada (2 tests) |
+| `tracing` | el worker no restaura el id del job | Detectada |
+| `tracing` | el middleware no restaura el contexto | Detectada |
+| `mcp` | verificador de fechas acepta todo | Detectada (5 tests) |
+| `mcp` | verificador de restricciones acepta todo | Detectada (7 tests) |
+| `mcp` | conflicto sin nombrar los ítems | Detectada (2 tests) |
+| `mcp` | verificador de cambios nunca detecta | Detectada (4 tests) |
+| `mcp` | toda oferta cuenta como propuesta | Detectada (2 tests) |
+
+**Total:** 71 mutaciones distintas (62 + 9). Solo una no la detecta ninguna capa de tests, la de defensa en profundidad de documentos, y quitar sus dos capas sí se detecta.
