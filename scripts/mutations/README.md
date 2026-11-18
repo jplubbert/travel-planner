@@ -64,7 +64,7 @@ Ejecutadas el 2026-11-18 con este runner, **sin nada más en marcha**. Se compro
 - **Parser SSE.** La mutación borraba una línea y dejaba un `else` colgando, así que se "detectaba" por un error de sintaxis y no por un test. Se reescribió para ser válida, y ahora la detectan 4 tests de Vitest y el e2e.
 - **"Ignorar eventos de reserva" en el e2e.** El 2026-11-17 se detectó, pero el 2026-11-18 sobrevivió. El test volvía a abrir la pestaña Reservas después de confirmar la reserva en el proveedor, y esa relectura con `GET` podía ocultar la falta del evento en vivo según el momento. Se corrigió el test: la pestaña queda abierta mostrando `pending` antes de la confirmación. Desde entonces se detecta en 2 de 2 ejecuciones.
 
-**Mutaciones añadidas el 2026-11-18** (ejecutadas con el runner después del commit `be8ee86`, sin nada más en marcha):
+**Mutaciones añadidas el 2026-11-18** (ejecutadas con el runner después de cada commit, sin nada más en marcha):
 
 | Suite | Mutación | Resultado |
 | --- | --- | --- |
@@ -77,5 +77,11 @@ Ejecutadas el 2026-11-18 con este runner, **sin nada más en marcha**. Se compro
 | `mcp` | conflicto sin nombrar los ítems | Detectada (2 tests) |
 | `mcp` | verificador de cambios nunca detecta | Detectada (4 tests) |
 | `mcp` | toda oferta cuenta como propuesta | Detectada (2 tests) |
+| `mcp` | hueco sin atarlo a las noches | Detectada (2 tests) |
+| `mcp` | hueco sin palabra de ausencia | Detectada (2 tests) |
+| `mcp` | ausencia y alojamiento en frases distintas | Detectada (1 test). Sobrevivía en la primera prueba manual y se cerró con un caso negativo nuevo antes del commit `c0293c7` |
+| `mcp` | huecos sin comprobar cambios | Detectada (1 test) |
 
-**Total:** 71 mutaciones distintas (62 + 9). Solo una no la detecta ninguna capa de tests, la de defensa en profundidad de documentos, y quitar sus dos capas sí se detecta.
+Las 4 últimas son del verificador de huecos y se ejecutaron con el runner después del commit `c0293c7`.
+
+**Total:** 75 mutaciones distintas (62 + 13). Solo una no la detecta ninguna capa de tests, la de defensa en profundidad de documentos, y quitar sus dos capas sí se detecta.
