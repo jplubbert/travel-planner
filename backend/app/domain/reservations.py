@@ -236,18 +236,22 @@ def _request(booking: Booking) -> BookingRequest:
 
 async def send(
     uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", booking: Booking
-) -> None:
+) -> ProviderError | None:
     """POST /bookings for a ``submitted`` (or resent ``unknown``) booking and record what the
-    answer proves. Any non-provider exception propagates and leaves the booking as it was in
+    answer proves. Returns the provider error, if any, so a caller can honour its
+    Retry-After. Any non-provider exception propagates and leaves the booking as it was in
     the database (``submitted``), which the worker later turns into ``unknown``."""
+    error: ProviderError | None = None
     try:
         result = await provider.create_booking(_request(booking),
                                                idempotency_key=booking.idempotency_key)
     except ProviderError as exc:
+        error = exc
         await _record_failure(uow, provider, clock, booking, exc)
     else:
         _adopt(booking, result, clock.now())
     await _save_and_schedule(uow, clock, booking, ReconcilePolicy())
+    return error
 
 
 async def _record_failure(
@@ -329,6 +333,15 @@ def backoff(attempts: int, policy: ReconcilePolicy) -> float:
                      policy.retry_base_seconds * 2 ** max(0, attempts - 1)))
 
 
+def retry_delay(exc: ProviderError | None, attempts: int, policy: ReconcilePolicy) -> float:
+    """Backoff, but never sooner than the provider asked: a 429's Retry-After wins, even
+    above ``retry_max_seconds`` (calling earlier would only be rate limited again)."""
+    delay = backoff(attempts, policy)
+    if isinstance(exc, ProviderRateLimited) and exc.retry_after_seconds:
+        return max(delay, float(exc.retry_after_seconds))
+    return delay
+
+
 async def sync_booking(
     uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", booking_id: UUID,
     policy: ReconcilePolicy, attempts: int = 1,
@@ -359,8 +372,9 @@ async def sync_booking(
             result = await provider.get_booking(booking.provider_booking_id)
         except ProviderError as exc:
             booking.note_error(error_info(exc, now), now)  # still pending: it was accepted
-            await _save_and_schedule(uow, clock, booking, policy, backoff(attempts, policy))
-            return SyncResult(False, backoff(attempts, policy))
+            delay = retry_delay(exc, attempts, policy)
+            await _save_and_schedule(uow, clock, booking, policy, delay)
+            return SyncResult(False, delay)
         _adopt(booking, result, clock.now())
         await _save_and_schedule(uow, clock, booking, policy, policy.pending_poll_seconds)
         return _after(booking, policy.pending_poll_seconds)
@@ -372,8 +386,9 @@ async def sync_booking(
         found = None
     except ProviderError as exc:
         booking.note_error(error_info(exc, now), now)
-        await _save_and_schedule(uow, clock, booking, policy, backoff(attempts, policy))
-        return SyncResult(False, backoff(attempts, policy))
+        delay = retry_delay(exc, attempts, policy)
+        await _save_and_schedule(uow, clock, booking, policy, delay)
+        return SyncResult(False, delay)
     if found is not None:
         _adopt(booking, found, clock.now())
         await _save_and_schedule(uow, clock, booking, policy, policy.pending_poll_seconds)
@@ -384,8 +399,8 @@ async def sync_booking(
     if waited < policy.unknown_grace_seconds:
         return SyncResult(False, policy.unknown_grace_seconds - waited)
     # Still not visible after the grace period: re-send the same request with the same key.
-    await send(uow, provider, clock, booking)
-    return _after(booking, backoff(attempts, policy))
+    error = await send(uow, provider, clock, booking)
+    return _after(booking, retry_delay(error, attempts, policy))
 
 
 def _after(booking: Booking, retry_in: float) -> SyncResult:

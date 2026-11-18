@@ -119,3 +119,21 @@ def test_accepted_snapshot_is_never_overwritten_by_later_provider_data():
         price=Decimal("999.00"), failure=None, now=NOW)
     assert b.status == S.CONFIRMED
     assert b.accepted_offer == OFFER and b.accepted_price == Decimal("100.00")
+
+
+# --- Reconciliation delay: backoff, but never sooner than the provider's Retry-After ---------
+
+
+def test_retry_delay_honours_retry_after_over_the_backoff():
+    from app.domain.provider import ProviderRateLimited, ProviderUnavailable
+    from app.domain.reservations import ReconcilePolicy, backoff, retry_delay
+
+    policy = ReconcilePolicy(retry_base_seconds=2, retry_max_seconds=60)
+    assert retry_delay(None, 1, policy) == backoff(1, policy) == 2
+    assert retry_delay(ProviderUnavailable("down"), 3, policy) == 8
+    assert retry_delay(ProviderRateLimited("slow down", retry_after_seconds=45), 1, policy) == 45
+    # A short Retry-After never makes the next attempt sooner than the backoff.
+    assert retry_delay(ProviderRateLimited("slow down", retry_after_seconds=1), 3, policy) == 8
+    # The provider's request wins even above the backoff ceiling.
+    assert retry_delay(ProviderRateLimited("slow down", retry_after_seconds=90), 9, policy) == 90
+    assert retry_delay(ProviderRateLimited("slow down"), 2, policy) == 4  # no header

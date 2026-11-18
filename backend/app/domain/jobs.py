@@ -39,6 +39,9 @@ class Job:
     max_attempts: int = 5
     locked_until: datetime | None = None
     last_error: str | None = None
+    # Correlation id (X-Request-Id) of the request that created the job, so the worker's
+    # logs for it can be traced back; None for jobs created by the worker's own sweeps.
+    request_id: str | None = None
 
     def move(self, to: JobStatus, now: datetime) -> None:
         if to not in ALLOWED[self.status]:

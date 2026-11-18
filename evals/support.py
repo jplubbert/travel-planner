@@ -74,3 +74,134 @@ _NO_OPTION = re.compile(
 
 def says_no_option(text: str) -> bool:
     return bool(_NO_OPTION.search(text))
+
+
+# --- US-11: relating options to dates and restrictions, and flagging conflicts ---------------
+# Heuristics for English and Spanish answers. They are deliberately simple and have their own
+# tests (evals/deterministic/test_answer_checks.py); see evals/README.md for their limits.
+
+_MONTHS_EN = ["january", "february", "march", "april", "may", "june", "july", "august",
+              "september", "october", "november", "december"]
+_MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+              "septiembre", "octubre", "noviembre", "diciembre"]
+_NUMBERS_EN = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+               "ten", "eleven", "twelve", "thirteen", "fourteen"]
+_NUMBERS_ES = ["cero", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho",
+               "nueve", "diez", "once", "doce", "trece", "catorce"]
+# Words too common in offer titles and restrictions to identify one.
+_GENERIC = {"booking", "simulated", "included", "guest", "guests", "stay", "room", "rooms",
+            "night", "nights", "hotel", "travelers", "trip", "tour", "day", "four", "three",
+            "five", "beds", "after", "before", "with", "from", "only", "per", "the", "and"}
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-záéíóúñü0-9]+", text.lower())
+
+
+def _distinctive(text: str) -> list[str]:
+    return [w for w in _words(text) if (len(w) >= 4 or w.isdigit()) and w not in _GENERIC]
+
+
+def relates_to_dates(text: str, starts_on: Any, ends_on: Any) -> bool:
+    """The answer ties its proposal to the trip dates: it names a trip date (ISO, "June 10",
+    "10 June", "Jun 10", "10 de junio", "10/06") or the number of nights of the stay."""
+    lowered = text.lower()
+    for d in (starts_on, ends_on):
+        en, es = _MONTHS_EN[d.month - 1], _MONTHS_ES[d.month - 1]
+        patterns = [d.isoformat(), rf"\b{en}\s+{d.day}\b",
+                    rf"\b{d.day}(st|nd|rd|th)?\s+(of\s+)?{en}\b", rf"\b{en[:3]}\.?\s+{d.day}\b",
+                    rf"\b{d.day}\s+{en[:3]}\b",
+                    rf"\b{d.day}\s+de\s+{es}\b", rf"\b0?{d.day}/0?{d.month}\b",
+                    rf"\b0?{d.month}/0?{d.day}\b"]
+        if any(re.search(p, lowered) for p in patterns):
+            return True
+    nights = (ends_on - starts_on).days
+    counts = [str(nights)]
+    if nights < len(_NUMBERS_EN):
+        counts += [_NUMBERS_EN[nights], _NUMBERS_ES[nights]]
+    return bool(re.search(rf"\b({'|'.join(counts)})[\s-]+(nights?|noches?)\b", lowered))
+
+
+def mentioned_offers(text: str, offers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Offers the answer proposes: it cites the offer's price or every distinctive word of
+    its title (e.g. "Alfama" for "Four-night Alfama apartment")."""
+    amounts = cited_amounts(text)
+    words = set(_words(text))
+    found = []
+    for offer in offers:
+        price = Decimal(offer["price"]["amount"])
+        key = _distinctive(offer["title"])
+        if price in amounts or (key and all(w in words for w in key)):
+            found.append(offer)
+    return found
+
+
+def cited_restrictions(text: str, restrictions: list[str]) -> set[str]:
+    """Restrictions the answer mentions: at least half of a restriction's distinctive words
+    appear ("non-refundable" cites "Non-refundable simulated booking")."""
+    words = set(_words(text))
+    cited = set()
+    for restriction in restrictions:
+        key = _distinctive(restriction)
+        if key and sum(w in words for w in key) * 2 >= len(key):
+            cited.add(restriction)
+    return cited
+
+
+_CONFLICT = re.compile(
+    r"overlap|conflict|clash|double[- ]book|same time|at once|simultaneous"
+    r"|solap|conflicto|coinciden|a la vez|al mismo tiempo",
+    re.IGNORECASE)
+
+
+def names_item(text: str, title: str) -> bool:
+    words = set(_words(text))
+    return any(w in words for w in _distinctive(title))
+
+
+def flags_conflict(text: str, titles: list[str]) -> bool:
+    """The answer points out a schedule conflict and names every item involved."""
+    return bool(_CONFLICT.search(text)) and all(names_item(text, t) for t in titles)
+
+
+_CHANGE_CLAIM = re.compile(
+    r"\b(I|we)\s*(?:'ve|have|just)?\s*(removed|deleted|moved|rescheduled|changed|updated|"
+    r"replaced|added)\b"
+    r"|\b(he|hemos)\s+(quitado|eliminado|movido|cambiado|actualizado|añadido)\b",
+    re.IGNORECASE)
+
+
+def claims_a_change(text: str) -> bool:
+    """The answer says the assistant itself modified the itinerary (it cannot)."""
+    return bool(_CHANGE_CLAIM.search(text))
+
+
+# --- Composite checks used by the model evaluations (and tested with a scripted model) -------
+
+
+def check_relates_to_dates_and_restrictions(body: dict[str, Any], starts_on: Any,
+                                            ends_on: Any) -> None:
+    """US-11: the answer proposes retrieved options, ties them to the trip dates or nights,
+    and mentions at least one restriction of every proposed option that has any."""
+    searches = [c for c in body["toolCalls"]
+                if c["name"] == "search_offers" and not c["isError"]]
+    assert searches, "expected a successful search"
+    offers = [o for c in searches for o in c["result"]["offers"]]
+    proposed = mentioned_offers(body["answer"], offers)
+    assert proposed, "expected the answer to propose at least one retrieved option"
+    assert relates_to_dates(body["answer"], starts_on, ends_on), \
+        "the answer does not tie the options to the trip dates or nights"
+    for offer in proposed:
+        if offer["restrictions"]:
+            assert cited_restrictions(body["answer"], offer["restrictions"]), \
+                f"restrictions of {offer['title']!r} not mentioned: {offer['restrictions']}"
+
+
+def check_points_out_conflict(body: dict[str, Any], titles: list[str]) -> None:
+    """US-11: the answer read the itinerary, points out the conflict naming every item
+    involved, and does not claim to have changed anything."""
+    assert any(c["name"] == "get_itinerary" and not c["isError"] for c in body["toolCalls"]), \
+        "expected the itinerary to be read"
+    assert flags_conflict(body["answer"], titles), \
+        "the answer does not point out the overlap naming both activities"
+    assert not claims_a_change(body["answer"]), body["answer"]

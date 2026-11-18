@@ -79,18 +79,22 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         request.state.request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex
-        request_id_var.set(request.state.request_id)
+        token = request_id_var.set(request.state.request_id)
         try:
-            response = await call_next(request)
-        except Exception:
-            logger.exception("unhandled error request_id=%s", request.state.request_id)
-            response = error_response(request, 500, "INTERNAL_ERROR",
-                                      "Unexpected error; quote the requestId when reporting it.")
-        response.headers["X-Request-Id"] = request.state.request_id
-        logger.info("%s %s -> %s request_id=%s user=%s", request.method, request.url.path,
-                    response.status_code, request.state.request_id,
-                    request.headers.get("X-User-Id", "-"))
-        return response
+            try:
+                response = await call_next(request)
+            except Exception:
+                logger.exception("unhandled error request_id=%s", request.state.request_id)
+                response = error_response(
+                    request, 500, "INTERNAL_ERROR",
+                    "Unexpected error; quote the requestId when reporting it.")
+            response.headers["X-Request-Id"] = request.state.request_id
+            logger.info("%s %s -> %s request_id=%s user=%s", request.method, request.url.path,
+                        response.status_code, request.state.request_id,
+                        request.headers.get("X-User-Id", "-"))
+            return response
+        finally:
+            request_id_var.reset(token)  # never leaks into whatever runs next in this context
 
     install_error_handlers(app, itinerary.conflict_details)
     app.include_router(trips.router)

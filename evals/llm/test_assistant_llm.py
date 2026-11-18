@@ -8,17 +8,24 @@ Every case checks the answer automatically:
   or is a sum/difference of such amounts (totals, remaining budget);
 - no invented options: when nothing fits, the answer says so;
 - no booking claims: the answer never says it booked or changed anything;
-- budget: recommendations do not exceed the remaining budget unless the answer says so.
+- budget: recommendations do not exceed the remaining budget unless the answer says so;
+- dates and restrictions: proposals are tied to the trip dates (dates or nights) and every
+  proposed option that has restrictions has at least one of them mentioned;
+- conflicts: an existing schedule conflict in the itinerary is pointed out, naming both
+  items, without claiming to have changed anything.
 """
 
 import os
 import re
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 import pytest
 
 from evals.support import (
+    check_points_out_conflict,
+    check_relates_to_dates_and_restrictions,
     cited_amounts,
     claims_a_booking,
     is_grounded,
@@ -126,3 +133,36 @@ async def test_reports_a_failed_search_instead_of_no_results(api, llm_app, share
     assert re.search(r"fail|unavailable|could not|couldn't|error|not able|no pude|falló",
                      body["answer"], re.IGNORECASE), body["answer"]
     assert not cited_amounts(body["answer"]) - {Decimal("4500.00")}
+
+
+LISBON = {"name": "Lisbon", "destinations": ["Lisbon"], "startsOn": "2030-06-10",
+          "endsOn": "2030-06-14", "budget": "3000.00"}
+
+
+@pytest.mark.parametrize("round_", range(REPEATS))
+async def test_relates_options_to_dates_and_restrictions(api, llm_app, trip_payload,
+                                                         mock_control, round_):
+    trip = (await api.as_("ana").post("/trips", json={**trip_payload, **LISBON})).json()
+    body = await ask(api, llm_app, trip, "Find us accommodation in Lisbon for our trip.",
+                     user="ana")
+    check_relates_to_dates_and_restrictions(body, date(2030, 6, 10), date(2030, 6, 14))
+    assert_grounded(body)
+    assert_no_booking_claim(body)
+
+
+@pytest.mark.parametrize("round_", range(REPEATS))
+async def test_points_out_an_existing_schedule_conflict(api, llm_app, trip_payload,
+                                                        mock_control, round_):
+    ana = api.as_("ana")
+    trip = (await ana.post("/trips", json={**trip_payload, **LISBON})).json()
+    for version, offer in ((1, "offer-lis-tram-tour-p2"), (2, "offer-lis-sintra-day-p2")):
+        r = await ana.post(f"/trips/{trip['id']}/itinerary/items",
+                           json={"version": version, "offerId": offer})
+        assert r.status_code == 201, r.text  # the two activities overlap on June 11
+    body = await ask(api, llm_app, trip,
+                     "Can you review our itinerary and tell us if anything needs attention?",
+                     user="ana")
+    check_points_out_conflict(body, ["Historic tram tour", "Sintra day trip"])
+    assert_no_booking_claim(body)
+    after = (await ana.get(f"/trips/{trip['id']}/itinerary")).json()
+    assert len(after["items"]) == 2  # read-only: nothing was changed

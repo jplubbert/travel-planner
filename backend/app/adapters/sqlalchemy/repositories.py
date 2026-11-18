@@ -2,6 +2,7 @@
 
 from dataclasses import asdict
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, or_, select, text, update
@@ -28,6 +29,7 @@ from app.domain.itinerary import ItineraryItem
 from app.domain.jobs import Job, JobStatus
 from app.domain.trips import Trip
 from app.domain.users import User
+from app.observability import request_id_var
 
 # --- Users -------------------------------------------------------------------
 
@@ -399,8 +401,16 @@ def _job(row: JobRow) -> Job:
         id=row.id, kind=row.kind, status=JobStatus(row.status), run_after=row.run_after,
         created_at=row.created_at, updated_at=row.updated_at, payload=row.payload,
         dedupe_key=row.dedupe_key, attempts=row.attempts, max_attempts=row.max_attempts,
-        locked_until=row.locked_until, last_error=row.last_error,
+        locked_until=row.locked_until, last_error=row.last_error, request_id=row.request_id,
     )
+
+
+def _job_values(job: Job) -> dict[str, Any]:
+    values = asdict(job)
+    values["status"] = job.status.value
+    if values["request_id"] is None:  # created while serving a request: keep its id
+        values["request_id"] = request_id_var.get()
+    return values
 
 
 class SqlJobRepository:
@@ -408,9 +418,7 @@ class SqlJobRepository:
         self.session = session
 
     async def add(self, job: Job) -> None:
-        values = asdict(job)
-        values["status"] = job.status.value
-        self.session.add(JobRow(**values))
+        self.session.add(JobRow(**_job_values(job)))
         await self.session.flush()
 
     async def get(self, job_id: UUID) -> Job | None:
@@ -418,10 +426,8 @@ class SqlJobRepository:
         return _job(row) if row else None
 
     async def enqueue(self, job: Job) -> bool:
-        values = asdict(job)
-        values["status"] = job.status.value
         result = await self.session.execute(
-            insert(JobRow).values(**values)
+            insert(JobRow).values(**_job_values(job))
             .on_conflict_do_nothing(
                 index_elements=["dedupe_key"],
                 # Literal predicate: with bound parameters Postgres cannot match the

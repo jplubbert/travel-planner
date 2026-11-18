@@ -83,6 +83,8 @@ Reglas:
   - en cada iteración, también al arrancar, programa la reconciliación de los `submitted` más antiguos que `BOOKING_SUBMITTED_STALE_SECONDS`;
   - el job `sync_booking` (deduplicado entre jobs activos) aplica las reglas 3-5 y se reprograma con backoff hasta llegar a un estado terminal. No hay un número máximo de intentos: dejar de reconciliar convertiría la incertidumbre en silencio.
 
+**Nota (2026-11-18): `Retry-After` en la reconciliación.** El siguiente intento de un job `sync_booking` se programa con `retry_delay`: el backoff exponencial, pero nunca antes del `Retry-After` de un `429` del proveedor, aunque supere `BOOKING_RETRY_MAX_SECONDS`. Se aplica en la consulta de una `pending`, en la búsqueda por referencia de una `unknown` y en el reenvío. Tests: `test_retry_delay_honours_retry_after_over_the_backoff` (unitario), y `test_reconciliation_waits_for_the_providers_retry_after` y `test_a_rate_limited_resend_waits_for_retry_after` (contra el mock).
+
 ## Opciones descartadas
 
 - **Solo `pending`/`confirmed`/`failed` (espejo del proveedor).** Obliga a elegir un estado falso cuando no sabemos si se aceptó; viola US-08 ("no convertir la incertidumbre en éxito").

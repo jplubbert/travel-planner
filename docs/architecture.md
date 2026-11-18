@@ -67,7 +67,8 @@ ADR 0003. Ensayado en Docker (ver [demo](demo.md), paso 5).
 | Precio estimado frente a confirmado | Se copia la oferta en el ítem con `validUntil`. Los costes separan estimado y confirmado, y el precio aceptado es inmutable | `test_us04_itinerary.py`, `test_us05_costs.py` |
 | Totales en USD reproducibles | `Decimal`, sin coma flotante, *half-up* a centavos, documentado en `rounding` | `tests/unit/test_costs.py` |
 | Recuperación tras desconexión | Los eventos SSE solo avisan; con `ready` en cada (re)conexión la UI relee con `GET` | `test_status_channel.py`; e2e "al reconectar relee" |
-| Proveedor lento o caído | Plazo total por llamada (`PROVIDER_TIMEOUT_SECONDS`), búsqueda parcial o fallida explícita, y `lastError` y `nextStep` en las reservas | `test_us03_search.py`, `test_provider_client.py` |
+| Proveedor lento, caído o limitado por tasa | Plazo total por llamada (`PROVIDER_TIMEOUT_SECONDS`), búsqueda parcial o fallida explícita, `lastError` y `nextStep` en las reservas, y la reconciliación nunca reintenta antes del `Retry-After` | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py` |
+| Una operación en segundo plano se puede rastrear | El `X-Request-Id` de la petición pasa al job, y el worker lo usa en sus logs y en las llamadas al proveedor | `test_request_id_propagation.py` |
 | El asistente no inventa ni escribe | Las tools son de solo lectura (test de arquitectura). Las instrucciones exigen datos de las tools, y hay verificadores automáticos de precios y afirmaciones | `evals/` (deterministas por defecto; con modelo, 5 de 5 el 2026-11-17) |
 
 Los tests se comprobaron también inyectando errores: [`scripts/mutations/`](../scripts/mutations/README.md).
@@ -93,8 +94,10 @@ Los tests se comprobaron también inyectando errores: [`scripts/mutations/`](../
   - con varias réplicas de la API hay que mantener sin buffer el proxy de `/trips/{id}/events`.
 - **Asistente:**
   - comparte proceso y pool de conexiones con la API;
-  - las evaluaciones con modelo son probabilísticas, solo se ejecutaron una vez (5 de 5) y no se midió el consumo de tokens.
-- **Reconciliación:** concluir `rejected` tras reenviar depende de que el proveedor cumpla la idempotencia ante peticiones idénticas en vuelo (ADR 0003, riesgo documentado).
+  - las evaluaciones con modelo son probabilísticas: los 5 casos originales se ejecutaron una vez (5 de 5); los 2 de US-11 añadidos después (fechas y restricciones, conflicto de horario) aún no; y no se midió el consumo de tokens.
+- **Reconciliación:**
+  - concluir `rejected` tras reenviar depende de que el proveedor cumpla la idempotencia ante peticiones idénticas en vuelo (ADR 0003, riesgo documentado);
+  - el `Retry-After` se respeta por job, pero no hay un limitador de tasa compartido entre workers.
 - **Cotizaciones:** se actualizan a mano, ítem a ítem (ADR 0004). Los resultados de búsqueda no se cachean.
 - **Sin cancelación ni reembolsos** (fuera de alcance). Un ítem con una reserva activa no se puede quitar.
 - **Datos de ejemplo:** las fixtures cubren Lisboa, Madrid y París en junio de 2030, con reglas de itinerario simplificadas (`docs/assumptions.md`).

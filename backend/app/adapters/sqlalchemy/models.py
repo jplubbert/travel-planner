@@ -259,5 +259,6 @@ class JobRow(Base):
     run_after: Mapped[datetime] = mapped_column(TZ)
     locked_until: Mapped[datetime | None] = mapped_column(TZ)
     last_error: Mapped[str | None] = mapped_column(Text)
+    request_id: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(TZ)
     updated_at: Mapped[datetime] = mapped_column(TZ)

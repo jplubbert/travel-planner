@@ -74,6 +74,13 @@ Hay que decidir tres cosas: dónde viven los trabajos en segundo plano, qué es 
 - **En cada sondeo se vuelve a comprobar el acceso:** si el usuario deja de participar, recibe `access-revoked` y el stream se cierra.
 - **Los eventos son avisos, no la fuente de verdad.** No hay repetición de eventos: al (re)conectar llega `ready` y el cliente **siempre** relee con `GET`. Un evento perdido o duplicado no puede dejar al cliente con un estado incorrecto.
 
+**Nota (2026-11-18): trazabilidad de los jobs.**
+- Cada job guarda el `X-Request-Id` de la petición que lo creó (`jobs.request_id`, migración 0006). Lo copia el repositorio desde el contexto de la petición, así que el dominio no sabe nada de correlación.
+- El worker restaura ese id en el contexto mientras procesa el job. Así lo llevan sus logs y las llamadas al proveedor que hace el job.
+- Los jobs que crea el barrido del worker no tienen petición de origen y quedan sin id.
+- El middleware restaura el contexto al terminar cada petición, para que el id no se filtre a lo que se ejecute después.
+- Test: `tests/integration/test_request_id_propagation.py`.
+
 ## Consecuencias
 
 - **Positivas:**

@@ -33,6 +33,7 @@ from app.domain.reservations import (
     sweep_stale_submitted,
     sync_booking,
 )
+from app.observability import request_id_var
 from app.ports.clock import Clock
 from app.ports.documents import DocumentRenderer, DocumentStorage
 from app.ports.provider import ProviderClient
@@ -112,6 +113,15 @@ class JobWorker:
         raise ValueError(f"unknown job kind {job.kind!r}")
 
     async def _process(self, job: Job) -> None:
+        # The job runs under the id of the request that created it, so its logs (and the
+        # provider calls it makes) can be traced back to that request.
+        token = request_id_var.set(job.request_id)
+        try:
+            await self._process_job(job)
+        finally:
+            request_id_var.reset(token)
+
+    async def _process_job(self, job: Job) -> None:
         now = self.clock.now()
         try:
             done, retry_in = await self._run(job)
@@ -122,7 +132,8 @@ class JobWorker:
                 job.move(JobStatus.QUEUED, now)
                 job.run_after = self.clock.now() + timedelta(seconds=retry_in)
         except Exception as exc:  # keep the worker alive; retry with backoff or give up
-            logger.exception("%s: job %s (%s) failed", self.name, job.id, job.kind)
+            logger.exception("%s: job %s (%s) failed request_id=%s", self.name, job.id,
+                             job.kind, job.request_id)
             job.last_error = f"{type(exc).__name__}: {exc}"
             if job.kind == GENERATE_JOB and job.attempts >= job.max_attempts:
                 job.move(JobStatus.FAILED, now)
@@ -139,8 +150,8 @@ class JobWorker:
         async with SqlUnitOfWork(self.sessions) as uow:
             await uow.jobs.save(job)
             await uow.commit()
-        logger.info("%s: job %s %s -> %s (attempt %d)", self.name, job.id, job.kind,
-                    job.status, job.attempts)
+        logger.info("%s: job %s %s -> %s (attempt %d) request_id=%s", self.name, job.id,
+                    job.kind, job.status, job.attempts, job.request_id)
 
     async def run_forever(self, stop: asyncio.Event, poll_interval: float) -> None:
         logger.info("%s started", self.name)

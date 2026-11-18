@@ -89,7 +89,8 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | US-09: generar documento (202, copia inmutable, worker con escritura atómica, estados, reintento, recuperación por lease) | ✅ Hecho (ADR 0005) |
 | US-10: documento correcto (versión y hora, inmutable frente a ediciones, descarga verificada por hash, regeneración, barrido de huérfanos) | ✅ Hecho (ADR 0005) |
 | Canal de estado SSE por viaje (avisos de reservas, documentos y viaje; mismos permisos; se cierra al perder acceso) | ✅ Hecho (ADR 0005) |
-| US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Evaluaciones con modelo: 5 de 5 con `gemini-3.8-flash` el 2026-11-17 (`evals/README.md`) |
+| US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Evaluaciones con modelo: 5 de 5 con `gemini-3.8-flash` el 2026-11-17; 2 casos nuevos (fechas y restricciones, conflicto de horario) sin ejecutar todavía (`evals/README.md`). Probado por el candidato desde la UI con clave real el 2026-11-17 ([`docs/demo.md`](docs/demo.md), paso 7) |
+| Trazabilidad: `X-Request-Id` de la petición original en los jobs del worker, en sus logs y en las llamadas al proveedor que hacen | ✅ Hecho (2026-11-18, migración 0006), con tests. Los jobs que crea el barrido del worker no tienen petición de origen y se siguen por `clientReference` |
 | US-12: tools de solo lectura por MCP (SDK oficial, identidad por sesión firmada, permisos del usuario) | ✅ Hecho (ADR 0006), con evaluaciones deterministas |
 | Frontend (ADR 0007): todos los flujos, 403/409 del backend tal cual, 409 con reaplicación, estado en vivo con relectura al reconectar | ✅ Hecho, con Vitest y Playwright contra Compose desde cero |
 | Propuesta de despliegue, explicación de arquitectura, guion de demo y nota de uso de IA | ✅ Escritos ([`docs/`](docs/)). El despliegue es solo una propuesta: no se ha desplegado. En [`docs/demo.md`](docs/demo.md) se indica qué pasos se ensayaron y cuáles no |
@@ -100,12 +101,10 @@ Revisados contra el PRD y la guía el 2026-11-18. Todo lo demás tiene tests aut
 
 | Criterio | Situación |
 | --- | --- |
-| US-11: "explica cómo encajan las opciones con fechas, presupuesto, **preferencias** y **restricciones**, e identifica **huecos o conflictos**" | **Parcial.** Las instrucciones lo exigen, pero solo hay verificación automática del presupuesto, de los precios respaldados, de la falta de opciones, de no afirmar reservas y de los fallos de tools. No hay evaluación de que explique fechas, restricciones, huecos o conflictos. Las preferencias solo llegan en el mensaje del chat: el viaje no las guarda |
-| Evaluaciones con modelo (guía) | Ejecutadas **una sola vez** (5 de 5, 2026-11-17, por el candidato). No se midió la tasa de acierto con `EVAL_REPEATS` ni el consumo real de tokens; el coste documentado es una estimación |
-| Asistente desde la UI con clave real | **No ejecutado**. El e2e solo cubre el `503` sin clave |
-| Proveedor limitado por tasa durante la reconciliación (guía: proveedores lentos o fallidos) | **Parcial.** El `429` se registra con `Retry-After` en `lastError`, pero el backoff de la reconciliación no lo usa y no hay limitador compartido entre workers |
-| Diagnóstico de punta a punta (guía) | **Parcial.** El `X-Request-Id` no se propaga a los jobs del worker (sus logs muestran `request_id=None`); la reserva sí se puede seguir por `clientReference` y por el `requestId` del proveedor |
-| Guion de demo (entregable) | Escrito. Los pasos 5 y 6 se ensayaron por API, no con clics en la UI. El 3 se ensayó con Playwright, no con DevTools a mano. El 7 no se ha ensayado con clave (ver la tabla de [`docs/demo.md`](docs/demo.md)) |
+| US-11: "explica cómo encajan las opciones con fechas, presupuesto, **preferencias** y **restricciones**, e identifica **huecos o conflictos**" | **Evaluaciones escritas, sin ejecutar.** Desde el 2026-11-18 hay dos casos con modelo: uno exige relacionar las opciones con las fechas o noches y mencionar las restricciones de cada opción propuesta; otro exige señalar un conflicto de horario existente nombrando los dos ítems. Sus verificadores tienen tests deterministas, también contra el endpoint real con un modelo guionizado (`evals/README.md`). **No se han ejecutado con Gemini todavía.** Siguen sin evaluación los "huecos" (información que falta) y las preferencias, que solo llegan en el mensaje del chat porque el viaje no las guarda |
+| Evaluaciones con modelo (guía) | Los 5 casos originales se ejecutaron **una vez** (5 de 5, 2026-11-17, por el candidato); los 2 nuevos, **ninguna**. No se midió la tasa de acierto con `EVAL_REPEATS` ni el consumo real de tokens; el coste documentado es una estimación |
+| Proveedor limitado por tasa (guía: proveedores lentos o fallidos) | **Parcial.** Desde el 2026-11-18, la reconciliación no reintenta antes del `Retry-After` del proveedor (con tests). Sigue sin haber un limitador de tasa compartido entre workers |
+| Guion de demo (entregable) | Escrito. Los pasos 5 y 6 se ensayaron por API, no con clics en la UI. El 3 se ensayó con Playwright, no con DevTools a mano. El 7 lo ejecutó el candidato desde la UI con clave real (ver la tabla de [`docs/demo.md`](docs/demo.md)) |
 | Inyección de errores en el mock y en US-01 a US-06 | Se hizo durante el desarrollo, pero sus scripts no se conservaron; solo consta en los mensajes de commit. Las suites de `scripts/mutations/` cubren reservas, documentos, MCP y asistente, secretos y UI |
 | Harness: configuración de la herramienta | No hay configuración de Claude Code versionada (ni permisos ni hooks): se usó la configuración por defecto, y `.gitignore` excluye un posible `.claude/settings.local.json`. Sí se versionan `CLAUDE.md`, el prompt `/historia` y los scripts |
 | Despliegue | Solo propuesta, como permite la guía; no se ha desplegado |
@@ -127,7 +126,7 @@ Resumen. El detalle está en [`docs/deployment.md`](docs/deployment.md). **No se
   - identidad real (OIDC) en lugar de `X-User-Id`;
   - S3 para documentos;
   - `LISTEN/NOTIFY` en lugar de sondear PostgreSQL por cada stream SSE;
-  - limitador de tasa compartido y uso de `Retry-After` en la reconciliación.
+  - limitador de tasa compartido entre workers (el `Retry-After` ya se respeta en la reconciliación).
 
 ## Uso de IA en el desarrollo
 

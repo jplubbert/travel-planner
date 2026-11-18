@@ -62,13 +62,14 @@ Toda la configuración se lee del entorno (`backend/app/config.py`, documentada 
 - Los jobs se reclaman con `FOR UPDATE SKIP LOCKED` y lease, así que varias réplicas no se pisan (`tests/integration/test_worker_and_integrity.py` lo prueba con dos workers). Se escala por profundidad de la cola: jobs `queued` con `run_after <= now()`.
 - La deduplicación (clave única solo entre jobs activos) evita encolar dos veces la misma reconciliación o generación.
 - Los límites de tasa del proveedor son globales. Más workers no significa más reconciliaciones por segundo si el proveedor responde `429`.
-- Hoy la reconciliación usa un backoff exponencial (`BOOKING_RETRY_BASE_SECONDS` hasta `BOOKING_RETRY_MAX_SECONDS`) y **no usa `Retry-After`** para programar el siguiente intento: solo lo guarda en `lastError`. Tampoco hay un limitador compartido entre réplicas. Ambas cosas están **pendientes para producción**.
+- La reconciliación usa un backoff exponencial (`BOOKING_RETRY_BASE_SECONDS` hasta `BOOKING_RETRY_MAX_SECONDS`), pero **nunca reintenta antes del `Retry-After`** de un `429` del proveedor, aunque supere el máximo del backoff (desde el 2026-11-18, `retry_delay` en `app/domain/reservations.py`, con tests).
+- Lo que falta es un limitador compartido entre réplicas: cada worker respeta el `Retry-After` de sus propios jobs, pero no el que recibió otro. **Pendiente para producción.**
 
 ## Observabilidad
 
 **Lo que existe**
 
-- Cada petición lleva `X-Request-Id`, que se acepta o se genera, aparece en los logs y se devuelve en los errores (`requestId`).
+- Cada petición lleva `X-Request-Id`, que se acepta o se genera, aparece en los logs y se devuelve en los errores (`requestId`). Los jobs que crea la petición lo heredan, y el worker lo usa en sus logs y en las llamadas al proveedor.
 - Cada llamada al proveedor registra la operación, el estado, la duración, el `requestId` del proveedor y el de la petición, nunca el token.
 - Las reservas guardan `lastError` (código, mensaje, `providerRequestId`, `retryAfterSeconds`, hora) y los documentos guardan `error`.
 - El worker registra cada job con su resultado e intento.
@@ -88,7 +89,9 @@ Toda la configuración se lee del entorno (`backend/app/config.py`, documentada 
   - cola de jobs creciendo;
   - tasa de `5xx`;
   - `/readyz` fallando.
-- Trazas (OpenTelemetry) de la API al proveedor y al worker, propagando el `requestId` en los jobs. Hoy el worker registra `request_id=None` porque el job no lo hereda.
+- Trazas (OpenTelemetry) de la API al proveedor y al worker.
+  - Lo que ya existe: el `X-Request-Id` de la petición se guarda en el job (`jobs.request_id`) y el worker lo restaura mientras lo procesa, así que sus logs y las llamadas al proveedor que hace llevan el mismo id.
+  - Los jobs que crea el barrido del worker no tienen petición de origen, así que no llevan id; se siguen por `clientReference`.
 
 ## Qué cambiaría para producción
 
@@ -104,4 +107,4 @@ Toda la configuración se lee del entorno (`backend/app/config.py`, documentada 
 
 ## Coste
 
-No estimado, más allá del modelo: las evaluaciones con modelo cuestan unos 0,10–0,20 USD por pasada, una estimación no medida (`evals/README.md`).
+No estimado, más allá del modelo: las evaluaciones con modelo cuestan unos 0,14–0,28 USD por pasada de los 7 casos, una estimación no medida (`evals/README.md`).

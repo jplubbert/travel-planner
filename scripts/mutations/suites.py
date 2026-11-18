@@ -46,6 +46,8 @@ BOOKINGS = [
     (API, "booked=b.status == BookingStatus.CONFIRMED,",
         "booked=b.status in (BookingStatus.CONFIRMED, BookingStatus.UNKNOWN),",
         "unknown presentado como reservado"),
+    (R, "    if isinstance(exc, ProviderRateLimited) and exc.retry_after_seconds:",
+        "    if False:", "reconciliación ignora Retry-After"),
 ]
 
 # --- from mutate_docs ----------------------------------------
@@ -152,6 +154,20 @@ MCP = [
          "verificador de reservas nunca detecta"),
 ]
 
+# US-11 checks for dates, restrictions and conflicts (added 2026-11-18).
+MCP.extend([
+    (SP, '    return bool(re.search(rf"\\b({\'|\'.join(counts)})[\\s-]+(nights?|noches?)\\b", lowered))',
+     "    return True", "verificador de fechas acepta todo"),
+    (SP, "        if key and sum(w in words for w in key) * 2 >= len(key):",
+     "        if True:", "verificador de restricciones acepta todo"),
+    (SP, "    return bool(_CONFLICT.search(text)) and all(names_item(text, t) for t in titles)",
+     "    return bool(_CONFLICT.search(text))", "conflicto sin nombrar los ítems"),
+    (SP, "    return bool(_CHANGE_CLAIM.search(text))", "    return False",
+     "verificador de cambios nunca detecta"),
+    (SP, "        if price in amounts or (key and all(w in words for w in key)):",
+     "        if True:", "toda oferta cuenta como propuesta"),
+])
+
 # --- from mutate_ui ----------------------------------------
 UF, UTV, USR, UBT, UCP, UAPI, USSE = (
     "frontend/src/format.ts", "frontend/src/TripView.tsx", "frontend/src/tabs/SearchTab.tsx",
@@ -205,6 +221,17 @@ SECRETS = [
      "Gemini no reintenta el 403 esporádico"),
 ]
 
+# --- request id propagation to jobs and worker logs ---------------------------------------
+TRACING = [
+    (REPO, '        values["request_id"] = request_id_var.get()', "        pass",
+     "el repositorio no copia el id de la petición al job"),
+    ("backend/app/workers/worker.py", "        token = request_id_var.set(job.request_id)",
+     "        token = request_id_var.set(None)", "el worker no restaura el id del job"),
+    ("backend/app/api/app.py",
+     "            request_id_var.reset(token)  # never leaks into whatever runs next in this context",
+     "            pass", "el middleware no restaura el contexto"),
+]
+
 _E2E_ENV = {"E2E_BASE_URL": "http://localhost:5174", "E2E_MOCK_URL": "http://localhost:14010"}
 
 SUITES = {
@@ -226,6 +253,11 @@ SUITES = {
         "description": "servidor MCP, asistente, adaptador Gemini y verificadores de evals (US-11, US-12)",
         "mutations": MCP,
         "command": PYTEST + ["tests/unit", "evals/deterministic"],
+    },
+    "tracing": {
+        "description": "X-Request-Id propagado a los jobs y a los logs del worker",
+        "mutations": TRACING,
+        "command": PYTEST + ["tests/integration/test_request_id_propagation.py"],
     },
     "secrets": {
         "description": "secretos enmascarados y reintento de Gemini",

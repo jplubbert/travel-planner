@@ -551,3 +551,57 @@ async def test_reconciliation_does_not_take_over_a_submission_still_in_flight(
                                     ReconcilePolicy(submitted_stale_seconds=3600))
     assert not result.done and result.retry_in > 0
     assert (await bookings(api.as_("ana"), shared_trip))[0]["status"] == "submitted"
+
+
+async def test_reconciliation_waits_for_the_providers_retry_after(
+    api, make_app, mock_provider_url, shared_trip, mock_control, make_worker
+):
+    """A rate-limited lookup is not retried before Retry-After (45 s here), although the
+    backoff alone would retry after 2 s."""
+    item = await add_item(api.as_("ana"), shared_trip, HOTEL)
+    lossy = lost_response_app(make_app, mock_control, mock_provider_url)
+    await book(api.as_("ana", app=lossy), shared_trip, item)
+    await scenario(mock_control, "supplier-a", "rate_limited", retryAfterSeconds=45)
+
+    worker = make_worker()
+    assert await worker.run_once() == 1
+    [b] = await bookings(api.as_("ana"), shared_trip)
+    assert b["status"] == "unknown"
+    assert b["lastError"]["code"] == "PROVIDER_RATE_LIMITED"
+    assert b["lastError"]["retryAfterSeconds"] == 45
+
+    await mock_control.delete("/scenario")  # the provider would answer now, but asked for 45 s
+    await asyncio.sleep(2.5)  # longer than the first backoff step
+    assert await worker.run_once() == 0
+    assert (await bookings(api.as_("ana"), shared_trip))[0]["status"] == "unknown"
+
+
+async def test_a_rate_limited_resend_waits_for_retry_after(
+    api, make_app, app, shared_trip, mock_control, provider_client
+):
+    """The re-send branch (unknown, not found by reference after the grace period) also
+    schedules the next attempt after Retry-After."""
+    from uuid import UUID
+
+    from app.adapters.clock import SystemClock
+    from app.adapters.sqlalchemy.uow import SqlUnitOfWork
+    from app.domain.reservations import ReconcilePolicy, sync_booking
+
+    async def lost():
+        raise p.ProviderTimeout("lost before reaching the provider")
+
+    item = await add_item(api.as_("ana"), shared_trip, HOTEL)
+    lossy = make_app(provider=WrappedProvider(provider_client, before=lost))
+    assert (await book(api.as_("ana", app=lossy), shared_trip, item)).json()["status"] == "unknown"
+
+    class RateLimitedResend(WrappedProvider):
+        async def create_booking(self, request: Any, *, idempotency_key: str) -> Any:
+            raise p.ProviderRateLimited("Too many requests", retry_after_seconds=30)
+
+    [b] = await bookings(api.as_("ana"), shared_trip)
+    async with SqlUnitOfWork(app.state.sessions) as uow:
+        result = await sync_booking(uow, RateLimitedResend(provider_client), SystemClock(),
+                                    UUID(b["bookingId"]), ReconcilePolicy(unknown_grace_seconds=0))
+    assert not result.done and result.retry_in == 30
+    [after] = await bookings(api.as_("ana"), shared_trip)
+    assert after["status"] == "unknown" and after["lastError"]["code"] == "PROVIDER_RATE_LIMITED"

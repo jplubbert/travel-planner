@@ -58,7 +58,7 @@ No hay configuración de Claude Code versionada (permisos, hooks): se usó la co
 | Se usó `mcp.server.fastmcp`, que ya no existe en el SDK 2.x (ahora `MCPServer`), además de atributos en camelCase | Errores de importación y de atributo | `MCPServer` y campos snake_case; `CLAUDE.md` corregido |
 | Un `ModelError` dentro del grupo de tareas del cliente MCP llegaba envuelto en un `ExceptionGroup` y daba `500` | Eval determinista | Se captura dentro del contexto MCP y se responde `502` |
 | Tests de mutación de las primeras historias que no detectaban la ausencia de un lock | Mutación superviviente | Test con `yield_in_critical_section` |
-| Durante la redacción de `docs/deployment.md` se afirmó que la reconciliación respeta `Retry-After` | Revisión contra el código antes del commit | Corregido: hoy usa backoff exponencial y solo guarda `Retry-After` en `lastError` |
+| Durante la redacción de `docs/deployment.md` se afirmó que la reconciliación respeta `Retry-After` | Revisión contra el código antes del commit | Corregido en el documento. Después, a petición del candidato, se implementó: la reconciliación ya no reintenta antes del `Retry-After` |
 | Una mutación de la UI (parser SSE) dejaba código sintácticamente inválido, así que "se detectaba" por un error de compilación y no por un test | Lectura de la salida del runner | Mutación reescrita para ser válida; ahora la detectan los tests |
 | El e2e de la reserva `pending` volvía a abrir la pestaña tras confirmar, y la relectura podía ocultar un evento SSE perdido: la mutación "ignorar eventos de reserva" se detectó un día y otro no | Repetir la suite de mutaciones con el runner nuevo | Test corregido para que solo un evento en vivo pueda actualizar la tarjeta; detectada en 2 de 2 ejecuciones |
 
@@ -81,7 +81,9 @@ No hay configuración de Claude Code versionada (permisos, hooks): se usó la co
 - **Seguridad:** secretos como `SecretStr`. Reintentos de Gemini solo para 429, 503 y el 403 esporádico, nunca para 400, 401 o 402; el agente añadió además los 5xx y lo informó.
 - **Frontend:** React + Vite + TypeScript sin librería de UI; SSE leído con `fetch`; 409 con reaplicación; la UI no es la barrera de permisos; orden de bloques con un commit por bloque.
 - **Método:** inyectar errores en cada historia, un commit por tarea, y no presentar como hecho nada sin test ni ejecución.
-- **Evaluaciones con modelo:** las ejecutó el propio candidato con su clave (5 de 5 el 2026-11-17). El agente no las ejecutó.
+- **Evaluaciones con modelo:** las ejecutó el propio candidato con su clave (5 de 5 el 2026-11-17). El agente no las ejecutó, tampoco las 2 de US-11 añadidas el 2026-11-18.
+- **Prueba del asistente desde la UI con clave real:** la hizo el candidato el 2026-11-17 (ver `docs/demo.md`, paso 7).
+- **Cierre de huecos del 2026-11-18:** respetar `Retry-After` en la reconciliación, propagar el `X-Request-Id` a los jobs del worker y evaluar con modelo la relación con fechas y restricciones y los conflictos de horario.
 
 ## Cómo se verificó la salida
 

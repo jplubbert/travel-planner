@@ -93,6 +93,8 @@ La API devuelve estas reglas en `rules` en cada lectura del itinerario (fuente: 
 
 > **Supuesto:** La cancelación y el reembolso están fuera de alcance (PRD). Una reserva `confirmed` impide quitar su ítem del itinerario. — **Afecta a:** US-04, US-08.
 
+> **Supuesto:** Un job que crea el barrido del worker (por ejemplo, una reserva `submitted` cuyo emisor murió) no tiene `X-Request-Id` de origen, porque la petición original no llegó a encolar nada. Esa reserva se rastrea por su `clientReference` y por los `requestId` del proveedor. — **Afecta a:** US-08, diagnóstico.
+
 ## Documentos (US-09, US-10)
 
 > **Supuesto:** El formato es un **HTML autocontenido** (CSS en línea, sin scripts ni recursos externos), que se descarga como adjunto y se puede imprimir a PDF desde el navegador. — **Afecta a:** US-09 — **Motivo:** el PRD deja libre el formato; HTML no necesita dependencias, es determinista y se verifica por hash.
