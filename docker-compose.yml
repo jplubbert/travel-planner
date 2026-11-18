@@ -85,6 +85,16 @@ services:
       timeout: 3s
       retries: 10
 
+  # UI mínima (React + Vite), servida por nginx, que además hace de proxy de /api hacia la API.
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
   mockdata:
