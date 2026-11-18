@@ -169,10 +169,13 @@ test("reserva pendiente: no parece confirmada hasta que el proveedor confirma (e
   await tab(page, "Costes");
   await expect(page.locator(".totals")).toContainText("Confirmado por el proveedor0.00 USD");
 
+  // Open the bookings tab *before* the provider settles it: from here on only a live event
+  // can update the card (re-opening the tab would re-read with GET and hide a lost event).
+  await tab(page, "Reservas");
+  await expect(booking).toContainText("Aceptada, pendiente de confirmación (aún no reservada)");
   const ana = await apiAs("ana");
   const [b] = await (await ana.get(`trips/${tripId}/bookings`)).json();
   await mockControl("post", `booking/${b.providerBookingId}/settle`, { status: "confirmed" });
   // The worker reconciles it and the live channel announces it: no reload by the user.
-  await tab(page, "Reservas");
   await expect(booking).toContainText("Reservado: confirmado por el proveedor", { timeout: 30_000 });
 });

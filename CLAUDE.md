@@ -38,6 +38,7 @@ Plazo: **viernes 20 nov 2026, 23:59**.
 6. **Respetar las fronteras de la arquitectura.** Si el dominio necesita algo externo, se define un puerto. Nunca importar adaptadores desde el dominio.
 7. **Honestidad sobre el estado.** Si un requisito queda incompleto, documentar qué falta y su impacto en el README; no presentarlo como terminado.
 8. **Configuración fuera del código.** Todo valor dependiente del entorno se lee de variables de entorno; documentarlas en `.env.example`.
+9. **Nunca construir imágenes ni ejecutar tests, ensayos o demos mientras corren mutaciones.** `scripts/mutations/run.py` modifica archivos del repo durante cada mutación. Cualquier `docker compose build`/`up --build`, `pytest`, `npm test`, Playwright o ensayo lanzado en paralelo puede leer código mutado y dar resultados falsos. Esperar a que termine, comprobar que `git diff -- backend/ frontend/src` está vacío y que no hay archivos `.orig`, y solo entonces continuar. Ya pasó una vez: un ensayo de la demo corrió sobre una imagen construida con `if False:` en `reservations.py` y hubo que repetirlo (ver `docs/demo.md`).
 
 ## Comandos
 
@@ -51,6 +52,7 @@ uv run mypy backend/app        # tipos (estricto)
 uv run ruff check .            # lint
 cd frontend && npm test        # Vitest (y npm run typecheck)
 ./scripts/e2e.sh               # Playwright contra un Compose aparte levantado desde cero (sin clave de Gemini)
+python3 scripts/mutations/run.py   # inyección de errores; NADA más en paralelo (regla 9)
 ```
 
 Migraciones: `cd backend && DATABASE_URL=... uv run alembic revision --autogenerate -m "..."`, siempre revisando el resultado. `tests/integration/test_persistence.py` falla si los modelos y las migraciones divergen. Identidad de prueba: header `X-User-Id` (`ana`, `beto`, `carla`, `dani`).
