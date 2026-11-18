@@ -25,7 +25,7 @@ Plazo: **viernes 20 nov 2026, 23:59**.
 - **Mock del proveedor:** servicio separado en `mock/` (FastAPI). La aplicación lo consume **solo por HTTP** según `openAPI.json`; nunca su base de datos ni sus endpoints de control.
 - **MCP:** servidor con el SDK oficial de Python (`mcp` 2.x, donde **FastMCP se llama `MCPServer`**), **solo lectura**, montado en la API en `/mcp` (streamable HTTP). No expone modificación de itinerario ni reservas. La identidad viaja en un token de sesión firmado, nunca como argumento de tool (ADR 0006).
 - **Asistente:** Google Gemini con el SDK oficial `google-genai`, detrás del puerto `ChatModel` (adaptador intercambiable; `ScriptedModel` para tests). Modelo por defecto `gemini-3.8-flash`, verificado en la documentación de Google el 2026-11-17. El bucle de tool use es propio (`app/assistant/loop.py`): el asistente es cliente MCP, descubre las tools con `list_tools` y se las pasa al modelo. **Sin LangChain ni LangGraph** ni otros frameworks de agentes. Configuración por entorno: `GEMINI_MODEL`, `GEMINI_API_KEY` (ADR 0006, que sustituye la decisión anterior de usar Anthropic).
-- **Frontend:** mínimo; se define más adelante.
+- **Frontend:** React + Vite + TypeScript en `frontend/`, sin librería de UI. nginx lo sirve y hace de proxy de `/api` (mismo origen). El SSE se lee con `fetch` y se relee con `GET` en cada reconexión. La UI no es la barrera de permisos: los 403 y 409 del backend se muestran tal cual (ADR 0007).
 - **Infraestructura:** Docker Compose para todo.
 
 ## Reglas de trabajo
@@ -43,12 +43,14 @@ Plazo: **viernes 20 nov 2026, 23:59**.
 
 ```bash
 cp .env.example .env
-docker compose up -d --build   # Postgres + mock del proveedor en :4010
+docker compose up -d --build   # Postgres, API, worker, mock en :4010 y UI en :5173
 uv sync                        # entorno Python 3.12 (.venv)
 uv run pytest                  # tests y evaluaciones deterministas (excluye `llm`); necesita `db` levantado
-GEMINI_API_KEY=... uv run pytest evals/llm -m llm -s   # evaluaciones con modelo (coste: evals/README.md)
+uv run pytest evals/llm -m llm -s   # evaluaciones con modelo; clave de GEMINI_API_KEY o .env (coste: evals/README.md)
 uv run mypy backend/app        # tipos (estricto)
 uv run ruff check .            # lint
+cd frontend && npm test        # Vitest (y npm run typecheck)
+./scripts/e2e.sh               # Playwright contra un Compose aparte levantado desde cero (sin clave de Gemini)
 ```
 
 Migraciones: `cd backend && DATABASE_URL=... uv run alembic revision --autogenerate -m "..."`, siempre revisando el resultado. `tests/integration/test_persistence.py` falla si los modelos y las migraciones divergen. Identidad de prueba: header `X-User-Id` (`ana`, `beto`, `carla`, `dani`).

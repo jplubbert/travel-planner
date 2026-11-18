@@ -13,3 +13,5 @@
 Los tests del mock del proveedor están en `mock/tests/`.
 
 Las evaluaciones del MCP y del asistente están en `evals/` (ver `evals/README.md`): las deterministas entran en la ejecución por defecto y las de modelo van marcadas `llm`.
+
+Los tests del frontend (Vitest y Playwright) están en `frontend/` (ver `frontend/README.md`).

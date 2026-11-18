@@ -8,7 +8,7 @@ Take-home: plataforma de planificación de viajes en grupo. Viajes compartidos c
 
 ## Stack
 
-Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (SDK oficial 2.x, `MCPServer`) · Google Gemini con `google-genai` (`gemini-3.8-flash`, sin LangChain/LangGraph) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
+Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (SDK oficial 2.x, `MCPServer`) · Google Gemini con `google-genai` (`gemini-3.8-flash`, sin LangChain/LangGraph) · React + Vite + TypeScript (UI mínima, servida por nginx) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
 
 ## Estructura
 
@@ -22,19 +22,32 @@ backend/app/
   assistant/  asistente que consume MCP
   workers/    documentos y reconciliación en segundo plano
 mock/         proveedor externo simulado (FastAPI)
-frontend/     UI mínima
+frontend/     UI mínima (React + Vite + TypeScript)
+scripts/      e2e.sh: Playwright contra Compose levantado desde cero
 tests/        pruebas y evaluaciones
 docs/         ADRs y supuestos
 ```
 
-## Puesta en marcha (estado actual)
+## Puesta en marcha
 
 ```bash
-cp .env.example .env
-docker compose up -d --build   # Postgres + API (http://localhost:8000/docs) + worker + mock (http://localhost:4010/v1)
-uv sync && uv run pytest       # tests + evaluaciones deterministas (necesitan el servicio db en marcha)
-GEMINI_API_KEY=... uv run pytest evals/llm -m llm -s   # evaluaciones con modelo (evals/README.md)
+cp .env.example .env           # opcional: GEMINI_API_KEY para el asistente
+docker compose up --build      # UI en http://localhost:5173 · API en http://localhost:8000/docs · mock en http://localhost:4010/v1
 ```
+
+En la UI, el selector de la cabecera cambia de usuario de prueba (`ana`, `beto`, `carla`, `dani`). Sin `GEMINI_API_KEY` todo funciona salvo el asistente, que responde `503 ASSISTANT_UNAVAILABLE`.
+
+## Pruebas
+
+```bash
+docker compose up -d db
+uv sync && uv run pytest                               # backend, mock y evaluaciones deterministas
+uv run pytest evals/llm -m llm -s                      # evaluaciones con modelo: necesitan GEMINI_API_KEY (coste en evals/README.md)
+cd frontend && npm ci && npm test                      # Vitest
+./scripts/e2e.sh                                       # flujo completo en Docker desde cero, con Playwright
+```
+
+`scripts/e2e.sh` levanta un proyecto de Compose aparte, con volúmenes y puertos propios, así que no toca el stack local ni sus datos. Construye todas las imágenes, ejecuta los tests de Playwright a través del frontend y lo elimina al terminar. Ver [`frontend/README.md`](frontend/README.md).
 
 Ver [`mock/README.md`](mock/README.md) para las fixtures y los escenarios de fallo.
 
@@ -71,8 +84,7 @@ Criterio transversal: ninguna historia se considera hecha sin tests que prueben 
 | Canal de estado SSE por viaje (avisos de reservas, documentos y viaje; mismos permisos; se cierra al perder acceso) | ✅ Hecho (ADR 0005) |
 | US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Evaluaciones con modelo: 5 de 5 con `gemini-3.8-flash` el 2026-11-17 (`evals/README.md`) |
 | US-12: tools de solo lectura por MCP (SDK oficial, identidad por sesión firmada, permisos del usuario) | ✅ Hecho (ADR 0006), con evaluaciones deterministas |
-| MCP + asistente | ⏳ Pendiente |
-| Frontend | ⏳ Pendiente (stack por definir) |
+| Frontend (ADR 0007): todos los flujos, 403/409 del backend tal cual, 409 con reaplicación, estado en vivo con relectura al reconectar | ✅ Hecho, con Vitest y Playwright contra Compose desde cero |
 | Despliegue propuesto, demo, nota de uso de IA | ⏳ Pendiente |
 
 ## Uso de IA en el desarrollo

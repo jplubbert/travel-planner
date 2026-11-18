@@ -49,3 +49,4 @@ Positivas, negativas, riesgos y qué hay que hacer/probar a raíz de esto.
 | [0004](0004-copia-de-oferta-y-frescura.md) | Copia de la oferta en el ítem y política de frescura | Aceptado |
 | [0005](0005-jobs-documentos-y-canal-de-estado.md) | Jobs en PostgreSQL, documento como copia inmutable y canal de estado | Aceptado |
 | [0006](0006-mcp-asistente-y-proveedor-de-modelo.md) | MCP en el mismo proceso, identidad por sesión, bucle propio y proveedor de modelo intercambiable | Aceptado |
+| [0007](0007-frontend-mismo-origen-y-estado-en-vivo.md) | Frontend en el mismo origen, SSE leído con fetch y la UI que no es barrera de permisos | Aceptado |
