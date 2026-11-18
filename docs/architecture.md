@@ -1,103 +1,104 @@
-# Arquitectura
+# Architecture
 
-Explicación corta. El detalle de cada decisión, con sus alternativas, está en los ADR:
+Short explanation. The details of each decision, with its alternatives, are in the ADRs:
 
-| ADR | Tema |
+| ADR | Topic |
 | --- | --- |
-| [0001](adr/0001-concurrencia-por-version.md) | Concurrencia por versión optimista del viaje |
-| [0002](adr/0002-mock-proveedor-con-control.md) | Mock del proveedor con fixtures, controles fuera del contrato y reloj |
-| [0003](adr/0003-estados-de-reserva-y-reconciliacion.md) | Estados de reserva y reconciliación |
-| [0004](adr/0004-copia-de-oferta-y-frescura.md) | Copia de la oferta en el ítem y política de frescura |
-| [0005](adr/0005-jobs-documentos-y-canal-de-estado.md) | Jobs en PostgreSQL, documento como copia inmutable y canal de estado SSE |
-| [0006](adr/0006-mcp-asistente-y-proveedor-de-modelo.md) | MCP en el mismo proceso, identidad firmada, bucle propio y modelo intercambiable |
-| [0007](adr/0007-frontend-mismo-origen-y-estado-en-vivo.md) | Frontend en el mismo origen, SSE con `fetch` y la UI que no es barrera de permisos |
+| [0001](adr/0001-version-based-concurrency.md) | Concurrency via optimistic trip version |
+| [0002](adr/0002-provider-mock-with-control.md) | Provider mock with fixtures, out-of-contract controls and clock |
+| [0003](adr/0003-booking-states-and-reconciliation.md) | Booking states and reconciliation |
+| [0004](adr/0004-offer-snapshot-and-freshness.md) | Offer snapshot in the item and freshness policy |
+| [0005](adr/0005-jobs-documents-and-status-channel.md) | Jobs in PostgreSQL, document as an immutable snapshot and SSE status channel |
+| [0006](adr/0006-mcp-assistant-and-model-provider.md) | MCP in the same process, signed identity, own loop and swappable model |
+| [0007](adr/0007-frontend-same-origin-and-live-state.md) | Same-origin frontend, SSE with `fetch` and a UI that is not the permission barrier |
+| [0008](adr/0008-english-ui-and-docs-backend-messages-as-is.md) | English UI and docs; backend messages shown as returned |
 
-## Piezas
+## Components
 
 ```
-navegador ──HTTP──▶ nginx (frontend/) ──/api──▶ API FastAPI ──SQL──▶ PostgreSQL
+browser ──HTTP──▶ nginx (frontend/) ──/api──▶ FastAPI API ──SQL──▶ PostgreSQL
                                                  │   ▲                ▲
                                      /mcp (MCP)  │   │ jobs           │
-                                     asistente ◀─┘   │                │
+                                     assistant ◀─┘   │                │
                                                  │   worker ───────────┘
                                                  │     │
-                                                 └─────┴──HTTP (openAPI.json)──▶ mock del proveedor
+                                                 └─────┴──HTTP (openAPI.json)──▶ provider mock
 ```
 
-- **Monolito modular con puertos y adaptadores** (`backend/app/`).
-  - `domain/` contiene las reglas: permisos, versión, itinerario, costes, máquina de estados de reservas y documentos. No importa frameworks; `tests/unit/test_architecture.py` lo comprueba.
-  - `ports/` declara lo que el dominio necesita: repositorios, proveedor, almacenamiento, reloj y modelo.
-  - `adapters/` lo implementa: SQLAlchemy, httpx, disco, Gemini y cliente MCP.
-  - `api/`, `mcp/` y `workers/` son puntos de entrada sin reglas propias.
-- **API** (FastAPI): la identidad de prueba llega en `X-User-Id`. `load_access` del dominio decide el acceso: `404` para un no participante, `403` si falta rol.
-- **Worker** (`python -m app.workers`): reclama jobs de la tabla `jobs` con `FOR UPDATE SKIP LOCKED` y lease. Hay dos tipos: reconciliar reservas (`sync_booking`) y generar documentos. También hace barridos de envíos interrumpidos y de archivos huérfanos. Se puede escalar a varias réplicas.
-- **PostgreSQL**: el estado. Migraciones con Alembic, un historial `trip_changes` y triggers que hacen inmutables los estados terminales y los datos aceptados de reservas y documentos.
-- **Mock del proveedor** (`mock/`): un servicio aparte que implementa `assignment/openAPI.json`. La aplicación solo usa `/v1`; `/_control` es para tests y demos, y un test de arquitectura impide que `backend/` lo llame.
-- **MCP**: `MCPServer` del SDK oficial, montado en `/mcp`, con 7 tools de solo lectura que reutilizan los casos de uso y `load_access`. El asistente es un cliente MCP con un bucle propio y usa Gemini a través del puerto `ChatModel`.
-- **Frontend**: React + Vite. nginx lo sirve y hace de proxy de `/api`. El estado en vivo llega por SSE y se relee con `GET`.
+- **Modular monolith with ports and adapters** (`backend/app/`).
+  - `domain/` holds the rules: permissions, version, itinerary, costs, the booking and document state machine. It imports no frameworks; `tests/unit/test_architecture.py` checks this.
+  - `ports/` declares what the domain needs: repositories, provider, storage, clock and model.
+  - `adapters/` implements it: SQLAlchemy, httpx, disk, Gemini and MCP client.
+  - `api/`, `mcp/` and `workers/` are entry points with no rules of their own.
+- **API** (FastAPI): the test identity arrives in `X-User-Id`. The domain's `load_access` decides access: `404` for a non-participant, `403` if the role is insufficient.
+- **Worker** (`python -m app.workers`): claims jobs from the `jobs` table with `FOR UPDATE SKIP LOCKED` and a lease. There are two kinds: reconcile bookings (`sync_booking`) and generate documents. It also sweeps interrupted submissions and orphan files. It can be scaled to several replicas.
+- **PostgreSQL**: the state. Migrations with Alembic, a `trip_changes` history and triggers that make terminal states and the accepted data of bookings and documents immutable.
+- **Provider mock** (`mock/`): a separate service implementing `assignment/openAPI.json`. The application only uses `/v1`; `/_control` is for tests and demos, and an architecture test prevents `backend/` from calling it.
+- **MCP**: `MCPServer` from the official SDK, mounted at `/mcp`, with 7 read-only tools that reuse the use cases and `load_access`. The assistant is an MCP client with its own loop and uses Gemini through the `ChatModel` port.
+- **Frontend**: React + Vite. nginx serves it and proxies `/api`. Live state arrives over SSE and is re-read with `GET`.
 
-## Flujo de una reserva con respuesta perdida
+## Flow of a booking with a lost response
 
-ADR 0003. Ensayado en Docker (ver [demo](demo.md), paso 5).
+ADR 0003. Rehearsed in Docker (see [demo](demo.md), step 5).
 
-1. **Revisión de términos.** El editor envía `expectedRevision` y `expectedPrice`.
-   - La API consulta la oferta al proveedor (`GET /offers/{id}`).
-   - Si la revisión o el precio cambiaron, responde `409 TERMS_CHANGED` con los términos actuales, sin enviar nada.
-   - Si la oferta no está disponible, responde `409 OFFER_UNAVAILABLE`.
-2. **Registro antes de enviar.** Se guarda la reserva en `submitted`, con `clientReference` e `Idempotency-Key` propias, y se confirma la transacción. Nada sale hacia el proveedor sin quedar registrado antes. Un índice parcial impide dos intentos activos para el mismo ítem.
-3. **Envío.** `POST /bookings`, y el proveedor crea la reserva. Supongamos que la respuesta no llega: timeout, conexión caída o la API muere.
-   - Si el error dice que la petición pudo haber llegado (`delivery_uncertain`), la reserva pasa a `unknown`.
-   - Si el proceso murió, queda en `submitted`.
-   - En ningún caso aparece como reservada: `booked=false`, y `nextStep` dice que no se reserve otra vez.
-4. **Reconciliación.**
-   - El worker programa un job `sync_booking` (o el barrido detecta un `submitted` de más de `BOOKING_SUBMITTED_STALE_SECONDS`).
-   - Primero consulta `GET /bookings/by-reference/{clientReference}`. Si existe, adopta el resultado del proveedor (`confirmed`, `pending` o `failed`) y guarda la oferta y el precio aceptados.
-   - Si no existe y pasó el plazo de gracia, **reenvía con la misma `Idempotency-Key`**: el proveedor devuelve la misma reserva o la crea una sola vez.
-5. **Aviso.** El canal SSE avisa del cambio y la UI relee con `GET`.
+1. **Terms review.** The editor sends `expectedRevision` and `expectedPrice`.
+   - The API fetches the offer from the provider (`GET /offers/{id}`).
+   - If the revision or the price changed, it responds `409 TERMS_CHANGED` with the current terms, without submitting anything.
+   - If the offer is unavailable, it responds `409 OFFER_UNAVAILABLE`.
+2. **Record before submitting.** The booking is stored as `submitted`, with its own `clientReference` and `Idempotency-Key`, and the transaction is committed. Nothing goes out to the provider without being recorded first. A partial index prevents two active attempts for the same item.
+3. **Submission.** `POST /bookings`, and the provider creates the booking. Suppose the response never arrives: timeout, dropped connection or the API dies.
+   - If the error says the request may have arrived (`delivery_uncertain`), the booking moves to `unknown`.
+   - If the process died, it stays in `submitted`.
+   - In no case does it appear as booked: `booked=false`, and `nextStep` says not to book again.
+4. **Reconciliation.**
+   - The worker schedules a `sync_booking` job (or the sweep detects a `submitted` older than `BOOKING_SUBMITTED_STALE_SECONDS`).
+   - It first queries `GET /bookings/by-reference/{clientReference}`. If it exists, it adopts the provider's outcome (`confirmed`, `pending` or `failed`) and stores the accepted offer and price.
+   - If it does not exist and the grace period has passed, it **resubmits with the same `Idempotency-Key`**: the provider returns the same booking or creates it only once.
+5. **Notification.** The SSE channel announces the change and the UI re-reads with `GET`.
 
-## Garantías
+## Guarantees
 
-| Garantía | Mecanismo | Evidencia |
+| Guarantee | Mechanism | Evidence |
 | --- | --- | --- |
-| Ninguna edición se pierde en silencio | Versión del viaje con compare-and-set y `SELECT … FOR UPDATE`. El `409` trae el estado actual y `changesSinceYourVersion`. El `403` va antes que el `409` | `tests/integration/test_us06_concurrency.py`; e2e del 409 con reaplicación |
-| Permisos en todas las entradas | `load_access` en API, SSE (re-chequeo en cada sondeo), descargas y tools MCP. La identidad MCP va en un token firmado y nunca es un argumento | `test_us02_sharing.py`, `test_status_channel.py`, `evals/deterministic/test_mcp_contract.py`, tests de arquitectura |
-| Una reserva solo es "reservada" si el proveedor la confirmó | Máquina de estados en el dominio. `booked` solo es cierto en `confirmed`, y un trigger impide revertir estados terminales | `tests/unit/test_booking_states.py`, `test_us07_us08_bookings.py`, Vitest y e2e de la UI |
-| Sin reservas duplicadas | `Idempotency-Key` estable por intento, un intento activo por ítem (índice parcial) y reconciliación por referencia antes de reenviar | `test_us07_us08_bookings.py` (doble clic, respuesta perdida, reinicio a mitad de envío) |
-| Un documento listo es completo y corresponde a su versión | Copia inmutable al pedirlo, escritura atómica (temporal, `fsync` y `rename`), sha256 verificado en cada descarga, y regeneración desde la copia si falta o no coincide | `test_us09_us10_documents.py`; ensayo de la demo |
-| Precio estimado frente a confirmado | Se copia la oferta en el ítem con `validUntil`. Los costes separan estimado y confirmado, y el precio aceptado es inmutable | `test_us04_itinerary.py`, `test_us05_costs.py` |
-| Totales en USD reproducibles | `Decimal`, sin coma flotante, *half-up* a centavos, documentado en `rounding` | `tests/unit/test_costs.py` |
-| Recuperación tras desconexión | Los eventos SSE solo avisan; con `ready` en cada (re)conexión la UI relee con `GET` | `test_status_channel.py`; e2e "al reconectar relee" |
-| Proveedor lento, caído o limitado por tasa | Plazo total por llamada (`PROVIDER_TIMEOUT_SECONDS`), búsqueda parcial o fallida explícita, `lastError` y `nextStep` en las reservas, y la reconciliación nunca reintenta antes del `Retry-After` | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py` |
-| Una operación en segundo plano se puede rastrear | El `X-Request-Id` de la petición pasa al job, y el worker lo usa en sus logs y en las llamadas al proveedor | `test_request_id_propagation.py` |
-| El asistente no inventa ni escribe | Las tools son de solo lectura (test de arquitectura). Las instrucciones exigen datos de las tools, y hay verificadores automáticos de precios, afirmaciones, fechas, restricciones, conflictos y huecos | `evals/` (deterministas por defecto; con modelo, los 8 casos han pasado: 5 de 5 el 2026-11-17, y 7 de 7 más 1 de 1 el 2026-11-18) |
+| No edit is silently lost | Trip version with compare-and-set and `SELECT … FOR UPDATE`. The `409` carries the current state and `changesSinceYourVersion`. `403` comes before `409` | `tests/integration/test_us06_concurrency.py`; e2e of the 409 with re-apply |
+| Permissions on every entry point | `load_access` in the API, SSE (re-checked on every poll), downloads and MCP tools. MCP identity travels in a signed token and is never an argument | `test_us02_sharing.py`, `test_status_channel.py`, `evals/deterministic/test_mcp_contract.py`, architecture tests |
+| A booking is "booked" only if the provider confirmed it | State machine in the domain. `booked` is true only in `confirmed`, and a trigger prevents reverting terminal states | `tests/unit/test_booking_states.py`, `test_us07_us08_bookings.py`, Vitest and UI e2e |
+| No duplicate bookings | Stable `Idempotency-Key` per attempt, one active attempt per item (partial index) and reconciliation by reference before resubmitting | `test_us07_us08_bookings.py` (double click, lost response, restart mid-submission) |
+| A ready document is complete and matches its version | Immutable snapshot when requested, atomic write (temp file, `fsync` and `rename`), sha256 verified on every download, and regeneration from the snapshot if missing or mismatched | `test_us09_us10_documents.py`; demo rehearsal |
+| Estimated versus confirmed price | The offer is copied into the item with `validUntil`. Costs separate estimated and confirmed, and the accepted price is immutable | `test_us04_itinerary.py`, `test_us05_costs.py` |
+| Reproducible USD totals | `Decimal`, no floating point, *half-up* to cents, documented in `rounding` | `tests/unit/test_costs.py` |
+| Recovery after disconnection | SSE events are only notifications; with `ready` on every (re)connection the UI re-reads with `GET` | `test_status_channel.py`; e2e "re-reads on reconnect" |
+| Slow, down or rate-limited provider | Total deadline per call (`PROVIDER_TIMEOUT_SECONDS`), explicit partial or failed search, `lastError` and `nextStep` on bookings, and reconciliation never retries before `Retry-After` | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py` |
+| A background operation can be traced | The request's `X-Request-Id` is passed to the job, and the worker uses it in its logs and in provider calls | `test_request_id_propagation.py` |
+| The assistant does not make things up or write | Tools are read-only (architecture test). The instructions require data from the tools, and there are automatic checkers for prices, claims, dates, constraints, conflicts and gaps | `evals/` (deterministic by default; with a model, all 8 cases have passed: 5 of 5 on 2026-11-17, and 7 of 7 plus 1 of 1 on 2026-11-18) |
 
-Los tests se comprobaron también inyectando errores: [`scripts/mutations/`](../scripts/mutations/README.md).
+The tests were also checked by injecting faults: [`scripts/mutations/`](../scripts/mutations/README.md).
 
-## Alternativas descartadas (resumen)
+## Discarded alternatives (summary)
 
-- **Concurrencia:**
-  - bloqueo pesimista o "último gana": la primera opción no sirve para ediciones largas y la segunda pierde cambios;
-  - fusión automática: compleja y opaca.
-- **Cola de trabajos:** Redis/Celery o un broker externo. Una pieza más que operar; PostgreSQL ya da transacciones con el estado (ADR 0005).
-- **Estado en vivo:** WebSockets o long-polling. SSE basta para avisos de servidor a cliente (ADR 0005).
-- **MCP:** servicio MCP aparte, o llamar a las funciones sin MCP. El primero duplica la autorización; lo segundo incumple US-12.
-- **Asistente:** LangChain o LangGraph, o el *automatic function calling* del SDK. Ocultan los límites y el registro de llamadas (ADR 0006).
-- **Frontend:** CORS frente a mismo origen, y librerías de UI o de estado (ADR 0007).
+- **Concurrency:**
+  - pessimistic locking or "last write wins": the first does not work for long edits and the second loses changes;
+  - automatic merging: complex and opaque.
+- **Job queue:** Redis/Celery or an external broker. One more piece to operate; PostgreSQL already provides transactions together with the state (ADR 0005).
+- **Live state:** WebSockets or long-polling. SSE is enough for server-to-client notifications (ADR 0005).
+- **MCP:** a separate MCP service, or calling the functions without MCP. The first duplicates authorization; the second violates US-12.
+- **Assistant:** LangChain or LangGraph, or the SDK's *automatic function calling*. They hide the limits and the call log (ADR 0006).
+- **Frontend:** CORS versus same origin, and UI or state libraries (ADR 0007).
 
-## Límites conocidos
+## Known limits
 
-- **Identidad:** cabecera de prueba `X-User-Id`, sin autenticación real (el PRD lo permite). Los tokens MCP solo los emite la app para el asistente; no hay emisión para clientes MCP externos.
-- **Documentos:** se guardan en un volumen local compartido por la API y el worker. En producción irían a almacenamiento de objetos ([despliegue](deployment.md)).
+- **Identity:** test header `X-User-Id`, no real authentication (the PRD allows this). MCP tokens are issued by the app only for the assistant; there is no issuance for external MCP clients.
+- **Documents:** stored in a local volume shared by the API and the worker. In production they would go to object storage ([deployment](deployment.md)).
 - **SSE:**
-  - cada stream consulta PostgreSQL cada `EVENTS_POLL_SECONDS`, lo que escala linealmente con las conexiones abiertas;
-  - la mejora natural es `LISTEN/NOTIFY`;
-  - con varias réplicas de la API hay que mantener sin buffer el proxy de `/trips/{id}/events`.
-- **Asistente:**
-  - comparte proceso y pool de conexiones con la API;
-  - las evaluaciones con modelo son probabilísticas: los 8 casos han pasado con modelo real (5 de 5 el 2026-11-17; el 2026-11-18, 7 de 7 y después el caso de huecos, 1 de 1), pero cada caso una sola vez: no hay tasa de acierto ni medida del consumo de tokens.
-- **Reconciliación:**
-  - concluir `rejected` tras reenviar depende de que el proveedor cumpla la idempotencia ante peticiones idénticas en vuelo (ADR 0003, riesgo documentado);
-  - el `Retry-After` se respeta por job, pero no hay un limitador de tasa compartido entre workers.
-- **Cotizaciones:** se actualizan a mano, ítem a ítem (ADR 0004). Los resultados de búsqueda no se cachean.
-- **Sin cancelación ni reembolsos** (fuera de alcance). Un ítem con una reserva activa no se puede quitar.
-- **Datos de ejemplo:** las fixtures cubren Lisboa, Madrid y París en junio de 2030, con reglas de itinerario simplificadas (`docs/assumptions.md`).
+  - each stream queries PostgreSQL every `EVENTS_POLL_SECONDS`, which scales linearly with open connections;
+  - the natural improvement is `LISTEN/NOTIFY`;
+  - with several API replicas, the proxy for `/trips/{id}/events` must stay unbuffered.
+- **Assistant:**
+  - shares the process and connection pool with the API;
+  - model evaluations are probabilistic: all 8 cases have passed with the real model (5 of 5 on 2026-11-17; on 2026-11-18, 7 of 7 and then the gaps case, 1 of 1), but each case only once: there is no pass rate and no measurement of token usage.
+- **Reconciliation:**
+  - concluding `rejected` after resubmitting depends on the provider honoring idempotency for identical in-flight requests (ADR 0003, documented risk);
+  - `Retry-After` is respected per job, but there is no rate limiter shared between workers.
+- **Quotes:** refreshed by hand, item by item (ADR 0004). Search results are not cached.
+- **No cancellation or refunds** (out of scope). An item with an active booking cannot be removed.
+- **Sample data:** the fixtures cover Lisbon, Madrid and Paris in June 2030, with simplified itinerary rules (`docs/assumptions.md`).

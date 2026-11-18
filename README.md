@@ -1,140 +1,140 @@
 # Travel Planner
 
-Take-home: plataforma de planificación de viajes en grupo. Viajes compartidos con roles (organizador, editor, lector; `viewer` en la API), búsqueda en un proveedor externo mockeado, itinerario con costes en USD, reservas simuladas con reconciliación, documentos descargables y un asistente de IA de solo lectura que usa herramientas MCP.
+Take-home: a group travel planning platform. Shared trips with roles (organizer, editor, viewer), search against a mocked external provider, an itinerary with costs in USD, simulated bookings with reconciliation, downloadable documents, and a read-only AI assistant that uses MCP tools.
 
-- Enunciado (no modificar): [`assignment/`](assignment/) — [guía](assignment/candidate-guide.md), [PRD](assignment/prd.md), [contrato del proveedor](assignment/openAPI.json).
-- Instrucciones para agentes de IA y reglas de trabajo: [`CLAUDE.md`](CLAUDE.md).
-- Decisiones de arquitectura: [`docs/adr/`](docs/adr/). Supuestos: [`docs/assumptions.md`](docs/assumptions.md).
-- **Documentación de entrega:**
-  - [arquitectura](docs/architecture.md): piezas, decisiones, alternativas, garantías y límites;
-  - [propuesta de despliegue](docs/deployment.md);
-  - [guion de demo](docs/demo.md);
-  - [uso de IA](docs/ai-usage.md).
+- Assignment (do not modify): [`assignment/`](assignment/) — [guide](assignment/candidate-guide.md), [PRD](assignment/prd.md), [provider contract](assignment/openAPI.json).
+- Instructions for AI agents and working rules: [`CLAUDE.md`](CLAUDE.md).
+- Architecture decisions: [`docs/adr/`](docs/adr/). Assumptions: [`docs/assumptions.md`](docs/assumptions.md).
+- **Deliverable documentation:**
+  - [architecture](docs/architecture.md): components, decisions, alternatives, guarantees and limits;
+  - [deployment proposal](docs/deployment.md);
+  - [demo script](docs/demo.md);
+  - [AI usage](docs/ai-usage.md).
 
 ## Stack
 
-Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (SDK oficial 2.x, `MCPServer`) · Google Gemini con `google-genai` (`gemini-3.8-flash`, sin LangChain/LangGraph) · React + Vite + TypeScript (UI mínima, servida por nginx) · Docker Compose. Monolito modular con puertos y adaptadores; el mock del proveedor es un servicio aparte consumido solo por HTTP.
+Python 3.12 · FastAPI · SQLAlchemy async · PostgreSQL · Alembic · httpx · pytest · MCP (official SDK 2.x, `MCPServer`) · Google Gemini with `google-genai` (`gemini-3.8-flash`, no LangChain/LangGraph) · React + Vite + TypeScript (minimal UI, served by nginx) · Docker Compose. Modular monolith with ports and adapters; the provider mock is a separate service consumed only over HTTP.
 
-## Estructura
+## Structure
 
 ```
 backend/app/
-  domain/     núcleo sin dependencias de framework
-  ports/      interfaces que necesita el dominio
-  adapters/   Postgres, cliente HTTP del proveedor, almacenamiento…
+  domain/     core with no framework dependencies
+  ports/      interfaces the domain needs
+  adapters/   Postgres, provider HTTP client, storage…
   api/        HTTP (FastAPI)
-  mcp/        servidor MCP de solo lectura
-  assistant/  asistente que consume MCP
-  workers/    documentos y reconciliación en segundo plano
-mock/         proveedor externo simulado (FastAPI)
-frontend/     UI mínima (React + Vite + TypeScript)
-scripts/      e2e.sh: Playwright contra Compose levantado desde cero
-tests/        pruebas y evaluaciones
-docs/         ADRs y supuestos
+  mcp/        read-only MCP server
+  assistant/  assistant that consumes MCP
+  workers/    background documents and reconciliation
+mock/         simulated external provider (FastAPI)
+frontend/     minimal UI (React + Vite + TypeScript)
+scripts/      e2e.sh: Playwright against Compose started from scratch
+tests/        tests and evaluations
+docs/         ADRs and assumptions
 ```
 
-## Puesta en marcha
+## Getting started
 
 ```bash
-cp .env.example .env           # opcional: GEMINI_API_KEY para el asistente
-docker compose up --build      # UI en http://localhost:5173 · API en http://localhost:8000/docs · mock en http://localhost:4010/v1
+cp .env.example .env           # optional: GEMINI_API_KEY for the assistant
+docker compose up --build      # UI at http://localhost:5173 · API at http://localhost:8000/docs · mock at http://localhost:4010/v1
 ```
 
-En la UI, el selector de la cabecera cambia de usuario de prueba (`ana`, `beto`, `carla`, `dani`). Sin `GEMINI_API_KEY` todo funciona salvo el asistente, que responde `503 ASSISTANT_UNAVAILABLE`.
+In the UI, the selector in the header switches between test users (`ana`, `beto`, `carla`, `dani`). Without `GEMINI_API_KEY` everything works except the assistant, which responds `503 ASSISTANT_UNAVAILABLE`.
 
-## Pruebas
+## Tests
 
 ```bash
 docker compose up -d db
-uv sync && uv run pytest                               # backend, mock y evaluaciones deterministas
-uv run pytest evals/llm -m llm -s                      # evaluaciones con modelo: necesitan GEMINI_API_KEY (coste en evals/README.md)
+uv sync && uv run pytest                               # backend, mock and deterministic evaluations
+uv run pytest evals/llm -m llm -s                      # model evaluations: require GEMINI_API_KEY (cost in evals/README.md)
 cd frontend && npm ci && npm test                      # Vitest
-./scripts/e2e.sh                                       # flujo completo en Docker desde cero, con Playwright
+./scripts/e2e.sh                                       # full flow in Docker from scratch, with Playwright
 ```
 
-Inyección de errores, para comprobar que los tests detectan fallos reales: `python3 scripts/mutations/run.py` (ver [`scripts/mutations/README.md`](scripts/mutations/README.md), con los resultados de la última ejecución).
+Fault injection, to check that the tests catch real failures: `python3 scripts/mutations/run.py` (see [`scripts/mutations/README.md`](scripts/mutations/README.md), with the results of the latest run).
 
-`scripts/e2e.sh` levanta un proyecto de Compose aparte, con volúmenes y puertos propios, así que no toca el stack local ni sus datos. Construye todas las imágenes, ejecuta los tests de Playwright a través del frontend y lo elimina al terminar. Ver [`frontend/README.md`](frontend/README.md).
+`scripts/e2e.sh` starts a separate Compose project, with its own volumes and ports, so it does not touch the local stack or its data. It builds all images, runs the Playwright tests through the frontend and removes the project when done. See [`frontend/README.md`](frontend/README.md).
 
-Ver [`mock/README.md`](mock/README.md) para las fixtures y los escenarios de fallo.
+See [`mock/README.md`](mock/README.md) for the fixtures and failure scenarios.
 
-## Plan (4 días, entrega viernes 20 nov 2026 23:59)
+## Plan (4 days, due Friday 20 Nov 2026 23:59)
 
-| Día | Fecha | Objetivo |
+| Day | Date | Goal |
 | --- | --- | --- |
-| 1 | mar 17 nov | **Mock del proveedor** completo según el contrato (búsqueda con resultados parciales, quotes con expiración/revisión, reservas idempotentes, lookup por referencia, fallos inyectables, persistencia). **Modelo de dominio** de viajes y permisos, migraciones. **US-01, US-02, US-03, US-04, US-05, US-06.** |
-| 2 | mié 18 nov | **US-07, US-08** reservas (revalidación de términos, idempotencia, estado desconocido, reconciliación). **US-09, US-10** documentos (generación en segundo plano, estados, recuperación, descarga autorizada). **Servidor MCP** de solo lectura, **asistente**, **frontend mínimo**. **Objetivo: todo el PRD funcional al final del día.** |
-| 3 | jue 19 nov | Tests de fallos y concurrencia, evaluaciones del asistente (deterministas y con modelo), README, explicación de arquitectura, guion de demo. |
-| 4 | vie 20 nov | Colchón, revisión final y entrega. **Código congelado a las 18:00.** |
+| 1 | Tue 17 Nov | Complete **provider mock** per the contract (search with partial results, quotes with expiry/revision, idempotent bookings, lookup by reference, injectable failures, persistence). **Domain model** for trips and permissions, migrations. **US-01, US-02, US-03, US-04, US-05, US-06.** |
+| 2 | Wed 18 Nov | **US-07, US-08** bookings (terms revalidation, idempotency, unknown state, reconciliation). **US-09, US-10** documents (background generation, states, recovery, authorized download). Read-only **MCP server**, **assistant**, **minimal frontend**. **Goal: the whole PRD working by end of day.** |
+| 3 | Thu 19 Nov | Failure and concurrency tests, assistant evaluations (deterministic and with a model), README, architecture explanation, demo script. |
+| 4 | Fri 20 Nov | Buffer, final review and submission. **Code freeze at 18:00.** |
 
-Criterio transversal: ninguna historia se considera hecha sin tests que prueben sus criterios de aceptación (ver `CLAUDE.md`).
+Cross-cutting criterion: no story is considered done without tests that prove its acceptance criteria (see `CLAUDE.md`).
 
-## Estado actual
+## Current status
 
-| Área | Estado |
+| Area | Status |
 | --- | --- |
-| Andamiaje del repo, CLAUDE.md, ADR 0001, Postgres en Compose | ✅ Hecho |
-| Mock del proveedor (`mock/`, ADR 0002): 5 operaciones del contrato, escenarios de fallo, reloj, persistencia; 99 tests validados contra el schema | ✅ Hecho |
-| Modelo de dominio y persistencia (Trip, TripMember, ItineraryItem, Booking, Document, Job), migraciones Alembic, usuarios de prueba | ✅ Hecho |
-| Worker de jobs en segundo plano (`python -m app.workers`, servicio `worker`) | ✅ Hecho |
-| ADR 0003: estados de reserva y reconciliación (máquina de estados en el dominio, con tests) | ✅ Hecho |
-| US-01: crear viaje y volver a él (persistencia tras reinicio, validación accionable, edición con versión) | ✅ Hecho, con tests contra Postgres |
-| US-02: compartir con roles | ✅ Hecho: peticiones HTTP directas, documentos, suscripciones de estado (SSE) y tools del asistente (MCP), todos probados |
-| US-03: buscar y comparar (completa / parcial / vacía / fallida, frescura, estimaciones, timeout, permisos) | ✅ Hecho, con tests contra el mock real por HTTP |
-| US-04: itinerario (añadir con la cotización del proveedor, quitar, reordenar, actualizar cotización; marcas de expirado, no disponible, fuera de fechas, solapes, grupo; información que falta) | ✅ Hecho (ADR 0004) |
-| US-05: costes por ítem, totales y presupuesto (estimado vs confirmado, redondeo documentado) | ✅ Hecho; probado también con reservas reales (confirmada, pendiente, fallida, rechazada) |
-| US-06: ediciones concurrentes (versión por viaje, 409 con estado actual y cambios, 403 antes que 409) | ✅ Hecho, con tests de concurrencia contra Postgres |
-| US-07: reservar con los términos revisados (re-chequeo con el proveedor, 409 con términos actuales) | ✅ Hecho, con tests contra el mock real |
-| US-08: resultados inciertos y parciales (unknown/draft/rejected/pending/confirmed/failed, worker de reconciliación, sin duplicados) | ✅ Hecho, con tests contra el mock real (respuesta perdida, reinicio a mitad de envío, doble clic, 429/503) |
-| US-09: generar documento (202, copia inmutable, worker con escritura atómica, estados, reintento, recuperación por lease) | ✅ Hecho (ADR 0005) |
-| US-10: documento correcto (versión y hora, inmutable frente a ediciones, descarga verificada por hash, regeneración, barrido de huérfanos) | ✅ Hecho (ADR 0005) |
-| Canal de estado SSE por viaje (avisos de reservas, documentos y viaje; mismos permisos; se cierra al perder acceso) | ✅ Hecho (ADR 0005) |
-| US-11: asistente con recomendaciones basadas en datos (Gemini por adaptador, bucle propio, límites, llamadas a tools en la respuesta) | ✅ Hecho (ADR 0006). Evaluaciones con modelo con `gemini-3.8-flash`: 5 de 5 el 2026-11-17; el 2026-11-18, **7 de 7** a las 01:08 y el caso de huecos **1 de 1** a las 01:31, así que **los 8 casos han pasado con modelo real**, en dos ejecuciones (`evals/README.md`). Probado por el candidato desde la UI con clave real el 2026-11-17 ([`docs/demo.md`](docs/demo.md), paso 7) |
-| Trazabilidad: `X-Request-Id` de la petición original en los jobs del worker, en sus logs y en las llamadas al proveedor que hacen | ✅ Hecho (2026-11-18, migración 0006), con tests. Los jobs que crea el barrido del worker no tienen petición de origen y se siguen por `clientReference` |
-| US-12: tools de solo lectura por MCP (SDK oficial, identidad por sesión firmada, permisos del usuario) | ✅ Hecho (ADR 0006), con evaluaciones deterministas |
-| Frontend (ADR 0007): todos los flujos, 403/409 del backend con estado y código tal cual y mensaje en español (ADR 0008), 409 con reaplicación, estado en vivo con relectura al reconectar | ✅ Hecho, con Vitest y Playwright contra Compose desde cero |
-| Propuesta de despliegue, explicación de arquitectura, guion de demo y nota de uso de IA | ✅ Escritos ([`docs/`](docs/)). El despliegue es solo una propuesta: no se ha desplegado. En [`docs/demo.md`](docs/demo.md) se indica qué pasos se ensayaron y cuáles no |
+| Repo scaffolding, CLAUDE.md, ADR 0001, Postgres in Compose | ✅ Done |
+| Provider mock (`mock/`, ADR 0002): the contract's 5 operations, failure scenarios, clock, persistence; 99 tests validated against the schema | ✅ Done |
+| Domain model and persistence (Trip, TripMember, ItineraryItem, Booking, Document, Job), Alembic migrations, test users | ✅ Done |
+| Background job worker (`python -m app.workers`, `worker` service) | ✅ Done |
+| ADR 0003: booking states and reconciliation (state machine in the domain, with tests) | ✅ Done |
+| US-01: create a trip and return to it (persistence across restarts, actionable validation, versioned edits) | ✅ Done, with tests against Postgres |
+| US-02: share with roles | ✅ Done: direct HTTP requests, documents, status subscriptions (SSE) and assistant tools (MCP), all tested |
+| US-03: search and compare (complete / partial / empty / failed, freshness, estimates, timeout, permissions) | ✅ Done, with tests against the real mock over HTTP |
+| US-04: itinerary (add with the provider's quote, remove, reorder, refresh quote; expired, unavailable, out-of-dates, overlap and group flags; missing information) | ✅ Done (ADR 0004) |
+| US-05: per-item costs, totals and budget (estimated vs confirmed, documented rounding) | ✅ Done; also tested with real bookings (confirmed, pending, failed, rejected) |
+| US-06: concurrent edits (per-trip version, 409 with current state and changes, 403 before 409) | ✅ Done, with concurrency tests against Postgres |
+| US-07: book with the reviewed terms (re-check with the provider, 409 with current terms) | ✅ Done, with tests against the real mock |
+| US-08: uncertain and partial outcomes (unknown/draft/rejected/pending/confirmed/failed, reconciliation worker, no duplicates) | ✅ Done, with tests against the real mock (lost response, restart mid-submission, double click, 429/503) |
+| US-09: generate a document (202, immutable snapshot, worker with atomic write, states, retry, lease-based recovery) | ✅ Done (ADR 0005) |
+| US-10: correct document (version and time, immutable against edits, hash-verified download, regeneration, orphan sweep) | ✅ Done (ADR 0005) |
+| Per-trip SSE status channel (booking, document and trip notifications; same permissions; closes when access is lost) | ✅ Done (ADR 0005) |
+| US-11: assistant with data-based recommendations (Gemini via adapter, own loop, limits, tool calls in the response) | ✅ Done (ADR 0006). Model evaluations with `gemini-3.8-flash`: 5 of 5 on 2026-11-17; on 2026-11-18, **7 of 7** at 01:08 and the gaps case **1 of 1** at 01:31, so **all 8 cases have passed with the real model**, across two runs (`evals/README.md`). Tested by the candidate from the UI with a real key on 2026-11-17 ([`docs/demo.md`](docs/demo.md), step 7) |
+| Traceability: the original request's `X-Request-Id` in worker jobs, in their logs and in the provider calls they make | ✅ Done (2026-11-18, migration 0006), with tests. Jobs created by the worker sweep have no originating request and are traced by `clientReference` |
+| US-12: read-only MCP tools (official SDK, identity via signed session, user's permissions) | ✅ Done (ADR 0006), with deterministic evaluations |
+| Frontend (ADR 0007): all flows, backend errors (403/404/409, validation) shown exactly as returned — status, code, message, details, requestId (ADR 0008) — 409 with re-apply, live state with re-read on reconnect | ✅ Done, with Vitest and Playwright against Compose from scratch |
+| Deployment proposal, architecture explanation, demo script and AI usage note | ✅ Written ([`docs/`](docs/)). The deployment is only a proposal: it has not been deployed. [`docs/demo.md`](docs/demo.md) states which steps were rehearsed and which were not |
 
-## Criterios no cumplidos o con evidencia parcial
+## Criteria not met or with partial evidence
 
-Revisados contra el PRD y la guía el 2026-11-18. Todo lo demás tiene tests automatizados (ver "Estado actual").
+Reviewed against the PRD and the guide on 2026-11-18. Everything else has automated tests (see "Current status").
 
-| Criterio | Situación |
+| Criterion | Situation |
 | --- | --- |
-| US-11: "explica cómo encajan las opciones con fechas, presupuesto, **preferencias** y **restricciones**, e identifica **huecos o conflictos**" | **Casi completo.**<br>• **Ejecutado:** el 2026-11-18 a las 01:08, el candidato ejecutó las evaluaciones y pasaron 7 de 7 con `gemini-3.8-flash` (97 s). Entre ellas, relacionar las opciones con fechas o noches y mencionar las restricciones de cada opción propuesta, y señalar un conflicto de horario existente nombrando los dos ítems. En el caso del conflicto, la respuesta señaló además, sin que se le pidiera, las 4 noches sin alojamiento y la falta de transporte.<br>• **Ejecutado:** el caso de **huecos** (noches sin alojamiento), añadido después con su verificador y tests deterministas. Pasó 1 de 1 el 2026-11-18 a las 01:31 (14 s).<br>• **Sin evaluar:** las **preferencias**, que solo llegan en el mensaje del chat porque el viaje no las guarda, y la falta de transporte, que la app no calcula como hueco |
-| Evaluaciones con modelo (guía) | Ejecutadas por el candidato: 5 de 5 el 2026-11-17; el 2026-11-18, 7 de 7 a las 01:08 y el caso de huecos 1 de 1 a las 01:31. **Los 8 casos han pasado con modelo real**, en dos ejecuciones. Cada caso se ejecutó **una vez**: no se midió la tasa de acierto con `EVAL_REPEATS` ni el consumo de tokens, y el coste documentado es una estimación |
-| Proveedor limitado por tasa (guía: proveedores lentos o fallidos) | **Parcial.** Desde el 2026-11-18, la reconciliación no reintenta antes del `Retry-After` del proveedor (con tests). Sigue sin haber un limitador de tasa compartido entre workers |
-| Guion de demo (entregable) | Escrito. Los pasos 5 y 6 se ensayaron por API, no con clics en la UI. El 3 se ensayó con Playwright, no con DevTools a mano. El 7 lo ejecutó el candidato desde la UI con clave real (ver la tabla de [`docs/demo.md`](docs/demo.md)) |
-| Inyección de errores en el mock y en US-01 a US-06 | Se hizo durante el desarrollo, pero sus scripts no se conservaron; solo consta en los mensajes de commit. Las suites de `scripts/mutations/` cubren reservas, documentos, MCP y asistente, secretos y UI |
-| Harness: configuración de la herramienta | No hay configuración de Claude Code versionada (ni permisos ni hooks): se usó la configuración por defecto, y `.gitignore` excluye un posible `.claude/settings.local.json`. Sí se versionan `CLAUDE.md`, el prompt `/historia` y los scripts |
-| Despliegue | Solo propuesta, como permite la guía; no se ha desplegado |
+| US-11: "explains how the options fit dates, budget, **preferences** and **constraints**, and identifies **gaps or conflicts**" | **Nearly complete.**<br>• **Run:** on 2026-11-18 at 01:08, the candidate ran the evaluations and 7 of 7 passed with `gemini-3.8-flash` (97 s). Among them: relating options to dates or nights and mentioning the constraints of each proposed option, and pointing out an existing schedule conflict by naming both items. In the conflict case, the response also pointed out, unprompted, the 4 nights without accommodation and the lack of transport.<br>• **Run:** the **gaps** case (nights without accommodation), added later with its checker and deterministic tests. It passed 1 of 1 on 2026-11-18 at 01:31 (14 s).<br>• **Not evaluated:** **preferences**, which only arrive in the chat message because the trip does not store them, and missing transport, which the app does not compute as a gap |
+| Model evaluations (guide) | Run by the candidate: 5 of 5 on 2026-11-17; on 2026-11-18, 7 of 7 at 01:08 and the gaps case 1 of 1 at 01:31. **All 8 cases have passed with the real model**, across two runs. Each case was run **once**: the pass rate with `EVAL_REPEATS` and token usage were not measured, and the documented cost is an estimate |
+| Rate-limited provider (guide: slow or failing providers) | **Partial.** Since 2026-11-18, reconciliation does not retry before the provider's `Retry-After` (with tests). There is still no rate limiter shared between workers |
+| Demo script (deliverable) | Written. Steps 5 and 6 were rehearsed through the API, not by clicking in the UI. Step 3 was rehearsed with Playwright, not by hand with DevTools. Step 7 was run by the candidate from the UI with a real key (see the table in [`docs/demo.md`](docs/demo.md)) |
+| Fault injection in the mock and in US-01 to US-06 | Done during development, but its scripts were not kept; it is recorded only in commit messages. The suites in `scripts/mutations/` cover bookings, documents, MCP and assistant, secrets and UI |
+| Harness: tool configuration | There is no versioned Claude Code configuration (no permissions or hooks): the default configuration was used, and `.gitignore` excludes a possible `.claude/settings.local.json`. `CLAUDE.md`, the `/story` prompt and the scripts are versioned |
+| Deployment | Proposal only, as the guide allows; it has not been deployed |
 
-## Despliegue propuesto
+## Proposed deployment
 
-Resumen. El detalle está en [`docs/deployment.md`](docs/deployment.md). **No se ha desplegado**: solo se ha ejecutado Docker Compose en local.
+Summary. The details are in [`docs/deployment.md`](docs/deployment.md). **It has not been deployed**: only Docker Compose has been run locally.
 
-- **Servicios:**
-  - `frontend` (nginx con el bundle estático y proxy de `/api`) y `api` (FastAPI): sin estado, varias réplicas detrás de un balanceador, con salud en `/healthz` y `/readyz`;
-  - `worker`: escala horizontalmente, porque los jobs se reclaman con `FOR UPDATE SKIP LOCKED` y lease;
-  - un job de migraciones (`alembic upgrade head`) antes de cada despliegue.
-- **Datos:**
-  - PostgreSQL gestionado con copias y recuperación a un punto en el tiempo;
-  - documentos en S3 o compatible, mediante un adaptador del puerto `DocumentStorage` (hoy es un volumen local compartido).
-- **Secretos:** `DATABASE_URL`, `PROVIDER_TOKEN`, `MCP_TOKEN_SECRET` y `GEMINI_API_KEY`, desde un gestor de secretos. Toda la configuración se lee del entorno (`.env.example`).
-- **Observabilidad:** hoy hay `X-Request-Id` de punta a punta, logs del proveedor con su `requestId`, y `lastError` en reservas y documentos. Falta añadir métricas de la cola y de reservas sin resolver, alertas y trazas.
-- **Para producción:**
-  - identidad real (OIDC) en lugar de `X-User-Id`;
-  - S3 para documentos;
-  - `LISTEN/NOTIFY` en lugar de sondear PostgreSQL por cada stream SSE;
-  - limitador de tasa compartido entre workers (el `Retry-After` ya se respeta en la reconciliación).
+- **Services:**
+  - `frontend` (nginx with the static bundle and `/api` proxy) and `api` (FastAPI): stateless, several replicas behind a load balancer, with health at `/healthz` and `/readyz`;
+  - `worker`: scales horizontally, because jobs are claimed with `FOR UPDATE SKIP LOCKED` and a lease;
+  - a migrations job (`alembic upgrade head`) before each deployment.
+- **Data:**
+  - managed PostgreSQL with backups and point-in-time recovery;
+  - documents in S3 or compatible, through an adapter for the `DocumentStorage` port (today it is a shared local volume).
+- **Secrets:** `DATABASE_URL`, `PROVIDER_TOKEN`, `MCP_TOKEN_SECRET` and `GEMINI_API_KEY`, from a secrets manager. All configuration is read from the environment (`.env.example`).
+- **Observability:** today there is end-to-end `X-Request-Id`, provider logs with its `requestId`, and `lastError` on bookings and documents. Still to add: queue and unresolved-booking metrics, alerts and traces.
+- **For production:**
+  - real identity (OIDC) instead of `X-User-Id`;
+  - S3 for documents;
+  - `LISTEN/NOTIFY` instead of polling PostgreSQL for each SSE stream;
+  - a rate limiter shared between workers (`Retry-After` is already respected in reconciliation).
 
-## Uso de IA en el desarrollo
+## AI usage in development
 
-Se desarrolló con Claude Code; el asistente de la aplicación usa Gemini, y son cosas distintas. El harness versionado está formado por:
+Developed with Claude Code; the application's assistant uses Gemini, and these are different things. The versioned harness consists of:
 - [`CLAUDE.md`](CLAUDE.md);
-- el prompt reutilizable [`.claude/commands/historia.md`](.claude/commands/historia.md);
-- [`docs/adr/`](docs/adr/) y [`docs/assumptions.md`](docs/assumptions.md);
-- [`scripts/`](scripts/) (e2e e inyección de errores);
+- the reusable prompt [`.claude/commands/story.md`](.claude/commands/story.md);
+- [`docs/adr/`](docs/adr/) and [`docs/assumptions.md`](docs/assumptions.md);
+- [`scripts/`](scripts/) (e2e and fault injection);
 - [`evals/`](evals/).
 
-La nota sobre herramientas, modelos, cómo se dirigió el trabajo, los errores de la IA detectados y lo que decidió el candidato está en [`docs/ai-usage.md`](docs/ai-usage.md).
+The note on tools, models, how the work was directed, the AI errors detected and what the candidate decided is in [`docs/ai-usage.md`](docs/ai-usage.md).

@@ -1,1 +1,1 @@
-# adapters — Implementaciones concretas de los puertos: Postgres (SQLAlchemy), cliente HTTP del proveedor (httpx), archivos, reloj.
+# adapters — Concrete implementations of the ports: Postgres (SQLAlchemy), provider HTTP client (httpx), files, clock.

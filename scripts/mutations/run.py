@@ -33,7 +33,7 @@ def dirty(path: str) -> bool:
 def summary_line(output: str) -> str:
     lines = [line.strip() for line in output.splitlines()
              if ("passed" in line or "failed" in line) and "Duration" not in line]
-    return " | ".join(lines[-2:]) if lines else "sin salida"
+    return " | ".join(lines[-2:]) if lines else "no output"
 
 
 def killed(returncode: int) -> bool:
@@ -54,7 +54,7 @@ def run_suite(name: str, only: str | None = None) -> list[tuple[str, str, str]]:
             sys.exit(f"{path} has uncommitted changes; commit or stash them first")
         original = target.read_text()
         if original.count(old) != 1:
-            print(f"== {label}: PATRÓN NO ENCONTRADO", flush=True)
+            print(f"== {label}: PATTERN NOT FOUND", flush=True)
             results.append((name, label, "pattern"))
             continue
         try:
@@ -63,7 +63,7 @@ def run_suite(name: str, only: str | None = None) -> list[tuple[str, str, str]]:
             proc = subprocess.run(suite["command"], cwd=cwd, env=env, capture_output=True,
                                   text=True)
             outcome = "killed" if killed(proc.returncode) else "survived"
-            print(f"== {label}: {'DETECTADA' if outcome == 'killed' else 'SOBREVIVE'} "
+            print(f"== {label}: {'KILLED' if outcome == 'killed' else 'SURVIVED'} "
                   f"({summary_line(proc.stdout + proc.stderr)})", flush=True)
             results.append((name, label, outcome))
         finally:
@@ -80,7 +80,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.list:
         for name, suite in SUITES.items():
-            print(f"{name}: {suite['description']} ({len(suite['mutations'])} mutaciones)")
+            print(f"{name}: {suite['description']} ({len(suite['mutations'])} mutations)")
             for *_, label in suite["mutations"]:
                 print(f"  - {label}")
         return
@@ -90,10 +90,10 @@ def main() -> None:
         sys.exit(f"unknown suites: {unknown}; use --list")
     results = [r for name in names for r in run_suite(name, args.only)]
     survived = [r for r in results if r[2] != "killed"]
-    print(f"\nTotal: {len(results)} mutaciones, {len(results) - len(survived)} detectadas, "
-          f"{len(survived)} sin detectar o sin aplicar.")
+    print(f"\nTotal: {len(results)} mutations, {len(results) - len(survived)} killed, "
+          f"{len(survived)} survived or not applied.")
     for name, label, outcome in survived:
-        reason = "sobrevive" if outcome == "survived" else "patrón no encontrado"
+        reason = "survived" if outcome == "survived" else "pattern not found"
         print(f"  - [{name}] {label}: {reason}")
     sys.exit(1 if survived else 0)
 

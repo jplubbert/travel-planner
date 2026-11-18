@@ -1,70 +1,70 @@
-# backend — Aplicación principal (FastAPI + SQLAlchemy async), monolito modular con puertos y adaptadores
+# backend — Main application (FastAPI + async SQLAlchemy), modular monolith with ports and adapters
 
-## Estructura
+## Structure
 
-- `app/domain`: entidades, reglas y casos de uso, sin frameworks.
-- `app/ports`: protocolos (repositorios, reloj, proveedor).
-- `app/adapters`: SQLAlchemy/Postgres, cliente HTTP del proveedor y reloj del sistema.
+- `app/domain`: entities, rules and use cases, without frameworks.
+- `app/ports`: protocols (repositories, clock, provider).
+- `app/adapters`: SQLAlchemy/Postgres, provider HTTP client and system clock.
 - `app/api`: HTTP.
-- `migrations/` + `alembic.ini`: esquema y datos de prueba. El contenedor ejecuta `alembic upgrade head` antes de servir.
+- `migrations/` + `alembic.ini`: schema and test data. The container runs `alembic upgrade head` before serving.
 
-## Piezas
+## Pieces
 
-- **Identidad y permisos:** la identidad es de prueba, con el header `X-User-Id` (`ana`, `beto`, `carla`, `dani`). `require_role` (en `app/api/deps.py`) usa `load_access` del dominio. Un no participante recibe `404` (igual que un viaje inexistente) y un participante con rol insuficiente, `403`. Los casos de uso del dominio vuelven a comprobar el rol.
-- **Proveedor:** puerto `app/ports/provider.py` (`ProviderClient`) y adaptador `app/adapters/provider_http.py`. El adaptador usa httpx con un plazo total por llamada (`PROVIDER_TIMEOUT_SECONDS`). Cada fallo se convierte en un `ProviderError` de dominio distinto (`app/domain/provider.py`). Cada llamada queda en el log con el `requestId` del proveedor y el de la petición.
-- **Búsqueda (US-03):** `app/domain/search.py`. Responde `outcome` = `complete` | `partial` | `empty` | `failed`, con `failedSuppliers`, `searchedAt`, `receivedAt` y un `disclaimer`. Cada oferta incluye `priceType: "estimate"`, `validUntil`, `quoteExpired`, `available` y `restrictions`.
-- **Itinerario y costes (US-04/05/06):**
-  - `app/domain/planning.py`: mutaciones con versión e historial en `trip_changes`.
-  - `app/domain/itinerary.py`: marcas y reglas (funciones puras).
-  - `app/domain/costs.py`: desglose y redondeo (funciones puras).
-- **Reservas (US-07/08, ADR 0003):**
-  - `app/domain/bookings.py`: máquina de estados y `nextStep`.
-  - `app/domain/reservations.py`: casos de uso y reconciliación.
-  - `app/workers/worker.py`: worker de la tabla `jobs` (reservas y documentos), que se arranca con `python -m app.workers`.
-  - La base de datos garantiza un intento activo por ítem y que los datos aceptados son inmutables (índice parcial y trigger, migración 0004).
-- **Documentos (US-09/10, ADR 0005):**
-  - `app/domain/document_service.py`: copia, petición, generación, descarga verificada y barrido.
-  - Puertos `app/ports/documents.py` (`DocumentStorage`, `DocumentRenderer`) con sus adaptadores `local_storage.py` (disco, escritura atómica) y `document_html.py` (HTML determinista).
-  - Los archivos viven en `DOCUMENT_STORAGE_DIR`, un volumen `documents` compartido por `api` y `worker`.
-- **MCP y asistente (US-11/12, ADR 0006):**
-  - `app/mcp/server.py`: `MCPServer` del SDK oficial, montado en `/mcp`, con 7 tools de solo lectura.
-  - `app/mcp/identity.py`: token de sesión firmado; la identidad nunca es un argumento de tool.
-  - `app/assistant/loop.py`: bucle propio.
-  - Puertos `app/ports/assistant.py` (`ChatModel`, `AssistantTools`) con los adaptadores `gemini_model.py`, `scripted_model.py` y `mcp_client.py` (cliente MCP oficial sobre HTTP, en el mismo proceso).
-- **Canal de estado:** `GET /trips/{id}/events` (SSE). `app/domain/status_feed.py` vuelve a comprobar el acceso en cada sondeo.
+- **Identity and permissions:** identity is for testing only, with the `X-User-Id` header (`ana`, `beto`, `carla`, `dani`). `require_role` (in `app/api/deps.py`) uses the domain's `load_access`. A non-participant gets `404` (same as a nonexistent trip) and a participant with an insufficient role, `403`. The domain use cases check the role again.
+- **Provider:** port `app/ports/provider.py` (`ProviderClient`) and adapter `app/adapters/provider_http.py`. The adapter uses httpx with an overall deadline per call (`PROVIDER_TIMEOUT_SECONDS`). Each failure becomes a distinct domain `ProviderError` (`app/domain/provider.py`). Each call is logged with the provider's `requestId` and the request's own.
+- **Search (US-03):** `app/domain/search.py`. Responds with `outcome` = `complete` | `partial` | `empty` | `failed`, with `failedSuppliers`, `searchedAt`, `receivedAt` and a `disclaimer`. Each offer includes `priceType: "estimate"`, `validUntil`, `quoteExpired`, `available` and `restrictions`.
+- **Itinerary and costs (US-04/05/06):**
+  - `app/domain/planning.py`: versioned mutations with history in `trip_changes`.
+  - `app/domain/itinerary.py`: flags and rules (pure functions).
+  - `app/domain/costs.py`: breakdown and rounding (pure functions).
+- **Bookings (US-07/08, ADR 0003):**
+  - `app/domain/bookings.py`: state machine and `nextStep`.
+  - `app/domain/reservations.py`: use cases and reconciliation.
+  - `app/workers/worker.py`: worker for the `jobs` table (bookings and documents), started with `python -m app.workers`.
+  - The database guarantees one active attempt per item and that accepted data is immutable (partial index and trigger, migration 0004).
+- **Documents (US-09/10, ADR 0005):**
+  - `app/domain/document_service.py`: snapshot, request, generation, verified download and sweep.
+  - Ports `app/ports/documents.py` (`DocumentStorage`, `DocumentRenderer`) with their adapters `local_storage.py` (disk, atomic write) and `document_html.py` (deterministic HTML).
+  - Files live in `DOCUMENT_STORAGE_DIR`, a `documents` volume shared by `api` and `worker`.
+- **MCP and assistant (US-11/12, ADR 0006):**
+  - `app/mcp/server.py`: `MCPServer` from the official SDK, mounted at `/mcp`, with 7 read-only tools.
+  - `app/mcp/identity.py`: signed session token; identity is never a tool argument.
+  - `app/assistant/loop.py`: our own loop.
+  - Ports `app/ports/assistant.py` (`ChatModel`, `AssistantTools`) with the adapters `gemini_model.py`, `scripted_model.py` and `mcp_client.py` (official MCP client over HTTP, in the same process).
+- **Status channel:** `GET /trips/{id}/events` (SSE). `app/domain/status_feed.py` checks access again on every poll.
 
 ## Endpoints
 
-"Viewer" incluye a editores y organizadores, y "Editor" incluye al organizador. Las mutaciones marcadas con *versión* exigen la versión del viaje (ADR 0001).
+"Viewer" includes editors and organizers, and "Editor" includes the organizer. Mutations marked *version* require the trip version (ADR 0001).
 
-| Método y ruta | Rol mínimo | Notas |
+| Method and path | Minimum role | Notes |
 | --- | --- | --- |
-| `GET /me`, `GET /users` | usuario de prueba | identidad actual; directorio de usuarios |
-| `POST /trips` | usuario de prueba | quien crea el viaje es su organizador |
-| `GET /trips` | usuario de prueba | solo los viajes en los que participa |
-| `GET /trips/{id}` | Viewer | incluye `version` y `ETag` |
-| `PATCH /trips/{id}` | Editor | *versión* en el cuerpo |
+| `GET /me`, `GET /users` | test user | current identity; user directory |
+| `POST /trips` | test user | whoever creates the trip is its organizer |
+| `GET /trips` | test user | only the trips they participate in |
+| `GET /trips/{id}` | Viewer | includes `version` and `ETag` |
+| `PATCH /trips/{id}` | Editor | *version* in the body |
 | `GET /trips/{id}/members` | Viewer | |
-| `PUT /trips/{id}/members/{userId}` | Organizer | concede `editor` o `viewer` |
+| `PUT /trips/{id}/members/{userId}` | Organizer | grants `editor` or `viewer` |
 | `DELETE /trips/{id}/members/{userId}` | Organizer | |
 | `POST /trips/{id}/offers/search` | Viewer | US-03 |
-| `GET /trips/{id}/itinerary` | Viewer | marcas, información que falta y reglas |
-| `POST /trips/{id}/itinerary/items` | Editor | *versión*; `offerId` (precio del proveedor) |
-| `DELETE /trips/{id}/itinerary/items/{itemId}?version=` | Editor | *versión* en la query |
-| `PUT /trips/{id}/itinerary/order` | Editor | *versión*; `itemIds` |
-| `POST /trips/{id}/itinerary/items/{itemId}/refresh` | Editor | *versión*; actualiza la cotización |
+| `GET /trips/{id}/itinerary` | Viewer | flags, missing information and rules |
+| `POST /trips/{id}/itinerary/items` | Editor | *version*; `offerId` (provider price) |
+| `DELETE /trips/{id}/itinerary/items/{itemId}?version=` | Editor | *version* in the query |
+| `PUT /trips/{id}/itinerary/order` | Editor | *version*; `itemIds` |
+| `POST /trips/{id}/itinerary/items/{itemId}/refresh` | Editor | *version*; refreshes the quote |
 | `GET /trips/{id}/costs` | Viewer | US-05 |
-| `POST /trips/{id}/itinerary/items/{itemId}/bookings` | Editor | US-07; `expectedRevision` y `expectedPrice`. `201` registra un intento (ver `status`); `409` si los términos cambiaron, sin enviar nada |
-| `POST /trips/{id}/bookings/{bookingId}/retry` | Editor | solo `draft`; misma `Idempotency-Key` |
-| `GET /trips/{id}/bookings` | Viewer | estado, `booked`, `lastError`, `nextStep`, oferta y precio aceptados |
+| `POST /trips/{id}/itinerary/items/{itemId}/bookings` | Editor | US-07; `expectedRevision` and `expectedPrice`. `201` records an attempt (see `status`); `409` if the terms changed, without sending anything |
+| `POST /trips/{id}/bookings/{bookingId}/retry` | Editor | `draft` only; same `Idempotency-Key` |
+| `GET /trips/{id}/bookings` | Viewer | status, `booked`, `lastError`, `nextStep`, accepted offer and price |
 | `GET /trips/{id}/bookings/{bookingId}` | Viewer | |
-| `POST /trips/{id}/documents` | Editor | US-09; `202` con el documento en `waiting` (o el existente equivalente) |
-| `GET /trips/{id}/documents`, `GET /trips/{id}/documents/{docId}` | Viewer | estado, versión, hora de la copia, sha256, `downloadUrl` cuando está listo |
-| `POST /trips/{id}/documents/{docId}/retry` | Editor | solo `failed` |
-| `GET /trips/{id}/documents/{docId}/download` | Viewer | verifica el hash; si el archivo falta o no coincide, `409` y se regenera |
-| `POST /trips/{id}/assistant/chat` | Viewer | US-11; `message` e `history`. Responde `answer`, `toolCalls`, `stopReason` (`answered`, `iteration_limit` o `time_limit`); `503` sin `GEMINI_API_KEY`, `502` si falla el modelo |
-| `POST /mcp/` | token MCP | servidor MCP (streamable HTTP); tools: `list_my_trips`, `get_trip`, `get_itinerary`, `get_costs`, `get_bookings`, `get_documents`, `search_offers` |
-| `GET /trips/{id}/events` | Viewer | SSE: `ready`, `trip`, `booking`, `document`, `access-revoked`; son avisos, relee con `GET` |
-| `GET /healthz`, `GET /readyz` | — | vida del proceso; base de datos accesible |
+| `POST /trips/{id}/documents` | Editor | US-09; `202` with the document in `waiting` (or the equivalent existing one) |
+| `GET /trips/{id}/documents`, `GET /trips/{id}/documents/{docId}` | Viewer | status, version, snapshot time, sha256, `downloadUrl` when ready |
+| `POST /trips/{id}/documents/{docId}/retry` | Editor | `failed` only |
+| `GET /trips/{id}/documents/{docId}/download` | Viewer | verifies the hash; if the file is missing or does not match, `409` and it is regenerated |
+| `POST /trips/{id}/assistant/chat` | Viewer | US-11; `message` and `history`. Responds with `answer`, `toolCalls`, `stopReason` (`answered`, `iteration_limit` or `time_limit`); `503` without `GEMINI_API_KEY`, `502` if the model fails |
+| `POST /mcp/` | MCP token | MCP server (streamable HTTP); tools: `list_my_trips`, `get_trip`, `get_itinerary`, `get_costs`, `get_bookings`, `get_documents`, `search_offers` |
+| `GET /trips/{id}/events` | Viewer | SSE: `ready`, `trip`, `booking`, `document`, `access-revoked`; they are notifications, reread with `GET` |
+| `GET /healthz`, `GET /readyz` | — | process liveness; database reachable |
 
-OpenAPI interactivo en `/docs`.
+Interactive OpenAPI at `/docs`.

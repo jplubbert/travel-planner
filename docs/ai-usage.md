@@ -1,96 +1,96 @@
-# Uso de IA en el desarrollo
+# AI usage in development
 
-## Herramientas y modelos
+## Tools and models
 
-| Uso | Herramienta | Modelo |
+| Use | Tool | Model |
 | --- | --- | --- |
-| Desarrollo (código, tests, documentación, ensayos en Docker) | Claude Code (CLI) | Claude Opus 5.5 (`claude-opus-5-5`), el modelo que informa el entorno de las sesiones de trabajo |
-| Asistente de la aplicación (US-11) | SDK `google-genai` | `gemini-3.8-flash`, verificado en la documentación de Google el 2026-11-17 (ADR 0006) |
+| Development (code, tests, documentation, Docker rehearsals) | Claude Code (CLI) | Claude Opus 5.5 (`claude-opus-5-5`), the model reported by the environment of the working sessions |
+| Application assistant (US-11) | `google-genai` SDK | `gemini-3.8-flash`, verified in Google's documentation on 2026-11-17 (ADR 0006) |
 
-Son cosas distintas: Claude Code es la herramienta con la que se construyó el proyecto, y Gemini es el modelo que usa el asistente dentro de la aplicación. El repositorio no depende de Claude en tiempo de ejecución.
+These are different things: Claude Code is the tool the project was built with, and Gemini is the model the assistant uses inside the application. The repository does not depend on Claude at runtime.
 
-## El harness versionado y cómo usarlo
+## The versioned harness and how to use it
 
-| Pieza | Para qué |
+| Piece | Purpose |
 | --- | --- |
-| [`CLAUDE.md`](../CLAUDE.md) | Instrucciones del agente: resumen, decisiones tomadas, reglas de trabajo y comandos. Claude Code lo carga automáticamente al abrir el repo. |
-| [`.claude/commands/historia.md`](../.claude/commands/historia.md) | Prompt reutilizable: `/historia US-07` en Claude Code ejecuta el ciclo de una historia (PRD → tests → supuestos y ADR → inyección de errores → checks → commit). Se escribió al cerrar, **destilado** de los prompts por historia que se usaron. Durante el desarrollo esos prompts se escribían a mano en cada sesión. |
-| [`docs/adr/`](adr/) y [`docs/assumptions.md`](assumptions.md) | Memoria de decisiones y supuestos. El agente debe registrar ahí lo que decide, y no puede cambiar una decisión aceptada sin un ADR nuevo. |
-| [`scripts/mutations/`](../scripts/mutations/README.md) | Inyección de errores para comprobar que los tests detectan fallos reales. |
-| [`scripts/e2e.sh`](../scripts/e2e.sh) | Flujo completo en Docker desde cero, con Playwright. |
-| [`evals/`](../evals/README.md) | Evaluaciones del MCP y del asistente: deterministas, y con modelo marcadas `llm`. |
+| [`CLAUDE.md`](../CLAUDE.md) | Agent instructions: summary, decisions taken, working rules and commands. Claude Code loads it automatically when the repo is opened. |
+| [`.claude/commands/story.md`](../.claude/commands/story.md) | Reusable prompt: `/story US-07` in Claude Code runs the cycle for a story (PRD → tests → assumptions and ADR → fault injection → checks → commit). It was written at the end, **distilled** from the per-story prompts that were used. During development those prompts were written by hand in each session. |
+| [`docs/adr/`](adr/) and [`docs/assumptions.md`](assumptions.md) | Memory of decisions and assumptions. The agent must record what it decides there, and cannot change an accepted decision without a new ADR. |
+| [`scripts/mutations/`](../scripts/mutations/README.md) | Fault injection to check that the tests catch real failures. |
+| [`scripts/e2e.sh`](../scripts/e2e.sh) | Full flow in Docker from scratch, with Playwright. |
+| [`evals/`](../evals/README.md) | MCP and assistant evaluations: deterministic, and model-based ones marked `llm`. |
 
-**Requisitos para usarlo:**
-- Claude Code con acceso a un modelo de Anthropic;
-- Docker con Compose;
+**Requirements to use it:**
+- Claude Code with access to an Anthropic model;
+- Docker with Compose;
 - `uv` (Python 3.12);
-- Node y npm (probado con Node 26, la versión de la imagen Docker);
-- para las evaluaciones con modelo, una clave de Gemini.
+- Node and npm (tested with Node 26, the Docker image's version);
+- for model evaluations, a Gemini key.
 
-No hay configuración de Claude Code versionada (permisos, hooks): se usó la configuración por defecto. `.gitignore` excluye `.claude/settings.local.json`, que depende de cada máquina.
+There is no versioned Claude Code configuration (permissions, hooks): the default configuration was used. `.gitignore` excludes `.claude/settings.local.json`, which is machine-specific.
 
-## Cómo se dirigió el trabajo
+## How the work was directed
 
-- **Primero el marco, sin código.** La primera sesión solo creó `CLAUDE.md`, el ADR 0001, los supuestos, el esqueleto, Compose y el README, con la instrucción explícita de leer la guía, el PRD y el contrato completos y de **no modificar nunca `assignment/`**.
-- **Un prompt por historia o grupo de historias**, con los criterios a cubrir y las condiciones del candidato. Por ejemplo: "US-07 y US-08 según ADR 0003, con la lista detallada; repite los tests de US-05 con reservas reales; inyecta errores; commit". Cada prompt exigía releer el PRD, tests que prueben cada criterio, supuestos y ADR, y un commit al final (reglas de `CLAUDE.md`).
-- **Tests contra dependencias reales:**
-  - PostgreSQL real;
-  - el mock del proveedor como proceso HTTP real;
-  - un uvicorn real para el SSE;
-  - en el frontend, Playwright contra Compose.
-  - Los fallos se provocan con `/_control` solo desde los tests, y un test de arquitectura impide que el backend lo llame.
-- **Inyección de errores en cada historia.** Tras cada bloque se introducían fallos deliberados (quitar una comprobación, cambiar un estado, no persistir antes de enviar…) y se comprobaba que algún test fallara. Cuando una mutación sobrevivía, se escribía el test que faltaba o se justificaba como defensa en profundidad, verificándolo al quitar las dos capas. Los resultados actuales están en [`scripts/mutations/README.md`](../scripts/mutations/README.md).
-- **Ensayos en Docker** además de los tests:
-  - matar la API a mitad de una reserva;
-  - borrar el archivo de un documento;
-  - un cliente MCP externo por red real.
-- **Revisión del candidato** en cada entrega del agente. Varias correcciones vinieron de esa revisión (abajo).
+- **Framework first, no code.** The first session only created `CLAUDE.md`, ADR 0001, the assumptions, the skeleton, Compose and the README, with the explicit instruction to read the full guide, PRD and contract and to **never modify `assignment/`**.
+- **One prompt per story or group of stories**, with the criteria to cover and the candidate's conditions. For example (originally in Spanish): "US-07 and US-08 per ADR 0003, with the detailed list; repeat the US-05 tests with real bookings; inject faults; commit". Each prompt required rereading the PRD, tests proving each criterion, assumptions and ADR, and a commit at the end (rules in `CLAUDE.md`).
+- **Tests against real dependencies:**
+  - real PostgreSQL;
+  - the provider mock as a real HTTP process;
+  - a real uvicorn for SSE;
+  - in the frontend, Playwright against Compose.
+  - Failures are triggered with `/_control` only from tests, and an architecture test prevents the backend from calling it.
+- **Fault injection in every story.** After each block, deliberate faults were introduced (removing a check, changing a state, not persisting before submitting…) and it was checked that some test failed. When a mutation survived, the missing test was written or it was justified as defense in depth, verified by removing both layers. Current results are in [`scripts/mutations/README.md`](../scripts/mutations/README.md).
+- **Docker rehearsals** in addition to tests:
+  - killing the API halfway through a booking;
+  - deleting a document's file;
+  - an external MCP client over a real network.
+- **Candidate review** of every agent delivery. Several corrections came from that review (below).
 
-## Errores de la IA detectados y corregidos
+## AI errors detected and corrected
 
-**Detectados por los tests o por el propio agente**
+**Detected by the tests or by the agent itself**
 
-| Error | Cómo se detectó | Corrección |
+| Error | How it was detected | Fix |
 | --- | --- | --- |
-| Bajo READ COMMITTED, una validación posterior podía ver un commit más nuevo y responder `422` en vez de `409` | Test de concurrencia intermitente | `SELECT … FOR UPDATE` en la comprobación de versión, y un test determinista (ADR 0001) |
-| `JSONB` guardaba `None` como JSON `null`, así que `IS NOT NULL` era cierto | Tests de integridad | `JSONB(none_as_null=True)` y normalización en la migración 0004 |
-| `ON CONFLICT` con un predicado de índice parcial parametrizado fallaba en la sexta ejecución (plan genérico de asyncpg) | Test de cola de jobs | Predicado literal en `index_where` |
-| Se usó `mcp.server.fastmcp`, que ya no existe en el SDK 2.x (ahora `MCPServer`), además de atributos en camelCase | Errores de importación y de atributo | `MCPServer` y campos snake_case; `CLAUDE.md` corregido |
-| Un `ModelError` dentro del grupo de tareas del cliente MCP llegaba envuelto en un `ExceptionGroup` y daba `500` | Eval determinista | Se captura dentro del contexto MCP y se responde `502` |
-| Tests de mutación de las primeras historias que no detectaban la ausencia de un lock | Mutación superviviente | Test con `yield_in_critical_section` |
-| Durante la redacción de `docs/deployment.md` se afirmó que la reconciliación respeta `Retry-After` | Revisión contra el código antes del commit | Corregido en el documento. Después, a petición del candidato, se implementó: la reconciliación ya no reintenta antes del `Retry-After` |
-| Una mutación de la UI (parser SSE) dejaba código sintácticamente inválido, así que "se detectaba" por un error de compilación y no por un test | Lectura de la salida del runner | Mutación reescrita para ser válida; ahora la detectan los tests |
-| El e2e de la reserva `pending` volvía a abrir la pestaña tras confirmar, y la relectura podía ocultar un evento SSE perdido: la mutación "ignorar eventos de reserva" se detectó un día y otro no | Repetir la suite de mutaciones con el runner nuevo | Test corregido para que solo un evento en vivo pueda actualizar la tarjeta; detectada en 2 de 2 ejecuciones |
+| Under READ COMMITTED, a later validation could see a newer commit and respond `422` instead of `409` | Intermittent concurrency test | `SELECT … FOR UPDATE` in the version check, and a deterministic test (ADR 0001) |
+| `JSONB` stored `None` as JSON `null`, so `IS NOT NULL` was true | Integrity tests | `JSONB(none_as_null=True)` and normalization in migration 0004 |
+| `ON CONFLICT` with a parameterized partial-index predicate failed on the sixth execution (asyncpg generic plan) | Job queue test | Literal predicate in `index_where` |
+| `mcp.server.fastmcp` was used, which no longer exists in SDK 2.x (now `MCPServer`), as well as camelCase attributes | Import and attribute errors | `MCPServer` and snake_case fields; `CLAUDE.md` corrected |
+| A `ModelError` inside the MCP client's task group arrived wrapped in an `ExceptionGroup` and gave `500` | Deterministic eval | Caught inside the MCP context and answered with `502` |
+| Mutation tests for the first stories that did not detect a missing lock | Surviving mutation | Test with `yield_in_critical_section` |
+| While drafting `docs/deployment.md` it was claimed that reconciliation respects `Retry-After` | Review against the code before the commit | Corrected in the document. Later, at the candidate's request, it was implemented: reconciliation no longer retries before `Retry-After` |
+| A UI mutation (SSE parser) left syntactically invalid code, so it was "detected" by a compilation error and not by a test | Reading the runner's output | Mutation rewritten to be valid; the tests now detect it |
+| The `pending` booking e2e reopened the tab after confirming, and the re-read could hide a lost SSE event: the "ignore booking events" mutation was detected one day and not another | Re-running the mutation suite with the new runner | Test fixed so that only a live event can update the card; detected in 2 of 2 runs |
 
-**Detectados por el candidato**
+**Detected by the candidate**
 
-| Error | Corrección |
+| Error | Fix |
 | --- | --- |
-| La fixture `llm_app` era síncrona y fallaba con `RuntimeError: no running event loop` al correr las evals con modelo. **El traceback imprimió la clave de Gemini completa** | Fixture async, y `GEMINI_API_KEY` (después también `MCP_TOKEN_SECRET`) como `SecretStr`, con tests que comprueban que no aparece en `repr`, `str` ni tracebacks |
-| Una fecha errónea (2026-11-18 en lugar de 2026-11-17) en la migración 0004 y en el ADR 0003 | Corregida |
-| Durante una prueba en Docker, el agente no comprobó que `.env` tenía `GEMINI_API_KEY` e hizo **una llamada real a Gemini sin pretenderlo** (respondió `503`; la app devolvió `502` correctamente) | El agente lo informó en vez de ocultarlo. Desde entonces `scripts/e2e.sh` vacía la clave |
-| El primer modelo elegido para el asistente (Anthropic) no era el que quería el candidato | ADR 0006, que sustituye esa decisión |
-| El agente construyó el stack de ensayo y ensayó la demo **mientras corría la inyección de errores en segundo plano**, así que la imagen pudo incluir código mutado (`if False:` en `reservations.py`) | Se invalidaron esos ensayos. Se comprobó que el código quedó restaurado y se pasó la suite completa. Se reconstruyó el stack sin caché, verificando que el código de las imágenes era idéntico byte a byte al del repo, y se repitieron los ensayos. Nueva regla 9 en `CLAUDE.md`: nada en paralelo con las mutaciones |
+| The `llm_app` fixture was synchronous and failed with `RuntimeError: no running event loop` when running the model evals. **The traceback printed the full Gemini key** | Async fixture, and `GEMINI_API_KEY` (later also `MCP_TOKEN_SECRET`) as `SecretStr`, with tests checking it does not appear in `repr`, `str` or tracebacks |
+| A wrong date (2026-11-18 instead of 2026-11-17) in migration 0004 and in ADR 0003 | Corrected |
+| During a Docker test, the agent did not check that `.env` had `GEMINI_API_KEY` and made **an unintended real call to Gemini** (it responded `503`; the app correctly returned `502`) | The agent reported it instead of hiding it. Since then `scripts/e2e.sh` blanks the key |
+| The first model chosen for the assistant (Anthropic) was not the one the candidate wanted | ADR 0006, which supersedes that decision |
+| The agent built the rehearsal stack and rehearsed the demo **while fault injection was running in the background**, so the image may have included mutated code (`if False:` in `reservations.py`) | Those rehearsals were invalidated. It was checked that the code had been restored and the full suite was run. The stack was rebuilt without cache, verifying that the code in the images was byte-for-byte identical to the repo's, and the rehearsals were repeated. New rule 9 in `CLAUDE.md`: nothing in parallel with mutations |
 
-## Qué decidió el candidato
+## What the candidate decided
 
-- **Stack y arquitectura:** Python 3.12, FastAPI, SQLAlchemy async, PostgreSQL y Alembic; monolito modular hexagonal; mock como servicio aparte consumido solo por HTTP; MCP de solo lectura; Docker Compose para todo.
-- **Proveedor del asistente:** primero Anthropic y después **Gemini con `google-genai`**, sin LangChain ni LangGraph. Pidió que el modelo Flash vigente se eligiera **verificándolo en la documentación, no de memoria**.
-- **Concurrencia:** `400 VERSION_REQUIRED` en lugar de `428` cuando falta la versión.
-- **Plan de trabajo:** plan por días y orden de las historias, con el código congelado el viernes a las 18:00.
-- **Seguridad:** secretos como `SecretStr`. Reintentos de Gemini solo para 429, 503 y el 403 esporádico, nunca para 400, 401 o 402; el agente añadió además los 5xx y lo informó.
-- **Frontend:** React + Vite + TypeScript sin librería de UI; SSE leído con `fetch`; 409 con reaplicación; la UI no es la barrera de permisos; orden de bloques con un commit por bloque.
-- **Método:** inyectar errores en cada historia, un commit por tarea, y no presentar como hecho nada sin test ni ejecución.
-- **Evaluaciones con modelo:** las ejecutó el propio candidato con su clave (5 de 5 el 2026-11-17). El 2026-11-18 a las 01:08 ejecutó los 7 casos, incluidos los 2 de US-11 añadidos ese día, y pasaron 7 de 7. A las 01:31 ejecutó el caso de huecos, añadido a partir de lo que observó en la ejecución anterior, y pasó 1 de 1 (14 s). Los 8 casos han pasado con modelo real, en dos ejecuciones. El agente no ejecutó ninguna.
-- **Prueba del asistente desde la UI con clave real:** la hizo el candidato el 2026-11-17 (ver `docs/demo.md`, paso 7).
-- **Cierre de huecos del 2026-11-18:** respetar `Retry-After` en la reconciliación, propagar el `X-Request-Id` a los jobs del worker y evaluar con modelo la relación con fechas y restricciones, los conflictos de horario y las noches sin alojamiento.
+- **Stack and architecture:** Python 3.12, FastAPI, SQLAlchemy async, PostgreSQL and Alembic; hexagonal modular monolith; mock as a separate service consumed only over HTTP; read-only MCP; Docker Compose for everything.
+- **Assistant provider:** first Anthropic and then **Gemini with `google-genai`**, without LangChain or LangGraph. Asked for the current Flash model to be chosen **by verifying it in the documentation, not from memory**.
+- **Concurrency:** `400 VERSION_REQUIRED` instead of `428` when the version is missing.
+- **Work plan:** day-by-day plan and order of stories, with code frozen on Friday at 18:00.
+- **Security:** secrets as `SecretStr`. Gemini retries only for 429, 503 and the sporadic 403, never for 400, 401 or 402; the agent also added 5xx and reported it.
+- **Frontend:** React + Vite + TypeScript without a UI library; SSE read with `fetch`; 409 with re-apply; the UI is not the permission barrier; order of blocks with one commit per block.
+- **Method:** inject faults in every story, one commit per task, and present nothing as done without a test or a run.
+- **Model evaluations:** the candidate ran them with their own key (5 of 5 on 2026-11-17). On 2026-11-18 at 01:08 they ran the 7 cases, including the 2 US-11 cases added that day, and 7 of 7 passed. At 01:31 they ran the gaps case, added based on what they observed in the previous run, and it passed 1 of 1 (14 s). All 8 cases have passed with the real model, across two runs. The agent ran none of them.
+- **Testing the assistant from the UI with a real key:** done by the candidate on 2026-11-17 (see `docs/demo.md`, step 7).
+- **Gap closing on 2026-11-18:** respect `Retry-After` in reconciliation, propagate `X-Request-Id` to worker jobs, and evaluate with the model the relation to dates and constraints, schedule conflicts and nights without accommodation.
 
-## Cómo se verificó la salida
+## How the output was verified
 
-- **`uv run pytest`:** backend, mock y evals deterministas; 542 pasan (5 de modelo excluidos), 2026-11-18.
-- **`npm test`:** 31 tests de Vitest pasan, 2026-11-18.
-- **`scripts/e2e.sh`:** 5 de 5, desde cero, 2026-11-18 (después de corregir el test de la reserva `pending`).
-- **Checks estáticos:** `ruff`, `mypy --strict` y `tsc` estricto.
-- **Inyección de errores** (`scripts/mutations/`).
-- **Ensayos en Docker** del guion de demo ([`docs/demo.md`](demo.md) indica qué pasos se ensayaron y cuáles no).
-- **Revisión del candidato:** lectura de los diffs y de los ADR en cada entrega.
+- **`uv run pytest`:** backend, mock and deterministic evals; 542 pass (5 model ones excluded), 2026-11-18.
+- **`npm test`:** 31 Vitest tests pass, 2026-11-18.
+- **`scripts/e2e.sh`:** 5 of 5, from scratch, 2026-11-18 (after fixing the `pending` booking test).
+- **Static checks:** `ruff`, `mypy --strict` and strict `tsc`.
+- **Fault injection** (`scripts/mutations/`).
+- **Docker rehearsals** of the demo script ([`docs/demo.md`](demo.md) states which steps were rehearsed and which were not).
+- **Candidate review:** reading the diffs and the ADRs in every delivery.

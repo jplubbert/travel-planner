@@ -45,8 +45,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # Worker de jobs en segundo plano (reservas, ADR 0003; documentos, ADR 0005). Se puede escalar:
-  # los jobs se reclaman con FOR UPDATE SKIP LOCKED y lease.
+  # Background job worker (bookings, ADR 0003; documents, ADR 0005). It can be scaled:
+  # jobs are claimed with FOR UPDATE SKIP LOCKED and a lease.
   worker:
     build:
       context: .
@@ -67,7 +67,7 @@ services:
       api:
         condition: service_healthy  # the API container runs the migrations
 
-  # Proveedor externo simulado (ADR 0002). La app solo usa /v1; /_control es para tests y demo.
+  # Simulated external provider (ADR 0002). The app only uses /v1; /_control is for tests and the demo.
   provider-mock:
     build: ./mock
     restart: unless-stopped
@@ -85,7 +85,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # UI mínima (React + Vite), servida por nginx, que además hace de proxy de /api hacia la API.
+  # Minimal UI (React + Vite), served by nginx, which also proxies /api to the API.
   frontend:
     build: ./frontend
     restart: unless-stopped

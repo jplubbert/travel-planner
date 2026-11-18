@@ -1,53 +1,53 @@
 # Architecture Decision Records (ADR)
 
-Este directorio registra las decisiones de arquitectura relevantes del proyecto. Un ADR captura **por qué** se eligió algo, qué alternativas se descartaron y qué consecuencias aceptamos, para poder defender o revisar la decisión más tarde.
+This directory records the project's relevant architecture decisions. An ADR captures **why** something was chosen, which alternatives were discarded and which consequences we accept, so the decision can be defended or revisited later.
 
-## Cuándo escribir un ADR
+## When to write an ADR
 
-- La decisión afecta a más de un módulo, a un contrato (API, MCP, base de datos) o a una garantía del PRD.
-- Había alternativas razonables y elegir una tiene costes.
-- Cambiar la decisión más tarde sería caro.
+- The decision affects more than one module, a contract (API, MCP, database) or a guarantee from the PRD.
+- There were reasonable alternatives and choosing one has costs.
+- Changing the decision later would be expensive.
 
-Detalles locales de implementación no necesitan ADR.
+Local implementation details do not need an ADR.
 
-## Formato
+## Format
 
-Archivo: `NNNN-titulo-en-kebab-case.md`, con `NNNN` correlativo (`0001`, `0002`, …). Los números no se reutilizan.
+File: `NNNN-title-in-kebab-case.md`, with a sequential `NNNN` (`0001`, `0002`, …) and the title in English kebab-case. Numbers are never reused.
 
 ```markdown
-# NNNN. Título
+# NNNN. Title
 
-- **Estado:** Propuesto | Aceptado | Sustituido por NNNN | Descartado
-- **Fecha:** AAAA-MM-DD
-- **Historias relacionadas:** US-XX
+- **Status:** Proposed | Accepted | Superseded by NNNN | Rejected
+- **Date:** YYYY-MM-DD
+- **Related stories:** US-XX
 
-## Contexto
-Problema, fuerzas en juego y requisitos (citar el PRD / contrato).
+## Context
+Problem, forces at play and requirements (quote the PRD / contract).
 
-## Opciones evaluadas
-Cada alternativa con pros y contras.
+## Options considered
+Each alternative with pros and cons.
 
-## Decisión
-Qué se elige y por qué.
+## Decision
+What is chosen and why.
 
-## Consecuencias
-Positivas, negativas, riesgos y qué hay que hacer/probar a raíz de esto.
+## Consequences
+Positive, negative, risks, and what has to be done/tested as a result.
 ```
 
-## Reglas
+## Rules
 
-- Un ADR aceptado es inmutable salvo correcciones menores. Para cambiar la decisión se crea un ADR nuevo y se marca el anterior como "Sustituido por NNNN".
-- Cada ADR debe indicar cómo se verifica (tests que prueban la garantía).
+- An accepted ADR is immutable except for minor corrections. To change the decision, write a new ADR and mark the previous one as "Superseded by NNNN".
+- Every ADR must state how it is verified (tests that prove the guarantee).
 
-## Índice
+## Index
 
-| Nº | Título | Estado |
+| No. | Title | Status |
 | --- | --- | --- |
-| [0001](0001-concurrencia-por-version.md) | Concurrencia en edición de viajes por versión optimista | Aceptado |
-| [0002](0002-mock-proveedor-con-control.md) | Mock del proveedor con fixtures base, controles fuera del contrato y reloj controlable | Aceptado |
-| [0003](0003-estados-de-reserva-y-reconciliacion.md) | Estados locales de reserva y reconciliación | Aceptado |
-| [0004](0004-copia-de-oferta-y-frescura.md) | Copia de la oferta en el ítem y política de frescura | Aceptado |
-| [0005](0005-jobs-documentos-y-canal-de-estado.md) | Jobs en PostgreSQL, documento como copia inmutable y canal de estado | Aceptado |
-| [0006](0006-mcp-asistente-y-proveedor-de-modelo.md) | MCP en el mismo proceso, identidad por sesión, bucle propio y proveedor de modelo intercambiable | Aceptado |
-| [0007](0007-frontend-mismo-origen-y-estado-en-vivo.md) | Frontend en el mismo origen, SSE leído con fetch y la UI que no es barrera de permisos | Aceptado (decisión 4 sustituida en parte por 0008) |
-| [0008](0008-mensajes-de-error-y-roles-en-espanol.md) | Roles y mensajes de error conocidos en español en la UI | Aceptado |
+| [0001](0001-version-based-concurrency.md) | Trip edit concurrency through optimistic versioning | Accepted |
+| [0002](0002-provider-mock-with-control.md) | Provider mock with base fixtures, out-of-contract controls and a controllable clock | Accepted |
+| [0003](0003-booking-states-and-reconciliation.md) | Local booking states and reconciliation | Accepted |
+| [0004](0004-offer-snapshot-and-freshness.md) | Offer snapshot in the item and freshness policy | Accepted |
+| [0005](0005-jobs-documents-and-status-channel.md) | Jobs in PostgreSQL, document as an immutable snapshot, and status channel | Accepted |
+| [0006](0006-mcp-assistant-and-model-provider.md) | In-process MCP, session-based identity, custom loop and swappable model provider | Accepted |
+| [0007](0007-frontend-same-origin-and-live-state.md) | Same-origin frontend, SSE read with fetch, and a UI that is not the permission barrier | Accepted |
+| [0008](0008-english-ui-and-docs-backend-messages-as-is.md) | English UI and docs; backend messages shown as returned | Accepted |

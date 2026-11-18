@@ -39,21 +39,21 @@ export function useTrip(): TripCtx {
 }
 
 const TABS = [
-  ["participants", "Participantes"],
-  ["search", "Búsqueda"],
-  ["itinerary", "Itinerario"],
-  ["costs", "Costes"],
-  ["bookings", "Reservas"],
-  ["documents", "Documentos"],
-  ["assistant", "Asistente"],
+  ["participants", "Participants"],
+  ["search", "Search"],
+  ["itinerary", "Itinerary"],
+  ["costs", "Costs"],
+  ["bookings", "Bookings"],
+  ["documents", "Documents"],
+  ["assistant", "Assistant"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
 const STREAM_LABEL: Record<StreamStatus, string> = {
-  connecting: "conectando…",
-  live: "en vivo",
-  reconnecting: "reconectando…",
-  closed: "desconectado",
+  connecting: "connecting…",
+  live: "live",
+  reconnecting: "reconnecting…",
+  closed: "disconnected",
 };
 
 export function TripView({ api, tripId, showAll, onBack }: {
@@ -170,12 +170,12 @@ export function TripView({ api, tripId, showAll, onBack }: {
   if (loadError && !trip) {
     return (
       <section>
-        <button className="link" onClick={onBack}>← viajes</button>
+        <button className="link" onClick={onBack}>← trips</button>
         <ErrorBox error={loadError} />
       </section>
     );
   }
-  if (!trip) return <p>Cargando viaje…</p>;
+  if (!trip) return <p>Loading trip…</p>;
 
   const role = trip.myRole;
   const allows = (min: Role) => showAll || (role !== null && RANK[role] >= RANK[min]);
@@ -184,23 +184,23 @@ export function TripView({ api, tripId, showAll, onBack }: {
   return (
     <Ctx.Provider value={ctx}>
       <section>
-        <button className="link" onClick={onBack}>← viajes</button>
+        <button className="link" onClick={onBack}>← trips</button>
         <header className="trip-header">
           <div>
             <h2>{trip.name}</h2>
             <div className="muted">
               {trip.destinations.join(" → ")} · {day(trip.startsOn)} – {day(trip.endsOn)} ·{" "}
-              {trip.travelers} viajeros · presupuesto {usd(trip.budget)}
+              {trip.travelers} travelers · budget {usd(trip.budget)}
             </div>
           </div>
           <div className="right">
-            <Badge tone="neutral">tu rol: {role ? ROLE_LABEL[role] : "—"}</Badge>{" "}
-            <Badge tone="neutral">versión {trip.version}</Badge>{" "}
-            <Badge tone={stream === "live" ? "ok" : "warn"}>estado: {STREAM_LABEL[stream]}</Badge>
+            <Badge tone="neutral">your role: {role ? ROLE_LABEL[role] : "—"}</Badge>{" "}
+            <Badge tone="neutral">version {trip.version}</Badge>{" "}
+            <Badge tone={stream === "live" ? "ok" : "warn"}>status: {STREAM_LABEL[stream]}</Badge>
           </div>
         </header>
         {revoked && (
-          <Notice tone="bad">Has perdido el acceso a este viaje. Lo que ves ya no se actualiza.</Notice>
+          <Notice tone="bad">You no longer have access to this trip. What you see is no longer updated.</Notice>
         )}
         {conflict && (
           <ConflictPanel conflict={conflict} busy={busy} onReapply={() => void reapply()}

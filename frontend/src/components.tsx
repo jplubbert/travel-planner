@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { ApiError } from "./api";
-import { dateTime, errorMessage, type Tone } from "./format";
+import { dateTime, type Tone } from "./format";
 import type { VersionConflictDetails } from "./types";
 
 export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
@@ -12,8 +12,7 @@ export function Notice({ tone, children }: { tone: Tone; children: ReactNode }) 
   return <div className={`notice ${tone}`} role={tone === "bad" ? "alert" : "status"}>{children}</div>;
 }
 
-/** Shows a backend error: status, code, details and requestId as returned; the message in
- *  Spanish for known codes, with the backend's original one kept alongside (ADR 0008). */
+/** Shows a backend error as returned: status, code, message, details and requestId. */
 export function ErrorBox({ error, onClose }: { error: unknown; onClose?: () => void }) {
   if (!error) return null;
   const e = error instanceof ApiError ? error : null;
@@ -22,14 +21,11 @@ export function ErrorBox({ error, onClose }: { error: unknown; onClose?: () => v
     <Notice tone="bad">
       <div className="row spread">
         <strong>
-          {e ? `${e.status} ${e.code}` : "Error de red"}
+          {e ? `${e.status} ${e.code}` : "Network error"}
         </strong>
-        {onClose && <button className="link" onClick={onClose}>cerrar</button>}
+        {onClose && <button className="link" onClick={onClose}>close</button>}
       </div>
-      <div>{e ? errorMessage(e.code, e.message) : String(error)}</div>
-      {e && errorMessage(e.code, e.message) !== e.message && (
-        <details><summary>Mensaje original del backend</summary><small>{e.message}</small></details>
-      )}
+      <div>{e ? e.message : String(error)}</div>
       {fields.length > 0 && (
         <ul>{fields.map((f, i) => <li key={i}><code>{f.field}</code>: {f.message}</li>)}</ul>
       )}
@@ -62,10 +58,10 @@ export function ConflictPanel({ conflict, onReapply, onDiscard, busy }: {
   const { details } = conflict;
   return (
     <Notice tone="warn">
-      <strong>409 TRIP_VERSION_CONFLICT: alguien cambió el viaje antes que tú</strong>
+      <strong>409 TRIP_VERSION_CONFLICT: someone changed the trip before you</strong>
       <p>
-        Tu cambio ({conflict.label}) se basaba en la versión {details.yourVersion}; la actual es la{" "}
-        {details.currentVersion}. No se aplicó nada. Cambios desde tu versión:
+        Your change ({conflict.label}) was based on version {details.yourVersion}; the current one is{" "}
+        {details.currentVersion}. Nothing was applied. Changes since your version:
       </p>
       <ul className="changes">
         {details.changesSinceYourVersion.map((c) => (
@@ -74,12 +70,12 @@ export function ConflictPanel({ conflict, onReapply, onDiscard, busy }: {
           </li>
         ))}
       </ul>
-      <p>La vista ya muestra el estado actual. Revisa si tu cambio sigue teniendo sentido.</p>
+      <p>The view already shows the current state. Check whether your change still makes sense.</p>
       <div className="row">
         <button onClick={onReapply} disabled={busy}>
-          Reaplicar «{conflict.label}» sobre la versión {details.currentVersion}
+          Reapply “{conflict.label}” on version {details.currentVersion}
         </button>
-        <button className="secondary" onClick={onDiscard} disabled={busy}>Descartar mi cambio</button>
+        <button className="secondary" onClick={onDiscard} disabled={busy}>Discard my change</button>
       </div>
     </Notice>
   );

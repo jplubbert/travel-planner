@@ -8,8 +8,8 @@ type Exchange = { question: string; reply: ChatReply };
 
 const STOP: Record<ChatReply["stopReason"], string> = {
   answered: "",
-  iteration_limit: "Se alcanzó el límite de pasos: la respuesta puede estar incompleta.",
-  time_limit: "Se alcanzó el límite de tiempo: la respuesta puede estar incompleta.",
+  iteration_limit: "Step limit reached: the answer may be incomplete.",
+  time_limit: "Time limit reached: the answer may be incomplete.",
 };
 
 export function AssistantTab() {
@@ -36,7 +36,7 @@ export function AssistantTab() {
   return (
     <div className="assistant">
       <Notice tone="info">
-        El asistente es de solo lectura: consulta el viaje y busca opciones, pero no reserva ni cambia nada.
+        The assistant is read-only: it reads the trip and searches for options, but it never books or changes anything.
       </Notice>
       {exchanges.map((x, i) => (
         <div key={i} className="exchange">
@@ -46,7 +46,7 @@ export function AssistantTab() {
             {STOP[x.reply.stopReason] && <Notice tone="warn">{STOP[x.reply.stopReason]}</Notice>}
             <details>
               <summary>
-                Herramientas usadas: {x.reply.toolCalls.length} · {x.reply.model} · {x.reply.iterations} pasos
+                Tools used: {x.reply.toolCalls.length} · {x.reply.model} · {x.reply.iterations} steps
               </summary>
               <ol className="tool-calls">
                 {x.reply.toolCalls.map((c, j) => (
@@ -54,7 +54,7 @@ export function AssistantTab() {
                     <code>{c.name}</code> {c.isError ? <Badge tone="bad">error</Badge> : <Badge tone="ok">ok</Badge>}
                     <pre>{JSON.stringify(c.arguments, null, 2)}</pre>
                     <details>
-                      <summary>resultado</summary>
+                      <summary>result</summary>
                       <pre>{typeof c.result === "string" ? c.result : JSON.stringify(c.result, null, 2)}</pre>
                     </details>
                   </li>
@@ -66,11 +66,11 @@ export function AssistantTab() {
       ))}
       <ErrorBox error={action.error} onClose={action.clear} />
       <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-        <textarea aria-label="mensaje al asistente" value={message} maxLength={2000} rows={2}
-          placeholder="Por ejemplo: ¿qué alojamiento en Lisboa encaja con nuestro presupuesto?"
+        <textarea aria-label="message to the assistant" value={message} maxLength={2000} rows={2}
+          placeholder="For example: which accommodation in Lisbon fits our budget?"
           onChange={(e) => setMessage(e.target.value)} />
         <button type="submit" disabled={action.busy || !message.trim()}>
-          {action.busy ? "Pensando…" : "Enviar"}
+          {action.busy ? "Thinking…" : "Send"}
         </button>
       </form>
     </div>

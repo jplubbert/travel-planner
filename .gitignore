@@ -8,7 +8,7 @@ dist/
 .venv/
 venv/
 
-# Herramientas
+# Tools
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -16,12 +16,12 @@ venv/
 .coverage.*
 htmlcov/
 
-# Entorno y secretos
+# Environment and secrets
 .env
 .env.*
 !.env.example
 
-# Datos locales (documentos generados, volúmenes)
+# Local data (generated documents, volumes)
 data/
 storage/
 
@@ -29,13 +29,13 @@ storage/
 node_modules/
 frontend/dist/
 
-# Editor / SO
+# Editor / OS
 .idea/
 .vscode/
 *.swp
 .DS_Store
 
-# Claude Code: configuración local personal (la compartida sí se versiona)
+# Claude Code: personal local settings (the shared ones are committed)
 .claude/settings.local.json
 frontend/test-results/
 frontend/playwright-report/

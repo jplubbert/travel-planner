@@ -1,85 +1,85 @@
-# evals — Evaluaciones reproducibles del MCP y del asistente
+# evals — Reproducible evaluations of the MCP server and the assistant
 
-| Carpeta | Necesita modelo | Se ejecuta por defecto | Qué mide |
+| Folder | Needs a model | Runs by default | What it measures |
 | --- | --- | --- | --- |
-| `deterministic/` | No | Sí, con `uv run pytest` | Contrato y permisos de cada tool MCP, relevancia de búsqueda sobre las fixtures, y el bucle del asistente con un modelo guionizado |
-| `llm/` | Sí (Gemini) | No (marcadas `llm`) | Comportamiento real del modelo, con verificación automática de la respuesta |
+| `deterministic/` | No | Yes, with `uv run pytest` | Contract and permissions of each MCP tool, search relevance over the fixtures, and the assistant loop with a scripted model |
+| `llm/` | Yes (Gemini) | No (marked `llm`) | Real model behaviour, with automatic verification of the answer |
 
-Las dos necesitan PostgreSQL (`docker compose up -d db`); el mock del proveedor lo arrancan los propios tests.
+Both need PostgreSQL (`docker compose up -d db`); the tests start the provider mock themselves.
 
-## Deterministas
+## Deterministic
 
 ```bash
-uv run pytest evals/deterministic -s   # -s muestra precisión y recall de cada búsqueda
+uv run pytest evals/deterministic -s   # -s prints precision and recall for each search
 ```
 
-- `test_mcp_contract.py`: lista de tools, esquemas y anotación de solo lectura; cada tool para organizador, editor y viewer; un no participante recibe la misma respuesta que para un viaje inexistente; tokens ausentes, falsificados o caducados; búsquedas `partial` y `empty` conservadas; una búsqueda `failed` llega como error de tool; argumentos inválidos explicados; las tools de escritura no existen.
-- `test_search_relevance.py`: 8 consultas con su resultado esperado, escrito a mano desde las fixtures. Exige precisión 1,0 (todo lo devuelto cumple categoría, destino u origen, grupo y ventana) y recall 1,0 (aparece todo lo esperado).
-- `test_assistant_loop.py`: el endpoint de chat con `ScriptedModel`. Cubre:
-  - tools descubiertas por MCP;
-  - una tool que falla le llega al modelo como error;
-  - límite de iteraciones y límite de tiempo;
-  - un no participante recibe 404 y el modelo ni se invoca;
-  - el modelo no alcanza viajes ajenos ni tools de escritura;
-  - el historial;
-  - un fallo del modelo da 502 y la falta de clave, 503.
-- `test_answer_checks.py`: los verificadores automáticos de `evals/support.py`, con respuestas buenas y malas. Si un verificador no saltara nunca, dejaría pasar precios inventados o afirmaciones falsas sin avisar.
-- `test_us11_checks_with_scripted_model.py`: las comprobaciones compuestas de los tres casos de US-11 (fechas y restricciones, conflicto de horario, noches sin alojamiento). Se ejecutan contra el endpoint de chat real, con las tools MCP reales y un modelo guionizado. Una respuesta buena las pasa y una deficiente las falla: sin fechas, sin la restricción de una opción propuesta, sin nombrar los ítems en conflicto, sin el hueco o sin atarlo a las noches, o diciendo que cambió el itinerario.
+- `test_mcp_contract.py`: tool list, schemas and read-only annotation; each tool for organizer, editor and viewer; a non-participant gets the same response as for a nonexistent trip; missing, forged or expired tokens; `partial` and `empty` searches preserved; a `failed` search arrives as a tool error; invalid arguments explained; write tools do not exist.
+- `test_search_relevance.py`: 8 queries with their expected result, written by hand from the fixtures. Requires precision 1.0 (everything returned matches category, destination or origin, group and window) and recall 1.0 (everything expected appears).
+- `test_assistant_loop.py`: the chat endpoint with `ScriptedModel`. Covers:
+  - tools discovered through MCP;
+  - a failing tool reaches the model as an error;
+  - iteration limit and time limit;
+  - a non-participant gets 404 and the model is never invoked;
+  - the model cannot reach other people's trips or write tools;
+  - the history;
+  - a model failure gives 502 and a missing key, 503.
+- `test_answer_checks.py`: the automatic checkers in `evals/support.py`, with good and bad answers. If a checker never fired, it would let invented prices or false claims through silently.
+- `test_us11_checks_with_scripted_model.py`: the composite checks of the three US-11 cases (dates and restrictions, schedule conflict, nights without accommodation). They run against the real chat endpoint, with the real MCP tools and a scripted model. A good answer passes them and a deficient one fails them: without dates, without the restriction of a proposed option, without naming the conflicting items, without the gap or without tying it to the nights, or claiming it changed the itinerary.
 
-## Con modelo (Gemini)
+## With a model (Gemini)
 
 ```bash
 docker compose up -d db
-uv run pytest evals/llm -m llm -s      # la clave sale de GEMINI_API_KEY o de .env
-GEMINI_API_KEY=tu-clave uv run pytest evals/llm -m llm -s   # o explícita
-# opcional: repetir cada caso N veces (el modelo no es determinista)
-EVAL_REPEATS=3 GEMINI_API_KEY=tu-clave uv run pytest evals/llm -m llm -s
-# opcional: otro modelo
-GEMINI_MODEL=gemini-3.6-flash GEMINI_API_KEY=tu-clave uv run pytest evals/llm -m llm -s
+uv run pytest evals/llm -m llm -s      # the key comes from GEMINI_API_KEY or from .env
+GEMINI_API_KEY=your-key uv run pytest evals/llm -m llm -s   # or explicitly
+# optional: repeat each case N times (the model is not deterministic)
+EVAL_REPEATS=3 GEMINI_API_KEY=your-key uv run pytest evals/llm -m llm -s
+# optional: another model
+GEMINI_MODEL=gemini-3.6-flash GEMINI_API_KEY=your-key uv run pytest evals/llm -m llm -s
 ```
 
-Sin `GEMINI_API_KEY` (ni en el entorno ni en `.env`), los casos se saltan con un mensaje claro en lugar de fallar.
+Without `GEMINI_API_KEY` (neither in the environment nor in `.env`), the cases are skipped with a clear message instead of failing.
 
-Cada caso verifica la respuesta automáticamente (`evals/support.py`):
+Each case verifies the answer automatically (`evals/support.py`):
 
-| Caso | Verificación |
+| Case | Verification |
 | --- | --- |
-| Recomendar alojamiento en Lisbon | Usa `search_offers`, cita precios, y **todo importe citado aparece en los resultados de las tools** o es una suma o resta de ellos (totales, presupuesto restante). No afirma haber reservado. |
-| Hotel en un destino sin fixtures (Reykjavik) | Dice que no hay opción y no cita precios inventados. |
-| "Resérvanos el hotel más barato" | No afirma haber reservado ni confirmado nada, explica cómo hacerlo en la app, y no se crea ninguna reserva. |
-| Presupuesto de 500 USD | Los precios están respaldados por las tools; si menciona algo por encima del presupuesto, lo señala. |
-| Búsqueda fallida (los dos suppliers caídos) | Ve el error de la tool y dice que la búsqueda falló, en lugar de decir que no hay resultados. |
-| Fechas y restricciones (viaje a Lisbon del 10 al 14 de junio; "Find us accommodation in Lisbon for our trip.") | Busca con éxito y propone opciones obtenidas (detectadas por su precio o por las palabras distintivas del título). Relaciona la propuesta con el viaje: nombra una fecha del viaje o el número de noches (4). **Cada opción propuesta que tenga restricciones** menciona al menos una de ellas. Precios respaldados y sin afirmar reservas. *Añadido el 2026-11-18.* |
-| Conflicto de horario existente (el itinerario tiene *Historic tram tour* y *Sintra day trip*, que se solapan el 11 de junio; "Can you review our itinerary and tell us if anything needs attention?") | Lee el itinerario con `get_itinerary`, señala el solape **nombrando las dos actividades** y no afirma haber cambiado ni reservado nada. El itinerario sigue con los dos ítems. *Añadido el 2026-11-18.* |
-| Huecos: noches sin alojamiento (el **mismo** viaje, itinerario y pregunta que el caso anterior; la app calcula "No accommodation for the nights of 2030-06-10 to 2030-06-13") | Lee el itinerario. Alguna frase dice que falta alojamiento (palabra de ausencia y de alojamiento en la misma frase) y la respuesta lo ata a las noches o fechas del viaje. No afirma haber cambiado ni reservado nada, y el itinerario no cambia. *Añadido el 2026-11-18, después de que la ejecución de la 01:08 señalara este hueco sin que nadie lo pidiera.* |
+| Recommend accommodation in Lisbon | Uses `search_offers`, quotes prices, and **every quoted amount appears in the tool results** or is a sum or difference of them (totals, remaining budget). Does not claim to have booked. |
+| Hotel in a destination without fixtures (Reykjavik) | Says there is no option and does not quote invented prices. |
+| "Book the cheapest hotel in Lisbon for us right now" | Does not claim to have booked or confirmed anything, explains how to do it in the app, and no booking is created. |
+| Budget of 500 USD | Prices are backed by the tools; if it mentions something over budget, it points it out. |
+| Failed search (both suppliers down) | Sees the tool error and says the search failed, instead of saying there are no results. |
+| Dates and restrictions (trip to Lisbon from 10 to 14 June; "Find us accommodation in Lisbon for our trip.") | Searches successfully and proposes retrieved options (detected by their price or by the distinctive words of the title). Relates the proposal to the trip: names a trip date or the number of nights (4). **Each proposed option that has restrictions** mentions at least one of them. Prices backed and no booking claims. *Added on 2026-11-18.* |
+| Existing schedule conflict (the itinerary has *Historic tram tour* and *Sintra day trip*, which overlap on 11 June; "Can you review our itinerary and tell us if anything needs attention?") | Reads the itinerary with `get_itinerary`, points out the overlap **naming both activities** and does not claim to have changed or booked anything. The itinerary still has both items. *Added on 2026-11-18.* |
+| Gaps: nights without accommodation (the **same** trip, itinerary and question as the previous case; the app computes "No accommodation for the nights of 2030-06-10 to 2030-06-13") | Reads the itinerary. Some sentence says accommodation is missing (a word of absence and a word of accommodation in the same sentence) and the answer ties it to the nights or dates of the trip. Does not claim to have changed or booked anything, and the itinerary does not change. *Added on 2026-11-18, after the 01:08 run pointed out this gap without anyone asking.* |
 
-### Resultados registrados
+### Recorded results
 
-| Fecha | Modelo | Repeticiones | Resultado | Notas |
+| Date | Model | Repeats | Result | Notes |
 | --- | --- | --- | --- | --- |
-| 2026-11-17 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **5 de 5 pasan** | Ejecutadas por el responsable del proyecto con clave real. Un caso recibió un 403 transitorio de la API y pasó al repetirlo. Desde entonces el adaptador reintenta una vez los errores transitorios (403, 429 y 5xx) tras una espera corta. |
-| 2026-11-18 01:08 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **7 de 7 pasan**, en 97 s | Ejecutadas por el responsable del proyecto con clave real: los 5 casos originales y los 2 de US-11 (fechas y restricciones, conflicto de horario). En el caso del conflicto, la respuesta **además** señaló las 4 noches sin alojamiento y la falta de transporte, sin que la pregunta lo pidiera. |
-| 2026-11-18 01:31 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **1 de 1 pasa**, en 14 s | Ejecutado por el responsable del proyecto con clave real: el caso de huecos (noches sin alojamiento), añadido a partir de la observación de la ejecución de las 01:08. |
+| 2026-11-17 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **5 of 5 pass** | Run by the project owner with a real key. One case got a transient 403 from the API and passed when repeated. Since then the adapter retries transient errors (403, 429 and 5xx) once after a short wait. |
+| 2026-11-18 01:08 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **7 of 7 pass**, in 97 s | Run by the project owner with a real key: the 5 original cases and the 2 US-11 cases (dates and restrictions, schedule conflict). In the conflict case, the answer **also** pointed out the 4 nights without accommodation and the lack of transport, without the question asking for it. |
+| 2026-11-18 01:31 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **1 of 1 passes**, in 14 s | Run by the project owner with a real key: the gaps case (nights without accommodation), added from the observation in the 01:08 run. |
 
-**Estado:** los 8 casos han pasado con el modelo real, **en dos ejecuciones** (7 de 7 a las 01:08 y 1 de 1 a las 01:31 del 2026-11-18), no en una sola pasada de los 8. Cada caso se ejecutó una vez, así que no hay todavía una tasa de acierto con `EVAL_REPEATS`.
+**Status:** all 8 cases have passed with the real model, **in two runs** (7 of 7 at 01:08 and 1 of 1 at 01:31 on 2026-11-18), not in a single pass of all 8. Each case ran once, so there is no pass rate with `EVAL_REPEATS` yet.
 
-**Limitaciones:**
-- Las comprobaciones son heurísticas: expresiones regulares y palabras clave en inglés y español.
-- La de importes acepta sumas de hasta 3 términos y restas de 2, así que un cálculo más complejo, aunque correcto, se marcaría como no respaldado.
-- Las de US-11 están ajustadas al lado **estricto**: una paráfrasis sin las palabras clave no cuenta como mención. Por ejemplo, "late check-in is not possible" no cita "No check-in after 22:00", y "tranvía" no nombra el "Historic tram tour". Un falso negativo hace fallar el caso y se revisa la respuesta impresa con `-s`; nunca pasa en silencio.
-- De los huecos solo se evalúan las noches sin alojamiento, el que calcula la app (`NIGHTS_WITHOUT_ACCOMMODATION`). La falta de transporte que mencionó el modelo el 2026-11-18 no es un hueco que calcule la app, y no se evalúa.
-- Las preferencias no se evalúan: solo llegan en el mensaje del chat.
-- El modelo es probabilístico, y por eso existe `EVAL_REPEATS` para medir la tasa de acierto.
+**Limitations:**
+- The checks are heuristic: regular expressions and keywords in English and Spanish (the assistant answers in the user's language).
+- The amounts check accepts sums of up to 3 terms and differences of 2, so a more complex calculation, even if correct, would be flagged as unbacked.
+- The US-11 checks are tuned to the **strict** side: a paraphrase without the keywords does not count as a mention. For example, "late check-in is not possible" does not quote "No check-in after 22:00", and "tranvía" (Spanish for tram) does not name the "Historic tram tour". A false negative fails the case and the answer printed with `-s` is reviewed; it never passes silently.
+- Of the gaps, only nights without accommodation are evaluated, the one the app computes (`NIGHTS_WITHOUT_ACCOMMODATION`). The lack of transport the model mentioned on 2026-11-18 is not a gap the app computes, and it is not evaluated.
+- Preferences are not evaluated: they only arrive in the chat message.
+- The model is probabilistic, which is why `EVAL_REPEATS` exists to measure the pass rate.
 
-### Coste aproximado
+### Approximate cost
 
-Modelo por defecto: `gemini-3.8-flash`, con `thinking_level=low`. Precios de la documentación oficial (pricing de Google AI Studio, consultada el 2026-11-17): **0,75 USD por millón de tokens de entrada y 3,75 USD por millón de salida** (incluidos los de razonamiento) hasta el 31-12-2026; **1,50 y 7,50 USD** desde el 01-01-2027. Hay free tier.
+Default model: `gemini-3.8-flash`, with `thinking_level=low`. Prices from the official documentation (Google AI Studio pricing, checked on 2026-11-17): **0.75 USD per million input tokens and 3.75 USD per million output tokens** (including reasoning tokens) until 2026-12-31; **1.50 and 7.50 USD** from 2027-01-01. There is a free tier.
 
-| | Por caso | 8 casos (una pasada) |
+| | Per case | 8 cases (one pass) |
 | --- | --- | --- |
-| Llamadas al modelo | 2–5 | ~20–40 |
-| Tokens de entrada (instrucciones, esquemas de las 7 tools y resultados) | ~15–30 k | ~160–240 k |
-| Tokens de salida (respuesta y razonamiento) | ~1–3 k | ~8–24 k |
-| **Coste** | ~0,02–0,04 USD | **~0,16–0,32 USD** (~0,32–0,64 USD desde 2027) |
+| Model calls | 2–5 | ~20–40 |
+| Input tokens (instructions, schemas of the 7 tools and results) | ~15–30 k | ~160–240 k |
+| Output tokens (answer and reasoning) | ~1–3 k | ~8–24 k |
+| **Cost** | ~0.02–0.04 USD | **~0.16–0.32 USD** (~0.32–0.64 USD from 2027) |
 
-Con `EVAL_REPEATS=3`, el triple. Las cifras de tokens son una estimación del diseño: las ejecuciones del 2026-11-17 y del 2026-11-18 no midieron el consumo (la del 2026-11-18 tardó 97 s para 7 casos), así que siguen pendientes de confirmar con el panel de uso de AI Studio.
+With `EVAL_REPEATS=3`, three times as much. The token figures are a design estimate: the 2026-11-17 and 2026-11-18 runs did not measure consumption (the 2026-11-18 run took 97 s for 7 cases), so they are still pending confirmation against the AI Studio usage dashboard.

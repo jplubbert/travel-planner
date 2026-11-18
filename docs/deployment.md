@@ -1,110 +1,110 @@
-# Propuesta de despliegue
+# Deployment proposal
 
-Es una propuesta: **no se ha desplegado**. Lo único ejecutado es Docker Compose en local (`docker compose up --build` y `scripts/e2e.sh`).
+This is a proposal: **it has not been deployed**. The only thing that has been run is Docker Compose locally (`docker compose up --build` and `scripts/e2e.sh`).
 
-## Servicios
+## Services
 
-Las mismas imágenes que en Compose:
+The same images as in Compose:
 
-| Servicio | Imagen | Réplicas | Notas |
+| Service | Image | Replicas | Notes |
 | --- | --- | --- | --- |
-| `frontend` | `frontend/Dockerfile` (build estático + nginx) | 2+ detrás del balanceador | Sin estado. En producción el bundle podría servirse desde un CDN, pero hay que mantener el proxy de `/api` (mismo origen) o configurar CORS |
-| `api` | `backend/Dockerfile` | 2+ | Sin estado en memoria: todo el estado está en PostgreSQL y el almacenamiento. Health: `/healthz` (vida) y `/readyz` (base de datos accesible) |
-| `worker` | `backend/Dockerfile`, `python -m app.workers` | 1+ (escalable) | Ver "Escalado del worker" |
-| migraciones | `backend/Dockerfile`, `alembic upgrade head` | job previo a cada despliegue | Hoy las ejecuta el contenedor `api` al arrancar. Con varias réplicas conviene un job único previo (ver abajo) |
-| proveedor | el real, no el mock | — | `PROVIDER_BASE_URL` y `PROVIDER_TOKEN`. El mock no se despliega en producción |
+| `frontend` | `frontend/Dockerfile` (static build + nginx) | 2+ behind the load balancer | Stateless. In production the bundle could be served from a CDN, but the `/api` proxy (same origin) must be kept, or CORS configured |
+| `api` | `backend/Dockerfile` | 2+ | No in-memory state: all state is in PostgreSQL and storage. Health: `/healthz` (liveness) and `/readyz` (database reachable) |
+| `worker` | `backend/Dockerfile`, `python -m app.workers` | 1+ (scalable) | See "Worker scaling" |
+| migrations | `backend/Dockerfile`, `alembic upgrade head` | job before each deployment | Today the `api` container runs them on startup. With several replicas a single job beforehand is preferable (see below) |
+| provider | the real one, not the mock | — | `PROVIDER_BASE_URL` and `PROVIDER_TOKEN`. The mock is not deployed to production |
 
-**Orden de despliegue**
+**Deployment order**
 
-1. Job de migraciones.
-2. `api`, con *rolling update* que espera a `/readyz`.
+1. Migrations job.
+2. `api`, with a *rolling update* that waits for `/readyz`.
 3. `worker`.
 4. `frontend`.
 
-Las migraciones deben ser compatibles con la versión anterior durante el *rolling update*: primero se añade, y solo se borra en un despliegue posterior.
+Migrations must be compatible with the previous version during the *rolling update*: add first, and only drop in a later deployment.
 
-**Parada ordenada**
+**Graceful shutdown**
 
-- **Worker:** ante `SIGTERM` termina el job en curso y sale (`app/workers/__main__.py`). Si muere antes, la lease vence (`WORKER_JOB_LEASE_SECONDS`) y otro worker retoma el job.
-- **API:** al cerrar, el lifespan detiene el gestor de sesiones MCP, cierra el cliente HTTP del proveedor y libera el pool de conexiones. Las peticiones en vuelo las drena uvicorn. Si una reserva queda a medias, se queda en `submitted` y el worker la reconcilia (ensayado en la demo).
+- **Worker:** on `SIGTERM` it finishes the current job and exits (`app/workers/__main__.py`). If it dies first, the lease expires (`WORKER_JOB_LEASE_SECONDS`) and another worker picks up the job.
+- **API:** on shutdown, the lifespan stops the MCP session manager, closes the provider HTTP client and releases the connection pool. In-flight requests are drained by uvicorn. If a booking is left halfway, it stays in `submitted` and the worker reconciles it (rehearsed in the demo).
 
-## Base de datos
+## Database
 
-- PostgreSQL gestionado (16+), con copias automáticas y recuperación a un punto en el tiempo.
-- Pool de conexiones dimensionado por réplica. Cada stream SSE abierto ocupa conexiones al sondear, así que también cuenta.
-- Retención: el historial de reservas, documentos y `trip_changes` no se borra. Hace falta una política de archivado si crece.
+- Managed PostgreSQL (16+), with automatic backups and point-in-time recovery.
+- Connection pool sized per replica. Each open SSE stream uses connections when polling, so it counts too.
+- Retention: the history of bookings, documents and `trip_changes` is not deleted. An archiving policy is needed if it grows.
 
-## Almacenamiento de documentos
+## Document storage
 
-- **Hoy:** un volumen local (`DOCUMENT_STORAGE_DIR`) compartido por la API y el worker, con escritura atómica (temporal, `fsync` y `rename`). Esto exige que ambos monten el mismo volumen, lo que no escala entre máquinas.
-- **Producción:** un adaptador S3 (o compatible) del puerto `DocumentStorage` (`app/ports/documents.py`). Así:
-  - la clave del objeto sigue siendo `trip/document.html`;
-  - la subida de un objeto completo ya es atómica, así que no hacen falta temporal ni `rename`;
-  - el sha256 se sigue verificando en cada descarga;
-  - el barrido de huérfanos lista el bucket;
-  - la descarga puede seguir pasando por la API, que comprueba permisos y hash, o usar URLs prefirmadas de vida corta emitidas **después** de comprobar permisos y hash.
-- El dominio no cambia: solo el adaptador.
+- **Today:** a local volume (`DOCUMENT_STORAGE_DIR`) shared by the API and the worker, with atomic writes (temp file, `fsync` and `rename`). This requires both to mount the same volume, which does not scale across machines.
+- **Production:** an S3 (or compatible) adapter for the `DocumentStorage` port (`app/ports/documents.py`). With it:
+  - the object key is still `trip/document.html`;
+  - uploading a complete object is already atomic, so no temp file or `rename` is needed;
+  - the sha256 is still verified on every download;
+  - the orphan sweep lists the bucket;
+  - the download can keep going through the API, which checks permissions and hash, or use short-lived presigned URLs issued **after** checking permissions and hash.
+- The domain does not change: only the adapter.
 
-## Secretos y configuración
+## Secrets and configuration
 
-Toda la configuración se lee del entorno (`backend/app/config.py`, documentada en `.env.example`).
+All configuration is read from the environment (`backend/app/config.py`, documented in `.env.example`).
 
-- Los secretos se inyectan desde un gestor de secretos (por ejemplo, el de la nube elegida o Vault), nunca desde el repositorio:
+- Secrets are injected from a secrets manager (for example, the chosen cloud's or Vault), never from the repository:
   - `DATABASE_URL`;
   - `PROVIDER_TOKEN`;
-  - `MCP_TOKEN_SECRET`: obligatorio cambiarlo, porque el valor por defecto es solo para desarrollo;
+  - `MCP_TOKEN_SECRET`: must be changed, because the default value is for development only;
   - `GEMINI_API_KEY`.
-- `GEMINI_API_KEY` y `MCP_TOKEN_SECRET` son `SecretStr`: no aparecen en `repr`, en logs ni en tracebacks.
-- Hay que rotar `MCP_TOKEN_SECRET` sin cortar sesiones. Los tokens duran `MCP_TOKEN_TTL_SECONDS` (300 s), así que basta con aceptar dos secretos durante una ventana. **No implementado:** hoy hay un solo secreto.
+- `GEMINI_API_KEY` and `MCP_TOKEN_SECRET` are `SecretStr`: they do not appear in `repr`, logs or tracebacks.
+- `MCP_TOKEN_SECRET` must be rotated without cutting sessions. Tokens last `MCP_TOKEN_TTL_SECONDS` (300 s), so accepting two secrets during a window is enough. **Not implemented:** today there is a single secret.
 
-## Escalado del worker
+## Worker scaling
 
-- Los jobs se reclaman con `FOR UPDATE SKIP LOCKED` y lease, así que varias réplicas no se pisan (`tests/integration/test_worker_and_integrity.py` lo prueba con dos workers). Se escala por profundidad de la cola: jobs `queued` con `run_after <= now()`.
-- La deduplicación (clave única solo entre jobs activos) evita encolar dos veces la misma reconciliación o generación.
-- Los límites de tasa del proveedor son globales. Más workers no significa más reconciliaciones por segundo si el proveedor responde `429`.
-- La reconciliación usa un backoff exponencial (`BOOKING_RETRY_BASE_SECONDS` hasta `BOOKING_RETRY_MAX_SECONDS`), pero **nunca reintenta antes del `Retry-After`** de un `429` del proveedor, aunque supere el máximo del backoff (desde el 2026-11-18, `retry_delay` en `app/domain/reservations.py`, con tests).
-- Lo que falta es un limitador compartido entre réplicas: cada worker respeta el `Retry-After` de sus propios jobs, pero no el que recibió otro. **Pendiente para producción.**
+- Jobs are claimed with `FOR UPDATE SKIP LOCKED` and a lease, so several replicas do not step on each other (`tests/integration/test_worker_and_integrity.py` tests this with two workers). Scale by queue depth: `queued` jobs with `run_after <= now()`.
+- Deduplication (unique key only among active jobs) prevents enqueuing the same reconciliation or generation twice.
+- The provider's rate limits are global. More workers does not mean more reconciliations per second if the provider responds `429`.
+- Reconciliation uses exponential backoff (`BOOKING_RETRY_BASE_SECONDS` up to `BOOKING_RETRY_MAX_SECONDS`), but **never retries before the `Retry-After`** of a provider `429`, even if it exceeds the backoff maximum (since 2026-11-18, `retry_delay` in `app/domain/reservations.py`, with tests).
+- What is missing is a limiter shared between replicas: each worker respects the `Retry-After` of its own jobs, but not one received by another. **Pending for production.**
 
-## Observabilidad
+## Observability
 
-**Lo que existe**
+**What exists**
 
-- Cada petición lleva `X-Request-Id`, que se acepta o se genera, aparece en los logs y se devuelve en los errores (`requestId`). Los jobs que crea la petición lo heredan, y el worker lo usa en sus logs y en las llamadas al proveedor.
-- Cada llamada al proveedor registra la operación, el estado, la duración, el `requestId` del proveedor y el de la petición, nunca el token.
-- Las reservas guardan `lastError` (código, mensaje, `providerRequestId`, `retryAfterSeconds`, hora) y los documentos guardan `error`.
-- El worker registra cada job con su resultado e intento.
+- Every request carries `X-Request-Id`, which is accepted or generated, appears in the logs and is returned in errors (`requestId`). Jobs created by the request inherit it, and the worker uses it in its logs and in provider calls.
+- Every provider call logs the operation, status, duration, the provider's `requestId` and the request's, never the token.
+- Bookings store `lastError` (code, message, `providerRequestId`, `retryAfterSeconds`, time) and documents store `error`.
+- The worker logs each job with its outcome and attempt.
 
-**Qué añadir**
+**What to add**
 
-- Logs en JSON hacia el agregador de la plataforma.
-- Métricas:
-  - latencia y errores por endpoint y por operación del proveedor;
-  - profundidad y edad de la cola de jobs;
-  - reservas en `unknown` o `submitted` más allá de su plazo;
-  - documentos `failed`;
-  - streams SSE abiertos;
-  - llamadas al modelo y tokens consumidos.
-- Alertas:
-  - reservas sin resolver más de N minutos;
-  - cola de jobs creciendo;
-  - tasa de `5xx`;
-  - `/readyz` fallando.
-- Trazas (OpenTelemetry) de la API al proveedor y al worker.
-  - Lo que ya existe: el `X-Request-Id` de la petición se guarda en el job (`jobs.request_id`) y el worker lo restaura mientras lo procesa, así que sus logs y las llamadas al proveedor que hace llevan el mismo id.
-  - Los jobs que crea el barrido del worker no tienen petición de origen, así que no llevan id; se siguen por `clientReference`.
+- JSON logs to the platform's aggregator.
+- Metrics:
+  - latency and errors per endpoint and per provider operation;
+  - depth and age of the job queue;
+  - bookings in `unknown` or `submitted` beyond their deadline;
+  - `failed` documents;
+  - open SSE streams;
+  - model calls and tokens consumed.
+- Alerts:
+  - bookings unresolved for more than N minutes;
+  - growing job queue;
+  - `5xx` rate;
+  - `/readyz` failing.
+- Traces (OpenTelemetry) from the API to the provider and the worker.
+  - What already exists: the request's `X-Request-Id` is stored in the job (`jobs.request_id`) and the worker restores it while processing, so its logs and the provider calls it makes carry the same id.
+  - Jobs created by the worker sweep have no originating request, so they carry no id; they are traced by `clientReference`.
 
-## Qué cambiaría para producción
+## What would change for production
 
-| Hoy | Producción | Motivo |
+| Today | Production | Reason |
 | --- | --- | --- |
-| Identidad de prueba en `X-User-Id` | OIDC (por ejemplo, Auth0, Cognito o Keycloak): la API valida el JWT y obtiene el usuario del `sub`. `load_access` no cambia | Cualquiera puede enviar una cabecera; el PRD permite identidades de prueba solo para la entrega |
-| Tokens MCP emitidos solo para el asistente | Si hay clientes MCP externos, un endpoint autenticado que emita tokens de corta vida (o OAuth según la especificación MCP) | Hoy no hace falta (ADR 0006) |
-| Documentos en un volumen local | S3 o compatible, a través del puerto `DocumentStorage` | Varias máquinas, durabilidad, coste |
-| SSE que sondea PostgreSQL cada segundo por stream | `LISTEN/NOTIFY`: los casos de uso emiten `NOTIFY trip_<id>` al confirmar, y cada réplica mantiene una conexión `LISTEN` y reparte los avisos a sus streams. Se conserva el `ready` y la relectura con `GET`, y un sondeo lento como respaldo | El sondeo escala linealmente con las conexiones; los avisos siguen siendo solo pistas |
-| Migraciones al arrancar la API | Job único previo al despliegue | Evita carreras entre réplicas |
-| Asistente en el proceso de la API | Mantenerlo, con límites de concurrencia por usuario, o separarlo si su carga compite con la API | Hoy comparte pool de conexiones (ADR 0006) |
-| Mock del proveedor | Proveedor real | El mock solo existe para desarrollo, tests y demo |
+| Test identity in `X-User-Id` | OIDC (for example, Auth0, Cognito or Keycloak): the API validates the JWT and gets the user from `sub`. `load_access` does not change | Anyone can send a header; the PRD allows test identities only for the submission |
+| MCP tokens issued only for the assistant | If there are external MCP clients, an authenticated endpoint that issues short-lived tokens (or OAuth per the MCP specification) | Not needed today (ADR 0006) |
+| Documents in a local volume | S3 or compatible, through the `DocumentStorage` port | Multiple machines, durability, cost |
+| SSE polling PostgreSQL every second per stream | `LISTEN/NOTIFY`: use cases emit `NOTIFY trip_<id>` on commit, and each replica keeps one `LISTEN` connection and fans notifications out to its streams. The `ready` event and re-read with `GET` are kept, plus a slow poll as a fallback | Polling scales linearly with connections; notifications remain only hints |
+| Migrations on API startup | Single job before deployment | Avoids races between replicas |
+| Assistant in the API process | Keep it, with per-user concurrency limits, or split it out if its load competes with the API | Today it shares the connection pool (ADR 0006) |
+| Provider mock | Real provider | The mock exists only for development, tests and the demo |
 
-## Coste
+## Cost
 
-No estimado, más allá del modelo: las evaluaciones con modelo cuestan unos 0,16–0,32 USD por pasada de los 8 casos, una estimación no medida (`evals/README.md`).
+Not estimated, beyond the model: model evaluations cost about 0.16–0.32 USD per run of the 8 cases, an unmeasured estimate (`evals/README.md`).

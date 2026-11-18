@@ -1,70 +1,70 @@
-# frontend — UI mínima (React + Vite + TypeScript, sin librería de UI)
+# frontend — minimal UI (React + Vite + TypeScript, no UI library)
 
-Permite completar los flujos del PRD y entender su resultado. El aspecto visual no es el objetivo. Las decisiones están en [ADR 0007](../docs/adr/0007-frontend-mismo-origen-y-estado-en-vivo.md).
+It lets you complete the PRD flows and understand their outcome. Visual polish is not the goal. The decisions are in [ADR 0007](../docs/adr/0007-frontend-same-origin-and-live-state.md).
 
-## Arrancar
+## Running
 
 ```bash
-docker compose up --build      # desde la raíz: UI en http://localhost:5173
+docker compose up --build      # from the repo root: UI at http://localhost:5173
 ```
 
-En desarrollo, con la API en marcha en `:8000`:
+In development, with the API running on `:8000`:
 
 ```bash
-cd frontend && npm ci && npm run dev    # Vite hace de proxy de /api, igual que nginx en Compose
+cd frontend && npm ci && npm run dev    # Vite proxies /api, just like nginx does in Compose
 ```
 
-El selector de la cabecera elige el usuario de prueba (`ana`, `beto`, `carla`, `dani`), que se envía como `X-User-Id`.
+The selector in the header picks the test user (`ana`, `beto`, `carla`, `dani`), sent as `X-User-Id`.
 
-## Qué hay en cada pantalla
+## What each screen shows
 
-- **Viajes:** la lista de los viajes en los que participas, con tu rol, y la creación de un viaje.
-- **Viaje**, con la versión, tu rol y el estado del canal en vivo en la cabecera. Pestañas:
-  - **Participantes:** la gestión solo se muestra al organizador. También permite editar los datos del viaje.
-  - **Búsqueda:** cada resultado se ve distinto:
-    - completo (verde);
-    - parcial (ámbar), con los proveedores que no respondieron;
-    - vacío (neutro);
-    - fallido (rojo), con el código y `Retry-After`, sin presentarse nunca como "no hay opciones".
-    - Muestra también la frescura (hace cuánto se recibió), el precio como estimado, la validez, la disponibilidad y las restricciones.
-  - **Itinerario:** avisos, conflictos de horario, precio caducado, información que falta, actualizar cotización, reordenar y quitar.
-  - **Costes:** estimado frente a confirmado, total, presupuesto restante y aviso si se supera.
-  - **Reservas:**
-    - revisar los términos exactos y confirmarlos (se envían `expectedRevision` y `expectedPrice`);
-    - un `409 TERMS_CHANGED` muestra los términos actuales y ofrece actualizar la cotización;
-    - cada reserva muestra su estado, `nextStep`, `lastError` y el fallo, y permite reintentar los borradores.
-  - **Documentos:** generar, ver el estado y descargar. Avisa si el documento es de una versión anterior.
-  - **Asistente:** chat con las tools usadas (argumentos, resultado y error) y el motivo de parada.
+- **Trips:** the trips you take part in, with your role, and trip creation.
+- **Trip**, with the version, your role and the live channel status in the header. Tabs:
+  - **Participants:** member management is shown only to the organizer. It also lets you edit the trip details.
+  - **Search:** each outcome looks different:
+    - complete (green);
+    - partial (amber), with the providers that did not answer;
+    - empty (neutral);
+    - failed (red), with the code and `Retry-After`, never presented as "no options".
+    - It also shows freshness (how long ago the result was received), the price as an estimate, validity, availability and restrictions.
+  - **Itinerary:** warnings, schedule conflicts, expired prices, missing information, refresh quote, reorder and remove.
+  - **Costs:** estimated versus confirmed, total, remaining budget and a warning when it is exceeded.
+  - **Bookings:**
+    - review the exact terms and confirm them (`expectedRevision` and `expectedPrice` are sent);
+    - a `409 TERMS_CHANGED` shows the current terms and offers to refresh the quote;
+    - each booking shows its status, `nextStep`, `lastError` and failure, and drafts can be retried.
+  - **Documents:** generate, see the status and download. It warns when a document is from an older version.
+  - **Assistant:** chat with the tools used (arguments, result and error) and the stop reason.
 
-**Reglas de la UI**
+**UI rules**
 
-- **Botones según el rol, pero el backend decide.** Con "Mostrar acciones aunque mi rol no las permita" se ven todas las acciones, y los `403` del backend se muestran con estado, código y `requestId` tal cual; el mensaje de los códigos conocidos aparece en español, con el original en un desplegable (ADR 0008).
-- **409 de versión:** el panel muestra los cambios desde tu versión (quién, cuándo y qué), la vista pasa al estado actual y puedes **reaplicar** el mismo cambio sobre la versión actual o descartarlo.
-- **Estado en vivo:** el SSE se lee con `fetch`, porque `EventSource` no envía cabeceras. Los eventos solo avisan: en cada (re)conexión llega `ready` y la UI relee todo con `GET`.
-- **Nada parece confirmado si no lo está.** Solo una reserva `confirmed` aparece como reservada (en verde). `pending`, `submitted` y `unknown` dicen que aún no lo está; `unknown` además pide no reservar otra vez. Los costes distinguen estimado de confirmado.
+- **Buttons follow the role, but the backend decides.** With "Show actions my role does not allow" every action is visible, and the backend's `403` responses are shown as returned: status, code, message and `requestId` (ADR 0008).
+- **Version 409:** the panel lists the changes since your version (who, when and what), the view switches to the current state, and you can **reapply** the same change on the current version or discard it.
+- **Live status:** SSE is read with `fetch`, because `EventSource` cannot send headers. Events are only hints: on every (re)connect `ready` arrives and the UI re-reads everything with `GET`.
+- **Nothing looks confirmed unless it is.** Only a `confirmed` booking appears as booked (in green). `pending`, `submitted` and `unknown` say it is not booked yet; `unknown` also says not to book again. Costs keep estimated and confirmed apart.
 
-## Pruebas
+## Tests
 
 ```bash
-npm test                 # Vitest: lector SSE, cliente HTTP, presentación de estados, componentes
+npm test                 # Vitest: SSE reader, HTTP client, status presentation, components
 npm run typecheck
-../scripts/e2e.sh        # Playwright contra Docker Compose levantado desde cero (ver abajo)
+../scripts/e2e.sh        # Playwright against Docker Compose started from scratch (see below)
 ```
 
-**Qué hace `scripts/e2e.sh`**
+**What `scripts/e2e.sh` does**
 
-- Levanta un proyecto de Compose aparte (`tp-e2e`, con volúmenes propios y puertos 15173, 18000, 14010 y 55432), sin tocar el stack local ni sus datos.
-- Deja `GEMINI_API_KEY` vacía, así que no hay llamadas al modelo.
-- Ejecuta Playwright a través de nginx y elimina el proyecto al terminar. Con `KEEP=1` lo deja en marcha.
+- Starts a separate Compose project (`tp-e2e`, with its own volumes and ports 15173, 18000, 14010 and 55432), without touching the local stack or its data.
+- Leaves `GEMINI_API_KEY` empty, so there are no model calls.
+- Runs Playwright through nginx and removes the project when done. With `KEEP=1` it leaves it running.
 
-**Qué cubre el e2e**
+**What the e2e covers**
 
-- **Flujo completo:** crear, compartir, buscar, añadir, costes, reserva confirmada, documento descargado y asistente sin clave (503).
-- **Permisos:** `403` al forzar acciones como lector y `404` para un no participante.
-- **Concurrencia:** `409` con los cambios y la reaplicación, con el canal en vivo cortado, y relectura al reconectar.
-- **Búsqueda:** resultado parcial, fallido y vacío.
-- **Reserva `pending`:** no parece confirmada hasta que el proveedor la confirma, y el cambio llega en vivo.
+- **Full flow:** create, share, search, add, costs, confirmed booking, downloaded document and assistant without a key (503).
+- **Permissions:** `403` when forcing actions as a viewer and `404` for a non-participant.
+- **Concurrency:** `409` with the changes and reapplying, with the live channel cut, and re-reading on reconnect.
+- **Search:** partial, failed and empty outcomes.
+- **`pending` booking:** it does not look confirmed until the provider confirms it, and the change arrives live.
 
-Para comprobar que los tests detectan errores se inyectaron 11 mutaciones en la UI, y todas hacen fallar algún test:
-- el e2e detecta las del flujo (releer al reconectar, reaplicar con la versión actual, eventos de reserva, términos enviados);
-- Vitest detecta las de presentación (por ejemplo, que `unknown` parezca confirmada).
+To check that the tests catch errors, 11 mutations were injected into the UI, and every one makes some test fail:
+- the e2e catches the flow ones (re-reading on reconnect, reapplying on the current version, booking events, terms sent);
+- Vitest catches the presentation ones (for example, `unknown` looking confirmed).

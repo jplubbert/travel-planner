@@ -26,14 +26,14 @@ export function SearchTab() {
   return (
     <div>
       <form className="row wrap" onSubmit={(e) => { e.preventDefault(); void search(); }}>
-        <Field label="Categoría">
+        <Field label="Category">
           <select value={query.category} onChange={(e) => setQuery({ ...query, category: e.target.value })}>
-            <option value="accommodation">Alojamiento</option>
-            <option value="transport">Transporte</option>
-            <option value="activity">Actividad</option>
+            <option value="accommodation">Accommodation</option>
+            <option value="transport">Transport</option>
+            <option value="activity">Activity</option>
           </select>
         </Field>
-        <Field label="Destino">
+        <Field label="Destination">
           <input list="trip-destinations" value={query.destination}
             onChange={(e) => setQuery({ ...query, destination: e.target.value })} />
         </Field>
@@ -41,17 +41,17 @@ export function SearchTab() {
           {trip.destinations.map((d) => <option key={d} value={d} />)}
         </datalist>
         {query.category === "transport" && (
-          <Field label="Origen">
+          <Field label="Origin">
             <input value={query.origin ?? ""} onChange={(e) => setQuery({ ...query, origin: e.target.value })} />
           </Field>
         )}
-        <Field label="Desde">
+        <Field label="Start date">
           <input type="date" value={query.startsOn ?? ""} onChange={(e) => setQuery({ ...query, startsOn: e.target.value })} />
         </Field>
-        <Field label="Hasta">
+        <Field label="End date">
           <input type="date" value={query.endsOn ?? ""} onChange={(e) => setQuery({ ...query, endsOn: e.target.value })} />
         </Field>
-        <button type="submit" disabled={action.busy}>{action.busy ? "Buscando…" : "Buscar"}</button>
+        <button type="submit" disabled={action.busy}>{action.busy ? "Searching…" : "Search"}</button>
       </form>
       <ErrorBox error={action.error} onClose={action.clear} />
       {result && <SearchResults result={result} />}
@@ -71,21 +71,21 @@ export function SearchResults({ result }: { result: SearchResult }) {
         {result.failedSuppliers.length > 0 && (
           <ul>
             {result.failedSuppliers.map((f) => (
-              <li key={f.providerId}>Sin respuesta de <code>{f.providerId}</code>: {f.code} — {f.message}</li>
+              <li key={f.providerId}>No answer from <code>{f.providerId}</code>: {f.code} — {f.message}</li>
             ))}
           </ul>
         )}
         {result.error && (
           <div>
             Error: <code>{result.error.code}</code> {result.error.message}
-            {result.error.retryAfterSeconds != null && ` · reintentar en ${result.error.retryAfterSeconds} s`}
-            {result.error.providerRequestId && <small> · proveedor: {result.error.providerRequestId}</small>}
+            {result.error.retryAfterSeconds != null && ` · retry in ${result.error.retryAfterSeconds} s`}
+            {result.error.providerRequestId && <small> · provider: {result.error.providerRequestId}</small>}
           </div>
         )}
       </Notice>
       <p className="muted freshness">
-        Consultado {dateTime(result.searchedAt ?? result.receivedAt)} · recibido {age(result.receivedAt, now)}
-        {" "}({result.query.travelers} viajeros, {result.query.startsOn} – {result.query.endsOn})
+        Searched {dateTime(result.searchedAt ?? result.receivedAt)} · received {age(result.receivedAt, now)}
+        {" "}({result.query.travelers} travelers, {result.query.startsOn} – {result.query.endsOn})
       </p>
       {result.outcome !== "failed" && <p className="muted"><small>{result.disclaimer}</small></p>}
       {result.offers.map((o) => <OfferCard key={o.offerId} offer={o} now={now} />)}
@@ -106,29 +106,29 @@ function OfferCard({ offer, now }: { offer: Offer; now: number }) {
           <span className="muted">{offer.providerId}</span>
         </div>
         <div className="price">
-          {usd(offer.price)} <Badge tone="info">precio estimado</Badge>
+          {usd(offer.price)} <Badge tone="info">estimated price</Badge>
         </div>
       </div>
       <div className="muted">{offer.description}</div>
       <div>
         {offer.origin ? `${offer.origin} → ` : ""}{offer.destination} · {dateTime(offer.startsAt)} – {dateTime(offer.endsAt)}
-        {" "}· {offer.travelers} viajeros
+        {" "}· {offer.travelers} travelers
       </div>
       <div className="row wrap">
-        {offer.available ? <Badge tone="ok">disponible</Badge> : <Badge tone="bad">no disponible</Badge>}
+        {offer.available ? <Badge tone="ok">available</Badge> : <Badge tone="bad">unavailable</Badge>}
         {expired
-          ? <Badge tone="warn">cotización caducada ({dateTime(offer.validUntil)})</Badge>
-          : <Badge tone="neutral">válida hasta {dateTime(offer.validUntil)}</Badge>}
+          ? <Badge tone="warn">quote expired ({dateTime(offer.validUntil)})</Badge>
+          : <Badge tone="neutral">valid until {dateTime(offer.validUntil)}</Badge>}
       </div>
       {offer.restrictions.length > 0 && (
         <ul className="restrictions">{offer.restrictions.map((r) => <li key={r}>{r}</li>)}</ul>
       )}
       {allows("editor") && (
         <button disabled={added || !offer.available} onClick={async () => {
-          const done = await versioned(`añadir «${offer.title}»`,
+          const done = await versioned(`add '${offer.title}'`,
             (version) => api.post(`/trips/${trip.id}/itinerary/items`, { offerId: offer.offerId, version }));
           if (done) setAdded(true);
-        }}>{added ? "Añadido al itinerario" : "Añadir al itinerario"}</button>
+        }}>{added ? "Added to itinerary" : "Add to itinerary"}</button>
       )}
     </article>
   );

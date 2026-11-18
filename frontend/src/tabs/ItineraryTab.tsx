@@ -17,17 +17,17 @@ export function ItineraryTab() {
   return (
     <div>
       <ErrorBox error={itinerary.error} />
-      {!data ? <p>Cargando itinerario…</p> : (
+      {!data ? <p>Loading itinerary…</p> : (
         <>
           {data.missing.length > 0 && (
             <Notice tone="warn">
-              <strong>Falta información</strong>
+              <strong>Missing information</strong>
               <ul>{data.missing.map((g) => <li key={g.code + g.message}>{g.message}</li>)}</ul>
             </Notice>
           )}
           {refreshNote && (
             <Notice tone={refreshNote.changed ? "warn" : "info"}>
-              <strong>{refreshNote.changed ? "La cotización cambió" : "La cotización no cambió"}</strong>
+              <strong>{refreshNote.changed ? "The quote changed" : "The quote did not change"}</strong>
               <div>{refreshNote.summary}</div>
             </Notice>
           )}
@@ -37,11 +37,11 @@ export function ItineraryTab() {
           ))}
           {data.rules.length > 0 && (
             <details>
-              <summary>Reglas que se comprueban</summary>
+              <summary>Rules being checked</summary>
               <ul>{data.rules.map((r) => <li key={r}>{r}</li>)}</ul>
             </details>
           )}
-          <p className="muted"><small>Calculado {dateTime(data.generatedAt)} sobre la versión {data.tripVersion}.</small></p>
+          <p className="muted"><small>Computed {dateTime(data.generatedAt)} on version {data.tripVersion}.</small></p>
         </>
       )}
     </div>
@@ -61,7 +61,7 @@ function ItemCard({ item, index, items, onRefreshed }: {
     const ids = items.map((i) => i.itemId);
     const [moved] = ids.splice(index, 1);
     ids.splice(index + delta, 0, moved);
-    void versioned(`mover «${item.title}»`,
+    void versioned(`move '${item.title}'`,
       (version) => api.put(`/trips/${trip.id}/itinerary/order`, { itemIds: ids, version }));
   }
 
@@ -73,7 +73,7 @@ function ItemCard({ item, index, items, onRefreshed }: {
           <Badge tone="neutral">{CATEGORY_LABEL[item.category] ?? item.category}</Badge>
         </div>
         <div className="price">
-          {usd(item.quote.price)} <Badge tone="info">estimado</Badge>
+          {usd(item.quote.price)} <Badge tone="info">estimate</Badge>
         </div>
       </div>
       <div>
@@ -81,18 +81,18 @@ function ItemCard({ item, index, items, onRefreshed }: {
       </div>
       <div className="row wrap">
         {item.quote.expired
-          ? <Badge tone="warn">precio caducado desde {dateTime(item.quote.validUntil)}</Badge>
-          : <Badge tone="neutral">precio válido hasta {dateTime(item.quote.validUntil)}</Badge>}
-        {!item.quote.available && <Badge tone="bad">no disponible</Badge>}
+          ? <Badge tone="warn">price expired since {dateTime(item.quote.validUntil)}</Badge>
+          : <Badge tone="neutral">price valid until {dateTime(item.quote.validUntil)}</Badge>}
+        {!item.quote.available && <Badge tone="bad">unavailable</Badge>}
         {item.booking
           ? <Badge tone={BOOKING[item.booking.status].tone}>{BOOKING[item.booking.status].label}</Badge>
-          : <Badge tone="neutral">sin reservar</Badge>}
+          : <Badge tone="neutral">not booked</Badge>}
       </div>
       {item.flags.length > 0 && (
         <ul className="flags">
           {item.flags.map((f) => (
             <li key={f.code} className={FLAG_TONE[f.code] ?? "warn"}>
-              <strong>{f.code === "SCHEDULE_CONFLICT" ? "Conflicto" : "Aviso"}:</strong> {f.message}
+              <strong>{f.code === "SCHEDULE_CONFLICT" ? "Conflict" : "Warning"}:</strong> {f.message}
               {f.relatedItemIds.length > 0 && f.code !== "SCHEDULE_CONFLICT" &&
                 ` (${f.relatedItemIds.map(titleOf).join(", ")})`}
             </li>
@@ -101,18 +101,18 @@ function ItemCard({ item, index, items, onRefreshed }: {
       )}
       {allows("editor") && (
         <div className="row wrap actions">
-          <button className="secondary" disabled={index === 0} aria-label={`subir ${item.title}`}
+          <button className="secondary" disabled={index === 0} aria-label={`move up ${item.title}`}
             onClick={() => move(-1)}>↑</button>
-          <button className="secondary" disabled={index === items.length - 1} aria-label={`bajar ${item.title}`}
+          <button className="secondary" disabled={index === items.length - 1} aria-label={`move down ${item.title}`}
             onClick={() => move(1)}>↓</button>
           <button className="secondary" onClick={async () => {
-            const r = await versioned(`actualizar la cotización de «${item.title}»`,
+            const r = await versioned(`refresh the quote for '${item.title}'`,
               (version) => api.post<Refreshed>(`/trips/${trip.id}/itinerary/items/${item.itemId}/refresh`, { version }));
             if (r) onRefreshed(r);
-          }}>Actualizar cotización</button>
-          <button className="secondary" onClick={() => void versioned(`quitar «${item.title}»`,
+          }}>Refresh quote</button>
+          <button className="secondary" onClick={() => void versioned(`remove '${item.title}'`,
             (version) => api.del(`/trips/${trip.id}/itinerary/items/${item.itemId}?version=${version}`))}>
-            Quitar
+            Remove
           </button>
         </div>
       )}

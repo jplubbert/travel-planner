@@ -19,55 +19,36 @@ const details: VersionConflictDetails = {
 
 describe("ConflictPanel", () => {
   it("lists every change since the user's version and offers to reapply on the current one", async () => {
-    const conflict: PendingConflict = { label: "quitar «Hotel»", details, reapply: vi.fn() };
+    const conflict: PendingConflict = { label: "remove 'Hotel'", details, reapply: vi.fn() };
     const onReapply = vi.fn();
     const onDiscard = vi.fn();
     render(<ConflictPanel conflict={conflict} onReapply={onReapply} onDiscard={onDiscard} />);
     expect(screen.getByText(/409 TRIP_VERSION_CONFLICT/)).toBeInTheDocument();
-    expect(screen.getByText(/versión 1; la actual es la 3/)).toBeInTheDocument();
+    expect(screen.getByText(/version 1; the current one is 3/)).toBeInTheDocument();
     expect(screen.getByText(/ana .*Updated budget/)).toBeInTheDocument();
     expect(screen.getByText(/beto .*Added 'Tram tour'/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Reaplicar «quitar «Hotel»» sobre la versión 3" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reapply “remove 'Hotel'” on version 3" }));
     expect(onReapply).toHaveBeenCalledOnce();
-    await userEvent.click(screen.getByRole("button", { name: "Descartar mi cambio" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard my change" }));
     expect(onDiscard).toHaveBeenCalledOnce();
   });
 });
 
 describe("ErrorBox", () => {
-  it("shows status, code, field errors and requestId as returned, with the message in Spanish", () => {
+  it("shows the backend's status, code, message, field errors and requestId as returned", () => {
     render(<ErrorBox error={new ApiError(422, "VALIDATION_ERROR", "Some fields are invalid; see details.",
       { fields: [{ field: "budget", message: "must be positive" }] }, "req-42")} />);
     expect(screen.getByText("422 VALIDATION_ERROR")).toBeInTheDocument();
-    expect(screen.getByText("Algunos campos no son válidos; revisa el detalle.")).toBeInTheDocument();
-    expect(screen.getByText("Some fields are invalid; see details.").closest("details")).not.toBeNull();
+    expect(screen.getByText("Some fields are invalid; see details.")).toBeInTheDocument();
     expect(screen.getByText("budget")).toBeInTheDocument();
     expect(screen.getByText(/must be positive/)).toBeInTheDocument();
     expect(screen.getByText("requestId: req-42")).toBeInTheDocument();
   });
 
-  it("shows a 403 with its status and code, the roles in Spanish and the original message kept", () => {
+  it("shows a 403 from the backend without rewording it", () => {
     render(<ErrorBox error={new ApiError(403, "FORBIDDEN", "This action requires the editor role; you are a viewer of this trip.")} />);
-    const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("403 FORBIDDEN");
-    expect(screen.getByText("Esta acción requiere el rol editor; en este viaje eres lector.")).toBeInTheDocument();
-    expect(screen.getByText("Mensaje original del backend")).toBeInTheDocument();
-    expect(alert).toHaveTextContent("requires the editor role");
-  });
-
-  it.each([
-    [409, "TRIP_VERSION_CONFLICT", /^El viaje cambió desde la versión/],
-    [400, "VERSION_REQUIRED", /^Falta la versión del viaje/],
-  ])("translates %i %s", (status, code, text) => {
-    render(<ErrorBox error={new ApiError(status, code, "English message.")} />);
-    expect(screen.getByRole("alert")).toHaveTextContent(`${status} ${code}`);
-    expect(screen.getByText(text)).toBeInTheDocument();
-  });
-
-  it("shows unknown codes with the backend message and no duplicate original", () => {
-    render(<ErrorBox error={new ApiError(404, "TRIP_NOT_FOUND", "Trip not found.")} />);
-    expect(screen.getByText("Trip not found.")).toBeInTheDocument();
-    expect(screen.queryByText("Mensaje original del backend")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("403 FORBIDDEN");
+    expect(screen.getByText("This action requires the editor role; you are a viewer of this trip.")).toBeInTheDocument();
   });
 
   it("renders nothing without an error", () => {

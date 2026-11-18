@@ -1,87 +1,87 @@
-# Inyección de errores (mutaciones)
+# Fault injection (mutations)
 
-Comprueba que los tests detectan fallos reales y no solo confirman respuestas preparadas. Cada mutación quita una comprobación, cambia un estado o rompe una garantía. El runner la aplica, ejecuta los tests que deberían detectarla y restaura el archivo.
+Checks that the tests catch real faults and do not just confirm canned responses. Each mutation removes a check, changes a state or breaks a guarantee. The runner applies it, runs the tests that should catch it and restores the file.
 
-- **Detectada:** algún test falla.
-- **Sobrevive:** todo pasa. O falta un test, o hay otra capa que defiende lo mismo; en ese caso hay una mutación que quita las dos capas.
+- **Killed:** some test fails.
+- **Survives:** everything passes. Either a test is missing, or another layer defends the same thing; in that case there is a mutation that removes both layers.
 
-## Uso (desde la raíz)
-
-```bash
-docker compose up -d db                               # las suites de backend usan PostgreSQL
-python3 scripts/mutations/run.py --list               # suites y mutaciones
-python3 scripts/mutations/run.py                      # todas menos ui-e2e
-python3 scripts/mutations/run.py bookings secrets     # solo algunas
-```
-
-**Suite `ui-e2e`.** Necesita la UI servida por Vite, para que cada mutación se recargue al momento; una imagen Docker no reflejaría el cambio. Se prepara así:
+## Usage (from the repo root)
 
 ```bash
-KEEP=1 ./scripts/e2e.sh                                               # deja el stack tp-e2e en marcha
-(cd frontend && API_URL=http://localhost:18000 npx vite --port 5174)  # en otra terminal
-python3 scripts/mutations/run.py ui-e2e                               # E2E_BASE_URL=http://localhost:5174 por defecto
-COMPOSE_PROJECT_NAME=tp-e2e docker compose down -v                    # al terminar
+docker compose up -d db                               # the backend suites use PostgreSQL
+python3 scripts/mutations/run.py --list               # suites and mutations
+python3 scripts/mutations/run.py                      # all except ui-e2e
+python3 scripts/mutations/run.py bookings secrets     # only some
 ```
 
-**Seguridad del runner**
-- Se niega a mutar un archivo con cambios sin confirmar.
-- Restaura siempre el original, también con Ctrl+C.
-- Devuelve código 1 si alguna mutación sobrevive o ya no encaja con el código (`PATRÓN NO ENCONTRADO`).
-- Tarda unos 15–20 s por mutación de backend (unos 15 min en total) y menos de 2 s por mutación de Vitest.
+**`ui-e2e` suite.** It needs the UI served by Vite, so that each mutation is reloaded immediately; a Docker image would not reflect the change. Set it up like this:
 
-## Archivos
+```bash
+KEEP=1 ./scripts/e2e.sh                                               # leaves the tp-e2e stack running
+(cd frontend && API_URL=http://localhost:18000 npx vite --port 5174)  # in another terminal
+python3 scripts/mutations/run.py ui-e2e                               # E2E_BASE_URL=http://localhost:5174 by default
+COMPOSE_PROJECT_NAME=tp-e2e docker compose down -v                    # when done
+```
 
-- `run.py`: el runner.
-- `suites.py`: las mutaciones, como fragmentos exactos del código actual. Si el código cambia, la mutación avisa en lugar de saltarse en silencio.
+**Runner safety**
+- It refuses to mutate a file with uncommitted changes.
+- It always restores the original, also on Ctrl+C.
+- It exits with code 1 if any mutation survives or no longer matches the code (`PATTERN NOT FOUND`).
+- It takes about 15–20 s per backend mutation (about 15 min in total) and under 2 s per Vitest mutation.
 
-**Origen de las mutaciones**
-- Se copiaron de los scripts que se usaron durante el desarrollo: `mutate.py` (reservas), `mutate_docs.py`, `mutate_mcp.py` y `mutate_ui.py`.
-- `secrets` reúne las que se hicieron a mano con `sed` (secretos y reintento de Gemini).
-- **No se conservaron** los scripts de las primeras historias (mock del proveedor y US-01 a US-06): se sobrescribieron fuera del repo. Sus resultados solo constan en los mensajes de commit.
+## Files
 
-## Resultados de la última ejecución
+- `run.py`: the runner.
+- `suites.py`: the mutations, as exact fragments of the current code. If the code changes, the mutation reports it instead of being silently skipped.
 
-Ejecutadas el 2026-11-18 con este runner, **sin nada más en marcha**. Se comprobó después que `git diff -- backend/ frontend/src` estaba vacío y que no quedaban archivos `.orig`.
+**Origin of the mutations**
+- They were copied from the scripts used during development: `mutate.py` (bookings), `mutate_docs.py`, `mutate_mcp.py` and `mutate_ui.py`.
+- `secrets` gathers the ones that were done by hand with `sed` (secrets and Gemini retry).
+- The scripts of the first stories (provider mock and US-01 to US-06) **were not kept**: they were overwritten outside the repo. Their results are only recorded in the commit messages.
 
-| Suite | Mutaciones | Detectadas | Supervivientes |
+## Results of the latest run
+
+Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it was checked that `git diff -- backend/ frontend/src` was empty and that no `.orig` files were left.
+
+| Suite | Mutations | Killed | Survivors |
 | --- | --- | --- | --- |
-| `bookings` | 16 (+1 el 2026-11-18) | 16 (+1) | — |
-| `documents` | 12 | 11 | "sin deduplicar peticiones en curso" (ver abajo) |
+| `bookings` | 16 (+1 on 2026-11-18) | 16 (+1) | — |
+| `documents` | 12 | 11 | "in-flight requests not deduplicated" (see below) |
 | `mcp` | 16 | 16 | — |
 | `secrets` | 7 | 7 | — |
-| `ui-unit` (Vitest) | 11 | 6 | releer al reconectar, reaplicar con la versión vieja, ignorar eventos de reserva, botones para todos los roles, enviar términos distintos de los revisados |
-| `ui-e2e` (Playwright) | 11 | 10 | "unknown parece confirmada" |
+| `ui-unit` (Vitest) | 11 | 6 | does not reread on reconnect, reapply with the old version, ignores booking events, buttons for all roles, sends terms other than the reviewed ones |
+| `ui-e2e` (Playwright) | 11 | 10 | "unknown looks confirmed" |
 
-**Lectura de las supervivientes**
+**Reading the survivors**
 
-- **Documentos, "sin deduplicar peticiones en curso".** Es defensa en profundidad. Sin la comprobación de la aplicación, el índice único parcial de la migración 0005 (un documento activo por versión) provoca `Conflict`, y la rama `except` devuelve el documento en curso: el comportamiento no cambia. La mutación que quita **las dos capas** ("sin deduplicar ni en la app ni al chocar con el índice") sí se detecta.
-- **UI.** Las dos capas se complementan, y **las 11 mutaciones las detecta al menos una**:
-  - el e2e detecta las del flujo con el backend real: releer al reconectar, reaplicar, eventos en vivo, roles y términos enviados;
-  - Vitest detecta "unknown parece confirmada", un estado que el e2e no puede provocar desde el navegador.
+- **Documents, "in-flight requests not deduplicated".** It is defence in depth. Without the application check, the partial unique index from migration 0005 (one active document per version) raises `Conflict`, and the `except` branch returns the running document: the behaviour does not change. The mutation that removes **both layers** ("not deduplicated in the app nor on hitting the index") is killed.
+- **UI.** The two layers complement each other, and **all 11 mutations are killed by at least one**:
+  - the e2e catches the ones in the flow with the real backend: reread on reconnect, reapply, live events, roles and terms sent;
+  - Vitest catches "unknown looks confirmed", a state the e2e cannot trigger from the browser.
 
-**Correcciones hechas al ejecutar**
+**Fixes made while running**
 
-- **Parser SSE.** La mutación borraba una línea y dejaba un `else` colgando, así que se "detectaba" por un error de sintaxis y no por un test. Se reescribió para ser válida, y ahora la detectan 4 tests de Vitest y el e2e.
-- **"Ignorar eventos de reserva" en el e2e.** El 2026-11-17 se detectó, pero el 2026-11-18 sobrevivió. El test volvía a abrir la pestaña Reservas después de confirmar la reserva en el proveedor, y esa relectura con `GET` podía ocultar la falta del evento en vivo según el momento. Se corrigió el test: la pestaña queda abierta mostrando `pending` antes de la confirmación. Desde entonces se detecta en 2 de 2 ejecuciones.
+- **SSE parser.** The mutation deleted a line and left a dangling `else`, so it was "killed" by a syntax error and not by a test. It was rewritten to be valid, and now 4 Vitest tests and the e2e catch it.
+- **"Ignores booking events" in the e2e.** On 2026-11-17 it was killed, but on 2026-11-18 it survived. The test reopened the Bookings tab after confirming the booking at the provider, and that reread with `GET` could hide the missing live event depending on timing. The test was fixed: the tab stays open showing `pending` before the confirmation. Since then it is killed in 2 of 2 runs.
 
-**Mutaciones añadidas el 2026-11-18** (ejecutadas con el runner después de cada commit, sin nada más en marcha):
+**Mutations added on 2026-11-18** (run with the runner after each commit, with nothing else running):
 
-| Suite | Mutación | Resultado |
+| Suite | Mutation | Result |
 | --- | --- | --- |
-| `bookings` | reconciliación ignora `Retry-After` | Detectada (3 tests) |
-| `tracing` | el repositorio no copia el id de la petición al job | Detectada (2 tests) |
-| `tracing` | el worker no restaura el id del job | Detectada |
-| `tracing` | el middleware no restaura el contexto | Detectada |
-| `mcp` | verificador de fechas acepta todo | Detectada (5 tests) |
-| `mcp` | verificador de restricciones acepta todo | Detectada (7 tests) |
-| `mcp` | conflicto sin nombrar los ítems | Detectada (2 tests) |
-| `mcp` | verificador de cambios nunca detecta | Detectada (4 tests) |
-| `mcp` | toda oferta cuenta como propuesta | Detectada (2 tests) |
-| `mcp` | hueco sin atarlo a las noches | Detectada (2 tests) |
-| `mcp` | hueco sin palabra de ausencia | Detectada (2 tests) |
-| `mcp` | ausencia y alojamiento en frases distintas | Detectada (1 test). Sobrevivía en la primera prueba manual y se cerró con un caso negativo nuevo antes del commit `c0293c7` |
-| `mcp` | huecos sin comprobar cambios | Detectada (1 test) |
+| `bookings` | reconciliation ignores Retry-After | Killed (3 tests) |
+| `tracing` | the repository does not copy the request id to the job | Killed (2 tests) |
+| `tracing` | the worker does not restore the job's id | Killed |
+| `tracing` | the middleware does not restore the context | Killed |
+| `mcp` | dates checker accepts everything | Killed (5 tests) |
+| `mcp` | restrictions checker accepts everything | Killed (7 tests) |
+| `mcp` | conflict without naming the items | Killed (2 tests) |
+| `mcp` | changes checker never fires | Killed (4 tests) |
+| `mcp` | every offer counts as proposed | Killed (2 tests) |
+| `mcp` | gap not tied to the nights | Killed (2 tests) |
+| `mcp` | gap without a word of absence | Killed (2 tests) |
+| `mcp` | absence and accommodation in different sentences | Killed (1 test). It survived the first manual try and was closed with a new negative case before commit `c0293c7` |
+| `mcp` | gaps without checking changes | Killed (1 test) |
 
-Las 4 últimas son del verificador de huecos y se ejecutaron con el runner después del commit `c0293c7`.
+The last 4 belong to the gaps checker and were run with the runner after commit `c0293c7`.
 
-**Total:** 75 mutaciones distintas (62 + 13). Solo una no la detecta ninguna capa de tests, la de defensa en profundidad de documentos, y quitar sus dos capas sí se detecta.
+**Total:** 75 distinct mutations (62 + 13). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.

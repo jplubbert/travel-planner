@@ -1,1 +1,1 @@
-# workers — Procesos en segundo plano: generación de documentos y reconciliación de reservas con resultado desconocido.
+# workers — Background processes: document generation and reconciliation of bookings with an unknown outcome.

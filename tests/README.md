@@ -1,17 +1,17 @@
-# tests — Pruebas del backend
+# tests — Backend tests
 
-- `unit/test_provider_http.py`: mapeo de cada código de estado y fallo de transporte a su error de dominio, plazo total, logs con `requestId` y sin token.
-- `unit/`: dominio puro (roles, máquina de estados de reservas, documentos, jobs, dinero) y reglas de arquitectura (el núcleo no importa frameworks; la app nunca llama a `/_control`). No necesitan servicios.
-- `integration/`: API y repositorios contra **PostgreSQL real**. La sesión recrea la base `TEST_DATABASE_URL` (por defecto `travel_test`) y la migra con Alembic (upgrade, downgrade completo y upgrade de nuevo); cada test empieza con las tablas de datos vacías. Requiere `docker compose up -d db`.
-  - `test_us01_trips.py`, `test_us02_sharing.py`, `test_us03_search.py`, `test_us04_itinerary.py`, `test_us05_costs.py`, `test_us06_concurrency.py`, `test_us07_us08_bookings.py`, `test_us09_us10_documents.py`, `test_status_channel.py`: tests de aceptación por historia. El canal SSE se prueba con un uvicorn real dentro del test, porque `ASGITransport` no transmite respuestas infinitas.
-  - `test_worker_and_integrity.py`: la cola de jobs (dos workers nunca reclaman el mismo job, reclamación por lease expirada, deduplicación) y la integridad de reservas en la base de datos (trigger de inmutabilidad, un intento activo por ítem).
-  - Los fallos de US-07/08 que el mock no puede provocar solo (proceso que muere antes o después de enviar, términos que cambian justo antes del `POST`) se simulan envolviendo el cliente HTTP real (`WrappedProvider`).
-  - El mock del proveedor se arranca **como proceso HTTP real** (uvicorn en un puerto libre) una vez por sesión. Los escenarios de fallo se activan con su `/_control` **solo desde los tests** (fixture `mock_control`, que además resetea el mock).
-  - `test_provider_client.py`: cada operación del puerto `ProviderClient` contra el mock real, incluida la respuesta perdida.
-  - `test_persistence.py`: migraciones == modelos, rollback de trabajo no confirmado, restricciones de la BD, round-trip de cada repositorio.
+- `unit/test_provider_http.py`: mapping of each status code and transport failure to its domain error, overall deadline, logs with `requestId` and without the token.
+- `unit/`: pure domain (roles, booking state machine, documents, jobs, money) and architecture rules (the core does not import frameworks; the app never calls `/_control`). They need no services.
+- `integration/`: API and repositories against **real PostgreSQL**. The session recreates the `TEST_DATABASE_URL` database (by default `travel_test`) and migrates it with Alembic (upgrade, full downgrade and upgrade again); each test starts with empty data tables. Requires `docker compose up -d db`.
+  - `test_us01_trips.py`, `test_us02_sharing.py`, `test_us03_search.py`, `test_us04_itinerary.py`, `test_us05_costs.py`, `test_us06_concurrency.py`, `test_us07_us08_bookings.py`, `test_us09_us10_documents.py`, `test_status_channel.py`: acceptance tests per story. The SSE channel is tested with a real uvicorn inside the test, because `ASGITransport` does not stream infinite responses.
+  - `test_worker_and_integrity.py`: the job queue (two workers never claim the same job, claiming by expired lease, deduplication) and booking integrity in the database (immutability trigger, one active attempt per item).
+  - The US-07/08 failures the mock cannot trigger on its own (process that dies before or after sending, terms that change just before the `POST`) are simulated by wrapping the real HTTP client (`WrappedProvider`).
+  - The provider mock is started **as a real HTTP process** (uvicorn on a free port) once per session. Failure scenarios are enabled with its `/_control` **only from tests** (fixture `mock_control`, which also resets the mock).
+  - `test_provider_client.py`: each operation of the `ProviderClient` port against the real mock, including the lost response.
+  - `test_persistence.py`: migrations == models, rollback of uncommitted work, database constraints, round-trip of each repository.
 
-Los tests del mock del proveedor están en `mock/tests/`.
+The provider mock's tests are in `mock/tests/`.
 
-Las evaluaciones del MCP y del asistente están en `evals/` (ver `evals/README.md`): las deterministas entran en la ejecución por defecto y las de modelo van marcadas `llm`.
+The MCP and assistant evaluations are in `evals/` (see `evals/README.md`): the deterministic ones are part of the default run and the model ones are marked `llm`.
 
-Los tests del frontend (Vitest y Playwright) están en `frontend/` (ver `frontend/README.md`).
+The frontend tests (Vitest and Playwright) are in `frontend/` (see `frontend/README.md`).

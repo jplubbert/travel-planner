@@ -6,7 +6,7 @@ export const MOCK = process.env.E2E_MOCK_URL ?? "http://localhost:4010";
 export type TripSeed = { name: string; destinations: string[]; startsOn: string; endsOn: string; budget: string };
 
 export const LISBON: TripSeed = {
-  name: "Lisboa", destinations: ["Lisbon"], startsOn: "2030-06-10", endsOn: "2030-06-14", budget: "3000.00",
+  name: "Lisbon", destinations: ["Lisbon"], startsOn: "2030-06-10", endsOn: "2030-06-14", budget: "3000.00",
 };
 
 /** API client acting as a test user, through the same nginx proxy the UI uses. */
@@ -34,7 +34,7 @@ export async function mockControl(method: "post" | "delete", path: string, data?
 export async function openAs(page: Page, user: string, tripId?: string) {
   await page.addInitScript((u) => localStorage.setItem("tp-user", u), user);
   await page.goto(tripId ? `/#/trips/${tripId}` : "/");
-  await expect(page.getByLabel("usuario de prueba")).toHaveValue(user);
+  await expect(page.getByLabel("test user")).toHaveValue(user);
 }
 
 export async function tab(page: Page, name: string) {
@@ -42,8 +42,8 @@ export async function tab(page: Page, name: string) {
 }
 
 export async function searchStays(page: Page, destination: string) {
-  await tab(page, "Búsqueda");
-  await page.getByLabel("Categoría").selectOption("accommodation");
-  await page.getByLabel("Destino").fill(destination);
-  await page.getByRole("button", { name: "Buscar" }).click();
+  await tab(page, "Search");
+  await page.getByLabel("Category").selectOption("accommodation");
+  await page.getByLabel("Destination").fill(destination);
+  await page.getByRole("button", { name: "Search" }).click();
 }

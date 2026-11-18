@@ -21,20 +21,20 @@ const optionsOf = (select: HTMLElement) =>
   within(select).getAllByRole("option").map((o) => [o.textContent, (o as HTMLOptionElement).value]);
 
 describe("ParticipantsTab roles", () => {
-  it("labels roles in Spanish in the selects while sending the API values", async () => {
+  it("shows the API role names in the selects and sends them as values", async () => {
     render(withTrip(<ParticipantsTab />, "organizer", { api }));
-    expect(optionsOf(screen.getByLabelText("rol nuevo"))).toEqual([["editor", "editor"], ["lector", "viewer"]]);
-    const carla = await screen.findByLabelText("rol de carla") as HTMLSelectElement;
+    expect(optionsOf(screen.getByLabelText("new role"))).toEqual([["editor", "editor"], ["viewer", "viewer"]]);
+    const carla = await screen.findByLabelText("role of carla") as HTMLSelectElement;
     expect(carla.value).toBe("viewer");
-    expect(carla.selectedOptions[0].textContent).toBe("lector");
-    expect(screen.getByRole("cell", { name: "organizador" })).toBeInTheDocument();
+    expect(carla.selectedOptions[0].textContent).toBe("viewer");
+    expect(screen.getByRole("cell", { name: "organizer" })).toBeInTheDocument();
   });
 
-  it("shows read-only roles in Spanish to viewers", async () => {
+  it("shows read-only roles to viewers", async () => {
     render(withTrip(<ParticipantsTab />, "viewer", { api }));
-    expect(await screen.findByRole("cell", { name: "lector" })).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "organizador" })).toBeInTheDocument();
+    expect(await screen.findByRole("cell", { name: "viewer" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "editor" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "organizer" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.queryByText("viewer")).toBeNull();
   });
 });

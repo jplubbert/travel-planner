@@ -51,15 +51,15 @@ export function App() {
         <h1><a href="#" onClick={(e) => { e.preventDefault(); open(null); }}>Travel Planner</a></h1>
         <div className="row wrap">
           <label className="row">
-            <span>Usuario de prueba</span>
-            <select aria-label="usuario de prueba" value={userId}
+            <span>Test user</span>
+            <select aria-label="test user" value={userId}
               onChange={(e) => { setUserId(e.target.value); store("tp-user", e.target.value); }}>
               {TEST_USERS.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </label>
           <label className="row small">
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
-            <span>Mostrar acciones aunque mi rol no las permita (el backend responde 403)</span>
+            <span>Show actions my role does not allow (the backend answers 403)</span>
           </label>
         </div>
       </header>
@@ -78,12 +78,12 @@ function TripList({ api, onOpen }: { api: ReturnType<typeof createApi>; onOpen: 
   return (
     <section>
       <div className="row spread">
-        <h2>Mis viajes</h2>
-        {!creating && <button onClick={() => setCreating(true)}>Nuevo viaje</button>}
+        <h2>My trips</h2>
+        {!creating && <button onClick={() => setCreating(true)}>New trip</button>}
       </div>
       {creating && <CreateTrip api={api} onCreated={(t) => onOpen(t.id)} onCancel={() => setCreating(false)} />}
       <ErrorBox error={trips.error} />
-      {trips.data?.length === 0 && <Notice tone="neutral">No participas en ningún viaje todavía.</Notice>}
+      {trips.data?.length === 0 && <Notice tone="neutral">You are not part of any trip yet.</Notice>}
       <ul className="plain trips">
         {(trips.data ?? []).map((t) => (
           <li key={t.id}>
@@ -92,7 +92,7 @@ function TripList({ api, onOpen }: { api: ReturnType<typeof createApi>; onOpen: 
             </a>{" "}
             <Badge tone="neutral">{t.myRole ? ROLE_LABEL[t.myRole] : "—"}</Badge>
             <div className="muted">
-              {t.destinations.join(" → ")} · {day(t.startsOn)} – {day(t.endsOn)} · {t.travelers} viajeros · {usd(t.budget)}
+              {t.destinations.join(" → ")} · {day(t.startsOn)} – {day(t.endsOn)} · {t.travelers} travelers · {usd(t.budget)}
             </div>
           </li>
         ))}
@@ -116,12 +116,12 @@ function CreateTrip({ api, onCreated, onCancel }: {
       const trip = await action.run(() => api.post<Trip>("/trips", form));
       if (trip) onCreated(trip);
     }}>
-      <h3>Nuevo viaje</h3>
+      <h3>New trip</h3>
       <TripFields value={form} onChange={setForm} />
       <ErrorBox error={action.error} onClose={action.clear} />
       <div className="row">
-        <button type="submit" disabled={action.busy}>Crear</button>
-        <button type="button" className="secondary" onClick={onCancel}>Cancelar</button>
+        <button type="submit" disabled={action.busy}>Create</button>
+        <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   );

@@ -1,131 +1,131 @@
-# Guion de demo (10–15 minutos)
+# Demo script (10–15 minutes)
 
-Se usan dos ventanas: el navegador en http://localhost:5173 y una terminal en la raíz del repo. Los clics se refieren a botones y etiquetas visibles de la UI.
+Two windows are used: the browser at http://localhost:5173 and a terminal at the repo root. Clicks refer to buttons and labels visible in the UI.
 
-## 0. Preparación (antes de empezar, ~2 min)
+## 0. Setup (before starting, ~2 min)
 
 ```bash
-cp .env.example .env              # para el paso 7, poner GEMINI_API_KEY=... en .env
-docker compose down -v            # opcional: empezar desde cero (BORRA los datos locales del stack)
+cp .env.example .env              # for step 7, set GEMINI_API_KEY=... in .env
+docker compose down -v            # optional: start from scratch (DELETES the stack's local data)
 docker compose up --build -d --wait
-export B=http://localhost:4010    # mock del proveedor (/v1 es el contrato; /_control, solo demo)
-curl -s -X DELETE $B/_control/scenario   # sin escenarios de fallo activos
+export B=http://localhost:4010    # provider mock (/v1 is the contract; /_control, demo only)
+curl -s -X DELETE $B/_control/scenario   # no failure scenarios active
 ```
 
-Abrir http://localhost:5173. Arriba a la derecha está el selector **Usuario de prueba**.
+Open http://localhost:5173. The **Test user** selector is at the top right.
 
-## 1. Flujo completo (~4 min)
+## 1. Full flow (~4 min)
 
-1. **Usuario de prueba:** `ana`. Clic en **Nuevo viaje**. Rellenar:
-   - Nombre `Lisboa demo`;
-   - Destinos `Lisbon`;
-   - Desde `10/06/2030`, Hasta `14/06/2030`;
-   - Viajeros `2`;
-   - Presupuesto `3000.00`.
+1. **Test user:** `ana`. Click **New trip**. Fill in:
+   - Name `Lisbon demo`;
+   - Destinations `Lisbon`;
+   - Start date June 10, 2030, End date June 14, 2030;
+   - Travelers `2`;
+   - Budget `3000.00`.
 
-   Clic en **Crear**. La cabecera muestra el rol, `versión 1` y `estado: en vivo` (el canal SSE).
-   - *Para enseñar la validación:* repetir con el presupuesto vacío; aparece `422 VALIDATION_ERROR` con el campo.
-2. **Participantes:**
-   - en **Añadir participante** elegir Beto, Rol `editor`, y clic en **Añadir**;
-   - repetir con Carla, Rol `lector`.
-3. **Búsqueda:** Categoría `Alojamiento`, Destino `Lisbon`, clic en **Buscar**. Señalar:
-   - el aviso verde "Búsqueda completa";
-   - "recibido hace N s" (la frescura);
-   - "precio estimado" y "válida hasta";
-   - las restricciones;
-   - *Three-night Belém boutique hotel* marcado **no disponible**.
-4. Clic en **Añadir al itinerario** en *Four-night central hotel stay* (670.00 USD).
-5. *(Opcional, conflicto de horario)* Búsqueda: Categoría `Actividad`, Desde y Hasta `11/06/2030`, **Buscar**. Añadir *Historic tram tour* y *Sintra day trip*, que se solapan el 11 de junio. En **Itinerario** aparece **Conflicto: Overlaps with 'Sintra day trip'.** (y viceversa) en los dos.
-6. **Itinerario:** precio "estimado", "sin reservar", flechas ↑ ↓ para reordenar, **Actualizar cotización** y **Falta información** si la hay.
-7. **Costes:** Estimado (sin confirmar) 670.00 USD, Confirmado 0.00 USD, presupuesto restante.
-8. **Reservas:**
-   - clic en **Revisar términos** en el hotel: precio, cotización, validez y restricciones;
-   - clic en **Confirmar reserva por 670.00 USD**;
-   - la tarjeta muestra **"Reservado: confirmado por el proveedor"**, el precio aceptado y la referencia del proveedor.
-9. **Costes:** Confirmado por el proveedor 670.00 USD.
-10. **Documentos:**
-    - clic en **Generar documento de la versión N**;
-    - el estado pasa de "En cola" o "Generándose" a **Listo** sin recargar (SSE);
-    - clic en **Descargar** y abrir el HTML: itinerario, costes, estado de las reservas, versión y hora de la copia.
+   Click **Create**. The header shows the role, `version 1` and `status: live` (the SSE channel).
+   - *To show validation:* repeat with an empty budget; `422 VALIDATION_ERROR` appears with the field.
+2. **Participants:**
+   - in **Add participant** choose Beto, Role `editor`, and click **Add**;
+   - repeat with Carla, Role `viewer`.
+3. **Search:** Category `Accommodation`, Destination `Lisbon`, click **Search**. Point out:
+   - the green notice "Search complete";
+   - "received N s ago" (freshness);
+   - "estimated price" and "valid until";
+   - the restrictions;
+   - *Three-night Belém boutique hotel* marked **unavailable**.
+4. Click **Add to itinerary** on *Four-night central hotel stay* (670.00 USD).
+5. *(Optional, schedule conflict)* Search: Category `Activity`, Start date and End date June 11, 2030, **Search**. Add *Historic tram tour* and *Sintra day trip*, which overlap on June 11. In **Itinerary** both show **Conflict: Overlaps with 'Sintra day trip'.** (and vice versa).
+6. **Itinerary:** price "estimate", "not booked", ↑ ↓ arrows to reorder, **Refresh quote** and **Missing information** if any.
+7. **Costs:** Estimated (unconfirmed) 670.00 USD, Confirmed by the provider 0.00 USD, Remaining.
+8. **Bookings:**
+   - click **Review terms** on the hotel: price, quote, validity and restrictions;
+   - click **Confirm booking for 670.00 USD**;
+   - the card shows **"Booked: confirmed by the provider"**, the accepted price and the provider reference.
+9. **Costs:** Confirmed by the provider 670.00 USD.
+10. **Documents:**
+    - click **Generate document for version N**;
+    - the status goes from "Queued" or "Generating" to **Ready** without reloading (SSE);
+    - click **Download** and open the HTML: itinerary, costs, booking statuses, version and snapshot time.
 
-## 2. Permisos (~1,5 min)
+## 2. Permissions (~1.5 min)
 
-1. Cambiar **Usuario de prueba** a `carla` y abrir *Lisboa demo*. Aparece `tu rol: lector` y no hay botones de edición.
-2. **Búsqueda** de alojamiento en Lisbon: no aparece **Añadir al itinerario**.
-3. Marcar **"Mostrar acciones aunque mi rol no las permita"** y pulsar **Añadir al itinerario**. Aparece `403 FORBIDDEN` (estado y código tal como los devuelve el backend) con "Esta acción requiere el rol editor; en este viaje eres lector."; el mensaje original está en "Mensaje original del backend" (ADR 0008).
-4. Cambiar a `dani` y recargar la URL del viaje (`#/trips/<id>`). Aparece `404 TRIP_NOT_FOUND`, la misma respuesta que para un viaje que no existe.
-5. *(Opcional)* Las tools MCP aplican el mismo permiso. Se ve en `evals/deterministic/test_mcp_contract.py` (`uv run pytest evals/deterministic -k not_found`).
+1. Switch **Test user** to `carla` and open *Lisbon demo*. It shows `your role: viewer` and there are no edit buttons.
+2. **Search** for accommodation in Lisbon: **Add to itinerary** does not appear.
+3. Tick **"Show actions my role does not allow"** and press **Add to itinerary**. `403 FORBIDDEN` appears with "This action requires the editor role; you are a viewer of this trip.": the 403 is shown as returned by the backend (status, code and message).
+4. Switch to `dani` and reload the trip URL (`#/trips/<id>`). `404 TRIP_NOT_FOUND` appears, the same response as for a trip that does not exist.
+5. *(Optional)* The MCP tools apply the same permission. See `evals/deterministic/test_mcp_contract.py` (`uv run pytest evals/deterministic -k not_found`).
 
-## 3. Conflicto 409 con reaplicación (~2 min)
+## 3. 409 conflict with reapply (~2 min)
 
-El canal en vivo actualiza la versión en menos de un segundo, así que para provocar el conflicto a mano hay que cortarlo en la ventana de Beto.
+The live channel updates the version in under a second, so to trigger the conflict by hand it has to be cut in Beto's window.
 
-1. Abrir una ventana privada (para que guarde su propio usuario) con `beto` en *Lisboa demo*.
-2. En DevTools: **Network** → menú ⋮ → **More tools** → **Network request blocking**. Añadir el patrón `*events*` y recargar. La cabecera queda en "reconectando…".
-3. En la ventana de `ana`: **Participantes** → **Editar datos del viaje**, cambiar el presupuesto a `2500.00` y **Guardar** (versión +1).
-4. En la ventana de `beto`: **Búsqueda** de alojamiento en Lisbon y **Añadir al itinerario** en *Four-night Alfama apartment*. Aparece el panel **409 TRIP_VERSION_CONFLICT**:
-   - "Tu cambio se basaba en la versión N; la actual es la N+1";
-   - la lista de cambios (`vN+1 · ana · … · Updated budget`);
-   - la cabecera ya muestra el presupuesto 2500.00.
-5. Clic en **Reaplicar «añadir …» sobre la versión N+1**. Se guarda, la versión sube y el ítem aparece en **Itinerario**.
-6. Desmarcar el bloqueo en DevTools. El estado vuelve a "en vivo" y la vista **se relee con GET** (`ready`): cualquier cambio hecho mientras tanto aparece sin depender de los eventos perdidos.
+1. Open a private window (so it keeps its own user) with `beto` on *Lisbon demo*.
+2. In DevTools: **Network** → ⋮ menu → **More tools** → **Network request blocking**. Add the pattern `*events*` and reload. The header stays at "reconnecting…".
+3. In `ana`'s window: **Participants** → **Edit trip details**, change the budget to `2500.00` and **Save** (version +1).
+4. In `beto`'s window: **Search** for accommodation in Lisbon and **Add to itinerary** on *Four-night Alfama apartment*. The **409 TRIP_VERSION_CONFLICT** panel appears:
+   - "Your change (…) was based on version N; the current one is N+1";
+   - the list of changes (`vN+1 · ana · … · Updated budget`);
+   - the header already shows the 2500.00 budget.
+5. Click **Reapply “add '…'” on version N+1**. It is saved, the version goes up and the item appears in **Itinerary**.
+6. Remove the block in DevTools. The status goes back to "live" and the view **is re-read with GET** (`ready`): any change made meanwhile shows up without relying on the lost events.
 
-Alternativa sin DevTools: ver el `409` crudo con `curl` (enviando una versión vieja):
+Alternative without DevTools: see the raw `409` with `curl` (sending an old version):
 
 ```bash
 curl -s -X PATCH -H 'X-User-Id: ana' -H 'Content-Type: application/json' \
   http://localhost:8000/trips/<tripId> -d '{"version": 1, "name": "x"}' | python3 -m json.tool
 ```
 
-## 4. Búsqueda parcial, fallida y vacía (~1,5 min)
+## 4. Partial, failed and empty search (~1.5 min)
 
 ```bash
 curl -s -X POST $B/_control/scenario -H 'Content-Type: application/json' -d '{"supplierId":"supplier-b","mode":"unavailable"}'
 ```
 
-1. **Buscar** alojamiento en Lisbon. Aparece el aviso ámbar **"Resultados parciales"**, con "Sin respuesta de supplier-b", y las ofertas de supplier-a siguen visibles y utilizables.
+1. **Search** for accommodation in Lisbon. The amber notice **"Partial results"** appears, with "No answer from supplier-b", and supplier-a's offers are still visible and usable.
 
 ```bash
 curl -s -X POST $B/_control/scenario -H 'Content-Type: application/json' -d '{"supplierId":"supplier-a","mode":"unavailable"}'
 ```
 
-2. **Buscar** de nuevo. Aparece el aviso rojo **"La búsqueda falló: no es lo mismo que no haber opciones"**, con el código, y sin ofertas.
+2. **Search** again. The red notice **"Search failed: this is not the same as no options"** appears, with the code, and no offers.
 
 ```bash
 curl -s -X DELETE $B/_control/scenario
 ```
 
-3. Destino `Reykjavik` y **Buscar**. Aparece el aviso neutro **"Sin opciones"**.
+3. Destination `Reykjavik` and **Search**. The neutral notice **"No options"** appears.
 
-Variante: `"mode":"rate_limited"` muestra `Retry-After`.
+Variant: `"mode":"rate_limited"` shows `Retry-After`.
 
-## 5. Reserva con respuesta perdida, reconciliada (~3 min)
+## 5. Booking with a lost response, reconciled (~3 min)
 
-La API muere mientras espera la respuesta del proveedor. El proveedor sí creó la reserva. La app no la presenta como reservada y el worker la reconcilia por referencia, sin duplicarla.
+The API dies while waiting for the provider's response. The provider did create the booking. The app does not present it as booked, and the worker reconciles it by reference, without duplicating it.
 
-1. Como `ana`, en un viaje de Lisbon, **añadir** *Four-night Baixa hostel beds* (o cualquier oferta de **supplier-a** sin reservar). Ir a **Reservas** → **Revisar términos**. **No confirmar todavía.**
-2. En la terminal, hacer que supplier-a tarde 4 s en cada operación. Es menos que el plazo de la app (5 s), así que la consulta previa de la oferta pasa:
+1. As `ana`, on a Lisbon trip, **add** *Four-night Baixa hostel beds* (or any unbooked **supplier-a** offer). Go to **Bookings** → **Review terms**. **Do not confirm yet.**
+2. In the terminal, make supplier-a take 4 s on every operation. That is less than the app's timeout (5 s), so the preliminary offer lookup succeeds:
 
    ```bash
    curl -s -X POST $B/_control/scenario -H 'Content-Type: application/json' \
      -d '{"supplierId":"supplier-a","mode":"timeout","delaySeconds":4}'
    ```
-3. Clic en **Confirmar reserva** y, en cuanto se pulse, ejecutar:
+3. Click **Confirm booking** and, as soon as it is pressed, run:
 
    ```bash
-   sleep 6 && docker compose kill api   # entre la consulta previa (4 s) y la respuesta del POST (8 s)
+   sleep 6 && docker compose kill api   # between the preliminary lookup (4 s) and the POST response (8 s)
    ```
 
-   La UI muestra un error de red o `502` del proxy.
-4. Volver a arrancar la API y quitar el retraso:
+   The UI shows a network error or a `502` from the proxy.
+4. Start the API again and remove the delay:
 
    ```bash
    curl -s -X DELETE $B/_control/scenario
    docker compose start api
    ```
-5. Recargar. En **Reservas**, la tarjeta dice **"Enviando al proveedor (aún no reservada)"**, `booked` es falso y no aparece en Confirmado de **Costes**.
-6. Esperar unos 60 s (`BOOKING_SUBMITTED_STALE_SECONDS`) sin tocar nada. La tarjeta pasa sola a **"Reservado: confirmado por el proveedor"** (SSE).
-7. Ver cómo se resolvió:
+5. Reload. In **Bookings**, the card says **"Sending to the provider (not booked yet)"**, `booked` is false and it is not counted under Confirmed in **Costs**.
+6. Wait about 60 s (`BOOKING_SUBMITTED_STALE_SECONDS`) without touching anything. The card turns into **"Booked: confirmed by the provider"** on its own (SSE).
+7. See how it was resolved:
 
    ```bash
    docker compose logs worker | grep -E "interrupted|by-reference|sync_booking"
@@ -134,52 +134,52 @@ La API muere mientras espera la respuesta del proveedor. El proveedor sí creó 
    # … sync_booking -> succeeded
    ```
 
-   La **Referencia propia** de la tarjeta (`tp-…`) es la que se consultó. El proveedor tiene una sola reserva para ella:
+   The card's **Our reference** (`tp-…`) is the one that was looked up. The provider has a single booking for it:
 
    ```bash
    curl -s -H 'Authorization: Bearer travel-demo-token' $B/v1/bookings/by-reference/<tp-...>
    ```
 
-## 6. Documento regenerado tras borrar el archivo (~1,5 min)
+## 6. Document regenerated after deleting the file (~1.5 min)
 
-1. En **Documentos** debe haber uno **Listo** (si no, **Generar** y esperar).
-2. Borrar el archivo por debajo de la aplicación:
+1. **Documents** should have one **Ready** (if not, **Generate** and wait).
+2. Delete the file underneath the application:
 
    ```bash
    docker compose exec api find /data/documents -name '*.html'
    docker compose exec api rm /data/documents/<tripId>/<documentId>.html
    ```
-3. Clic en **Descargar**. Aparece `409 DOCUMENT_FILE_UNAVAILABLE`: "The stored file is missing or does not match its recorded checksum, so it was not delivered. It is being regenerated…". No se entrega un archivo roto.
-4. El estado pasa a "En cola" y luego a **Listo** sin recargar. **Descargar** funciona y el `sha256` es el mismo que antes, porque se regenera desde la copia inmutable, no desde el viaje actual.
+3. Click **Download**. `409 DOCUMENT_FILE_UNAVAILABLE` appears: "The stored file is missing or does not match its recorded checksum, so it was not delivered. It is being regenerated…". No broken file is delivered.
+4. The status goes to "Queued" and then to **Ready** without reloading. **Download** works and the `sha256` is the same as before, because it is regenerated from the immutable snapshot, not from the current trip.
 
-## 7. Asistente (~2 min)
+## 7. Assistant (~2 min)
 
-Necesita `GEMINI_API_KEY` en `.env` y `docker compose up -d api` para que la API la lea. Sin clave, el asistente responde `503 ASSISTANT_UNAVAILABLE` y el resto funciona.
+It needs `GEMINI_API_KEY` in `.env` and `docker compose up -d api` so the API reads it. Without a key, the assistant answers `503 ASSISTANT_UNAVAILABLE` and everything else works.
 
-1. Como `carla` (lector), en **Asistente**: *"Busca alojamiento en Lisboa para nosotros"* (la pregunta que usó el candidato en su prueba del 2026-11-17, sobre un viaje a Lisbon del 10 al 14 de junio). Señalar:
-   - la respuesta cita precios;
-   - en **Herramientas usadas**, las llamadas MCP (`get_trip`, `get_costs`, `search_offers`…) con argumentos y resultados, y de ahí salen los importes.
-2. *"Book the cheapest hotel for us now."* No reserva: explica que es de solo lectura y cómo hacerlo en la app. No existe ninguna tool de escritura.
-3. *(Opcional)* Con supplier-a y supplier-b `unavailable` (paso 4): *"Find accommodation in Lisbon."* El asistente dice que la búsqueda falló, no que no haya opciones.
+1. As `carla` (viewer), in **Assistant**: *"Find accommodation in Lisbon for us"* (the question the candidate used in their test on 2026-11-17, asked in Spanish, on a Lisbon trip from June 10 to 14; the assistant replies in the user's language). Point out:
+   - the answer quotes prices;
+   - under **Tools used**, the MCP calls (`get_trip`, `get_costs`, `search_offers`…) with arguments and results, which is where the amounts come from.
+2. *"Book the cheapest hotel for us now."* It does not book: it explains that it is read-only and how to do it in the app. No write tool exists.
+3. *(Optional)* With supplier-a and supplier-b `unavailable` (step 4): *"Find accommodation in Lisbon."* The assistant says the search failed, not that there are no options.
 
-## Qué se ha ensayado de este guion
+## What has been rehearsed from this script
 
-**Incidente y repetición.**
-- Un primer ensayo de los pasos 1.5, 5 y 6 (2026-11-18, ~00:00) se hizo con un stack construido **mientras el runner de mutaciones tenía código mutado** (`if False:` en `reservations.py`). Ese ensayo no vale.
-- Se repitió después:
-  - con el código restaurado (`git diff` de `backend/` y `frontend/src` vacío, sin archivos `.orig`);
-  - con la suite completa en verde;
-  - con `tp-demo` reconstruido desde cero (`docker compose build --no-cache`, volúmenes nuevos);
-  - comprobando que los 59 `.py` del backend dentro de las imágenes `api` y `worker` son idénticos byte a byte al repo.
-- Los resultados de abajo son los de esa repetición. Desde entonces, `CLAUDE.md` prohíbe construir imágenes o ejecutar tests mientras corren mutaciones.
+**Incident and repetition.**
+- A first rehearsal of steps 1.5, 5 and 6 (2026-11-18, ~00:00) was run on a stack built **while the mutation runner had mutated code in place** (`if False:` in `reservations.py`). That rehearsal does not count.
+- It was repeated afterwards:
+  - with the code restored (empty `git diff` for `backend/` and `frontend/src`, no `.orig` files);
+  - with the full suite green;
+  - with `tp-demo` rebuilt from scratch (`docker compose build --no-cache`, fresh volumes);
+  - checking that the 59 backend `.py` files inside the `api` and `worker` images are byte-for-byte identical to the repo.
+- The results below are from that repetition. Since then, `CLAUDE.md` forbids building images or running tests while mutations are running.
 
-| Paso | Cómo se verificó | Estado |
+| Step | How it was verified | Status |
 | --- | --- | --- |
-| 1. Flujo completo (salvo el conflicto opcional 1.5) | `frontend/e2e/flow.spec.ts` "flujo completo", con los mismos clics, en Docker desde cero (`scripts/e2e.sh`, 5 de 5 el 2026-11-18) | Ejecutado (automatizado) |
-| 1.5 Conflicto de horario | Backend en `tests/integration/test_us04_itinerary.py`. Repetido por API en el stack limpio (2026-11-18 00:19): ambos ítems reciben `SCHEDULE_CONFLICT` ("Overlaps with 'Sintra day trip'." y viceversa). El presupuesto vacío da `422` | Por API, ejecutado. En la UI **no ensayado** |
-| 2. Permisos 403 y 404 | e2e "permisos" | Ejecutado (automatizado) |
-| 3. 409 con reaplicación y relectura al reconectar | e2e "409 de versión", con el canal cortado por Playwright en lugar de DevTools | Ejecutado (automatizado). El bloqueo con DevTools **no se ensayó a mano** |
-| 4. Parcial, fallida y vacía | e2e "búsqueda parcial y fallida" | Ejecutado (automatizado) |
-| 5. Respuesta perdida | Repetido con `curl` en lugar del clic, en el stack limpio (2026-11-18 00:17–00:19). El `POST` de la reserva recibió `502` del proxy al matar la API 6 s después de enviarlo. Tras reiniciar, la reserva estaba `submitted` (`booked=false`, `nextStep` "Being sent to the provider…"). A los ~56 s el worker registró "1 interrupted booking submission(s) scheduled for reconciliation", consultó `GET /v1/bookings/by-reference/tp-…` (`200`) y la reserva pasó a `confirmed` con `booking-000001`, la única reserva de ese mock recién creado. Que el cambio llegue en vivo a la tarjeta está cubierto por el e2e de la reserva `pending` | Ejecutado por API. El clic en la UI **no ensayado** |
-| 6. Documento regenerado | Repetido con `curl` en el stack limpio (2026-11-18 00:19):<br>• documento `complete` (v2, sha256 `129388c8e155…`);<br>• no participante: `404`;<br>• tras `rm` del archivo, la descarga da `409 DOCUMENT_FILE_UNAVAILABLE` (`FILE_MISSING`) y el estado pasa a `waiting`;<br>• en ~1 s vuelve a `complete` con el **mismo** sha256;<br>• la descarga da `200` y el archivo descargado tiene ese hash | Ejecutado por API. El clic en la UI **no ensayado** |
-| 7. Asistente con clave | **Ejecutado por el candidato desde la UI con clave real** el 2026-11-17 a las 23:49, con `gemini-3.8-flash` (resultado comunicado por el candidato; no lo reprodujo el agente).<br>• Viaje a Lisbon del 10 al 14 de junio de 2030; pregunta "Busca alojamiento en Lisboa para nosotros".<br>• Respondió con 3 opciones con precios de las tools (225.60, 670.00 y 600.00 USD) y relacionó cada una con las noches y el presupuesto restante.<br>• Descartó Belém por no cubrir la primera noche y no estar disponible, indicó la validez de los precios y aclaró que no puede reservar.<br>• Usó 3 tools.<br>Las evaluaciones con modelo dieron además 5 de 5 el mismo día | Ejecutado (por el candidato) |
+| 1. Full flow (except the optional conflict 1.5) | `frontend/e2e/flow.spec.ts` "full flow", with the same clicks, on Docker from scratch (`scripts/e2e.sh`, 5 of 5 on 2026-11-18) | Run (automated) |
+| 1.5 Schedule conflict | Backend in `tests/integration/test_us04_itinerary.py`. Repeated via the API on the clean stack (2026-11-18 00:19): both items get `SCHEDULE_CONFLICT` ("Overlaps with 'Sintra day trip'." and vice versa). An empty budget gives `422` | Via the API, run. In the UI **not rehearsed** |
+| 2. Permissions 403 and 404 | e2e "permissions" | Run (automated) |
+| 3. 409 with reapply and re-read on reconnect | e2e "version 409", with the channel cut by Playwright instead of DevTools | Run (automated). Blocking with DevTools **not rehearsed by hand** |
+| 4. Partial, failed and empty | e2e "partial and failed searches" | Run (automated) |
+| 5. Lost response | Repeated with `curl` instead of the click, on the clean stack (2026-11-18 00:17–00:19). The booking `POST` got a `502` from the proxy when the API was killed 6 s after sending it. After the restart, the booking was `submitted` (`booked=false`, `nextStep` "Being sent to the provider…"). After ~56 s the worker logged "1 interrupted booking submission(s) scheduled for reconciliation", queried `GET /v1/bookings/by-reference/tp-…` (`200`) and the booking became `confirmed` with `booking-000001`, the only booking in that freshly created mock. That the change reaches the card live is covered by the `pending` booking e2e | Run via the API. The UI click **not rehearsed** |
+| 6. Document regenerated | Repeated with `curl` on the clean stack (2026-11-18 00:19):<br>• document `complete` (v2, sha256 `129388c8e155…`);<br>• non-participant: `404`;<br>• after `rm` of the file, the download gives `409 DOCUMENT_FILE_UNAVAILABLE` (`FILE_MISSING`) and the status goes to `waiting`;<br>• within ~1 s it is back to `complete` with the **same** sha256;<br>• the download gives `200` and the downloaded file has that hash | Run via the API. The UI click **not rehearsed** |
+| 7. Assistant with a key | **Run by the candidate from the UI with a real key** on 2026-11-17 at 23:49, with `gemini-3.8-flash` (result reported by the candidate; not reproduced by the agent).<br>• Lisbon trip from June 10 to 14, 2030; question "Find accommodation in Lisbon for us" (asked in Spanish).<br>• It answered with 3 options priced from the tools (225.60, 670.00 and 600.00 USD) and related each one to the nights and the remaining budget.<br>• It ruled out Belém for not covering the first night and being unavailable, stated the prices' validity and made clear it cannot book.<br>• It used 3 tools.<br>The model evaluations also gave 5 of 5 the same day | Run (by the candidate) |

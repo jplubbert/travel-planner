@@ -1,60 +1,61 @@
 # CLAUDE.md
 
-Instrucciones para agentes de IA (Claude Code u otros) que trabajen en este repositorio.
+Instructions for AI agents (Claude Code or others) working in this repository.
 
-## Resumen del proyecto
+## Project summary
 
-Take-home: plataforma de planificación de viajes en grupo. Un organizador crea un viaje (destinos, fechas, presupuesto en USD), lo comparte con editores y viewers, se buscan opciones en un proveedor externo (transporte, alojamiento, actividades), se arma un itinerario, se hacen reservas simuladas, se generan documentos descargables y un asistente de IA **de solo lectura** recomienda opciones usando herramientas expuestas por MCP.
+Take-home: a group travel planning platform. An organizer creates a trip (destinations, dates, budget in USD) and shares it with editors and viewers; options are searched in an external provider (transport, accommodation, activities), an itinerary is built, simulated bookings are made, downloadable documents are generated, and a **read-only** AI assistant recommends options using tools exposed over MCP.
 
-Fuentes de verdad (en `assignment/`, **nunca modificar**):
+Sources of truth (in `assignment/`, **never modify**):
 
-- `assignment/candidate-guide.md` — restricciones, criterios de evaluación, entregables.
-- `assignment/prd.md` — historias de usuario US-01 … US-12 y criterios de aceptación.
-- `assignment/openAPI.json` — contrato del proveedor externo. Se mockea y se consume solo por HTTP.
+- `assignment/candidate-guide.md` — constraints, evaluation criteria, deliverables.
+- `assignment/prd.md` — user stories US-01 … US-12 and acceptance criteria.
+- `assignment/openAPI.json` — external provider contract. It is mocked and consumed only over HTTP.
 
-Plazo: **viernes 20 nov 2026, 23:59**.
+Deadline: **Friday 20 Nov 2026, 23:59**.
 
-## Decisiones ya tomadas
+## Decisions already taken
 
 - **Backend:** Python 3.12, FastAPI, SQLAlchemy (async), PostgreSQL, Alembic, httpx, pytest.
-- **Arquitectura:** monolito modular con puertos y adaptadores (hexagonal).
-  - `backend/app/domain/` es el núcleo: **no importa FastAPI, SQLAlchemy ni httpx** (ni ningún otro framework de I/O).
-  - `backend/app/ports/` define interfaces en Python (`typing.Protocol` o ABC) que el dominio necesita.
-  - `backend/app/adapters/` implementa esos puertos (Postgres, cliente HTTP del proveedor, almacenamiento de archivos, reloj…).
-  - `backend/app/api/`, `backend/app/mcp/` y `backend/app/workers/` son puntos de entrada que orquestan casos de uso; no contienen reglas de negocio.
-- **Mock del proveedor:** servicio separado en `mock/` (FastAPI). La aplicación lo consume **solo por HTTP** según `openAPI.json`; nunca su base de datos ni sus endpoints de control.
-- **MCP:** servidor con el SDK oficial de Python (`mcp` 2.x, donde **FastMCP se llama `MCPServer`**), **solo lectura**, montado en la API en `/mcp` (streamable HTTP). No expone modificación de itinerario ni reservas. La identidad viaja en un token de sesión firmado, nunca como argumento de tool (ADR 0006).
-- **Asistente:** Google Gemini con el SDK oficial `google-genai`, detrás del puerto `ChatModel` (adaptador intercambiable; `ScriptedModel` para tests). Modelo por defecto `gemini-3.8-flash`, verificado en la documentación de Google el 2026-11-17. El bucle de tool use es propio (`app/assistant/loop.py`): el asistente es cliente MCP, descubre las tools con `list_tools` y se las pasa al modelo. **Sin LangChain ni LangGraph** ni otros frameworks de agentes. Configuración por entorno: `GEMINI_MODEL`, `GEMINI_API_KEY` (ADR 0006, que sustituye la decisión anterior de usar Anthropic).
-- **Frontend:** React + Vite + TypeScript en `frontend/`, sin librería de UI. nginx lo sirve y hace de proxy de `/api` (mismo origen). El SSE se lee con `fetch` y se relee con `GET` en cada reconexión. La UI no es la barrera de permisos: los 403 y 409 del backend se muestran tal cual (ADR 0007).
-- **Infraestructura:** Docker Compose para todo.
+- **Architecture:** modular monolith with ports and adapters (hexagonal).
+  - `backend/app/domain/` is the core: it **does not import FastAPI, SQLAlchemy or httpx** (or any other I/O framework).
+  - `backend/app/ports/` defines Python interfaces (`typing.Protocol` or ABC) that the domain needs.
+  - `backend/app/adapters/` implements those ports (Postgres, provider HTTP client, file storage, clock…).
+  - `backend/app/api/`, `backend/app/mcp/` and `backend/app/workers/` are entry points that orchestrate use cases; they contain no business rules.
+- **Provider mock:** separate service in `mock/` (FastAPI). The application consumes it **only over HTTP** according to `openAPI.json`; never its database or its control endpoints.
+- **MCP:** server built with the official Python SDK (`mcp` 2.x, where **FastMCP is called `MCPServer`**), **read-only**, mounted in the API at `/mcp` (streamable HTTP). It does not expose itinerary modification or bookings. Identity travels in a signed session token, never as a tool argument (ADR 0006).
+- **Assistant:** Google Gemini with the official `google-genai` SDK, behind the `ChatModel` port (swappable adapter; `ScriptedModel` for tests). Default model `gemini-3.8-flash`, verified in Google's documentation on 2026-11-17. The tool-use loop is our own (`app/assistant/loop.py`): the assistant is an MCP client, discovers the tools with `list_tools` and passes them to the model. **No LangChain or LangGraph** or other agent frameworks. Configuration via environment: `GEMINI_MODEL`, `GEMINI_API_KEY` (ADR 0006, which supersedes the earlier decision to use Anthropic).
+- **Frontend:** React + Vite + TypeScript in `frontend/`, no UI library. nginx serves it and proxies `/api` (same origin). SSE is read with `fetch` and state is re-read with `GET` on every reconnection. The UI is not the permission barrier: the backend's 403 and 409 are shown as returned (ADR 0007). The UI is in English, roles are shown as organizer/editor/viewer, and backend messages are shown as returned (ADR 0008).
+- **Infrastructure:** Docker Compose for everything.
 
-## Reglas de trabajo
+## Working rules
 
-1. **Leer el PRD antes de cada historia.** Antes de empezar una US, releer su sección en `assignment/prd.md` (y las partes relevantes de `openAPI.json` y del candidate guide). Citar los criterios de aceptación que se van a cubrir.
-2. **Nada está completo sin un test que lo pruebe.** No marcar una historia, criterio o tarea como hecha si no hay un test automatizado que verifique el comportamiento afirmado. Si algo no se puede probar, decirlo explícitamente y documentar por qué.
-3. **Supuestos en `docs/assumptions.md`.** Toda ambigüedad del PRD o del contrato y cómo se resolvió va ahí, con la historia o sección a la que afecta.
-4. **Decisiones de arquitectura en `docs/adr/`.** Cada decisión relevante (alternativas reales, trade-offs) se registra como ADR numerado según `docs/adr/README.md`. No cambiar una decisión aceptada sin un ADR nuevo que la sustituya.
-5. **No modificar `assignment/`.** Ni formato, ni espacios, ni el contrato OpenAPI.
-6. **Respetar las fronteras de la arquitectura.** Si el dominio necesita algo externo, se define un puerto. Nunca importar adaptadores desde el dominio.
-7. **Honestidad sobre el estado.** Si un requisito queda incompleto, documentar qué falta y su impacto en el README; no presentarlo como terminado.
-8. **Configuración fuera del código.** Todo valor dependiente del entorno se lee de variables de entorno; documentarlas en `.env.example`.
-9. **Nunca construir imágenes ni ejecutar tests, ensayos o demos mientras corren mutaciones.** `scripts/mutations/run.py` modifica archivos del repo durante cada mutación. Cualquier `docker compose build`/`up --build`, `pytest`, `npm test`, Playwright o ensayo lanzado en paralelo puede leer código mutado y dar resultados falsos. Esperar a que termine, comprobar que `git diff -- backend/ frontend/src` está vacío y que no hay archivos `.orig`, y solo entonces continuar. Ya pasó una vez: un ensayo de la demo corrió sobre una imagen construida con `if False:` en `reservations.py` y hubo que repetirlo (ver `docs/demo.md`).
+1. **Read the PRD before each story.** Before starting a US, reread its section in `assignment/prd.md` (and the relevant parts of `openAPI.json` and the candidate guide). Quote the acceptance criteria that will be covered.
+2. **Nothing is complete without a test that proves it.** Do not mark a story, criterion or task as done if there is no automated test verifying the claimed behavior. If something cannot be tested, say so explicitly and document why.
+3. **Assumptions in `docs/assumptions.md`.** Every ambiguity in the PRD or the contract, and how it was resolved, goes there, with the story or section it affects.
+4. **Architecture decisions in `docs/adr/`.** Every relevant decision (real alternatives, trade-offs) is recorded as a numbered ADR according to `docs/adr/README.md`. Do not change an accepted decision without a new ADR that supersedes it.
+5. **Do not modify `assignment/`.** Not the format, not whitespace, not the OpenAPI contract.
+6. **Respect the architecture boundaries.** If the domain needs something external, define a port. Never import adapters from the domain.
+7. **Honesty about status.** If a requirement is left incomplete, document what is missing and its impact in the README; do not present it as finished.
+8. **Configuration outside the code.** Every environment-dependent value is read from environment variables; document them in `.env.example`.
+9. **Never build images or run tests, rehearsals or demos while mutations are running.** `scripts/mutations/run.py` modifies repo files during each mutation. Any `docker compose build`/`up --build`, `pytest`, `npm test`, Playwright or rehearsal launched in parallel may read mutated code and give false results. Wait for it to finish, check that `git diff -- backend/ frontend/src` is empty and that there are no `.orig` files, and only then continue. It already happened once: a demo rehearsal ran on an image built with `if False:` in `reservations.py` and had to be repeated (see `docs/demo.md`).
+10. **Everything in English.** All repository text (docs, ADRs, UI, comments, test names) is in English. `assignment/` is never modified.
 
-## Comandos
+## Commands
 
 ```bash
 cp .env.example .env
-docker compose up -d --build   # Postgres, API, worker, mock en :4010 y UI en :5173
-uv sync                        # entorno Python 3.12 (.venv)
-uv run pytest                  # tests y evaluaciones deterministas (excluye `llm`); necesita `db` levantado
-uv run pytest evals/llm -m llm -s   # evaluaciones con modelo; clave de GEMINI_API_KEY o .env (coste: evals/README.md)
-uv run mypy backend/app        # tipos (estricto)
+docker compose up -d --build   # Postgres, API, worker, mock on :4010 and UI on :5173
+uv sync                        # Python 3.12 environment (.venv)
+uv run pytest                  # tests and deterministic evaluations (excludes `llm`); needs `db` running
+uv run pytest evals/llm -m llm -s   # model evaluations; key from GEMINI_API_KEY or .env (cost: evals/README.md)
+uv run mypy backend/app        # types (strict)
 uv run ruff check .            # lint
-cd frontend && npm test        # Vitest (y npm run typecheck)
-./scripts/e2e.sh               # Playwright contra un Compose aparte levantado desde cero (sin clave de Gemini)
-python3 scripts/mutations/run.py   # inyección de errores; NADA más en paralelo (regla 9)
+cd frontend && npm test        # Vitest (and npm run typecheck)
+./scripts/e2e.sh               # Playwright against a separate Compose started from scratch (no Gemini key)
+python3 scripts/mutations/run.py   # fault injection; NOTHING else in parallel (rule 9)
 ```
 
-Migraciones: `cd backend && DATABASE_URL=... uv run alembic revision --autogenerate -m "..."`, siempre revisando el resultado. `tests/integration/test_persistence.py` falla si los modelos y las migraciones divergen. Identidad de prueba: header `X-User-Id` (`ana`, `beto`, `carla`, `dani`).
+Migrations: `cd backend && DATABASE_URL=... uv run alembic revision --autogenerate -m "..."`, always reviewing the result. `tests/integration/test_persistence.py` fails if the models and the migrations diverge. Test identity: `X-User-Id` header (`ana`, `beto`, `carla`, `dani`).
 
-El mock se documenta en `mock/README.md`. Sus endpoints `/_control/*` solo se usan desde tests y demos; el código de `backend/` nunca debe llamarlos.
+The mock is documented in `mock/README.md`. Its `/_control/*` endpoints are used only from tests and demos; code in `backend/` must never call them.

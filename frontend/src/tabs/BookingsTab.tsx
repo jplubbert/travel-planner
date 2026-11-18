@@ -22,12 +22,12 @@ export function BookingsTab() {
       <ErrorBox error={bookings.error ?? itinerary.error} />
       {allows("editor") && bookable.length > 0 && (
         <section>
-          <h3>Sin reservar</h3>
+          <h3>Not booked yet</h3>
           <ul className="plain">
             {bookable.map((i) => (
               <li key={i.itemId} className="row spread">
-                <span>{i.title} · {usd(i.quote.price)} <Badge tone="info">estimado</Badge></span>
-                <button className="secondary" onClick={() => setReviewing(i.itemId)}>Revisar términos</button>
+                <span>{i.title} · {usd(i.quote.price)} <Badge tone="info">estimate</Badge></span>
+                <button className="secondary" onClick={() => setReviewing(i.itemId)}>Review terms</button>
               </li>
             ))}
           </ul>
@@ -38,8 +38,8 @@ export function BookingsTab() {
           item={reviewed} onDone={() => { setReviewing(null); bookings.reload(); itinerary.reload(); }}
           onCancel={() => setReviewing(null)} />
       )}
-      <h3>Reservas</h3>
-      {bookings.data?.length === 0 && <p className="muted">Todavía no hay reservas.</p>}
+      <h3>Bookings</h3>
+      {bookings.data?.length === 0 && <p className="muted">No bookings yet.</p>}
       {(bookings.data ?? []).map((b) => (
         <BookingCard key={b.bookingId} booking={b} onChanged={bookings.reload} />
       ))}
@@ -65,46 +65,46 @@ function ReviewTerms({ item, onDone, onCancel }: { item: Item; onDone: () => voi
 
   async function refresh() {
     action.clear();
-    await versioned(`actualizar la cotización de «${item.title}»`,
+    await versioned(`refresh the quote for '${item.title}'`,
       (version) => api.post(`/trips/${trip.id}/itinerary/items/${item.itemId}/refresh`, { version }));
   }
 
   return (
-    <section className="card review" aria-label="revisar términos">
-      <h3>Revisar términos: {item.title}</h3>
+    <section className="card review" aria-label="review terms">
+      <h3>Review terms: {item.title}</h3>
       <dl>
-        <dt>Categoría</dt><dd>{CATEGORY_LABEL[item.category] ?? item.category} · {item.providerId}</dd>
-        <dt>Horario</dt><dd>{dateTime(item.startsAt)} – {dateTime(item.endsAt)}</dd>
-        <dt>Viajeros</dt><dd>{item.travelers}</dd>
-        <dt>Precio</dt><dd><strong>{usd(q.price)}</strong> (cotización {q.revision})</dd>
-        <dt>Válido hasta</dt><dd>{dateTime(q.validUntil)} {q.expired && <Badge tone="warn">caducado</Badge>}</dd>
-        <dt>Disponible</dt><dd>{q.available ? "sí" : "no"}</dd>
-        <dt>Restricciones</dt><dd>{item.restrictions.length ? item.restrictions.join("; ") : "ninguna"}</dd>
+        <dt>Category</dt><dd>{CATEGORY_LABEL[item.category] ?? item.category} · {item.providerId}</dd>
+        <dt>Schedule</dt><dd>{dateTime(item.startsAt)} – {dateTime(item.endsAt)}</dd>
+        <dt>Travelers</dt><dd>{item.travelers}</dd>
+        <dt>Price</dt><dd><strong>{usd(q.price)}</strong> (quote {q.revision})</dd>
+        <dt>Valid until</dt><dd>{dateTime(q.validUntil)} {q.expired && <Badge tone="warn">expired</Badge>}</dd>
+        <dt>Available</dt><dd>{q.available ? "yes" : "no"}</dd>
+        <dt>Restrictions</dt><dd>{item.restrictions.length ? item.restrictions.join("; ") : "none"}</dd>
       </dl>
       {q.expired && (
-        <Notice tone="warn">El precio caducó: el proveedor no aceptará estos términos. Actualiza la cotización y revísalos de nuevo.</Notice>
+        <Notice tone="warn">The price expired: the provider will not accept these terms. Refresh the quote and review them again.</Notice>
       )}
       {error && (error.code === "TERMS_CHANGED" || error.code === "OFFER_UNAVAILABLE") ? (
         <Notice tone="bad">
-          <strong>{error.status} {error.code}: no se reservó nada</strong>
+          <strong>{error.status} {error.code}: nothing was booked</strong>
           <div>{error.message}</div>
           {current && (
             <div>
-              Términos actuales: {usd(current.price)} · cotización {current.revision} ·{" "}
-              {current.available ? "disponible" : "no disponible"}
+              Current terms: {usd(current.price)} · quote {current.revision} ·{" "}
+              {current.available ? "available" : "unavailable"}
             </div>
           )}
-          <button className="secondary" onClick={() => void refresh()}>Actualizar cotización y revisar de nuevo</button>
+          <button className="secondary" onClick={() => void refresh()}>Refresh quote and review again</button>
         </Notice>
       ) : (
         <ErrorBox error={action.error} onClose={action.clear} />
       )}
       <div className="row">
         <button onClick={() => void confirm()} disabled={action.busy}>
-          {action.busy ? "Enviando…" : `Confirmar reserva por ${usd(q.price)}`}
+          {action.busy ? "Sending…" : `Confirm booking for ${usd(q.price)}`}
         </button>
-        {q.expired && <button className="secondary" onClick={() => void refresh()}>Actualizar cotización</button>}
-        <button className="secondary" onClick={onCancel}>Cancelar</button>
+        {q.expired && <button className="secondary" onClick={() => void refresh()}>Refresh quote</button>}
+        <button className="secondary" onClick={onCancel}>Cancel</button>
       </div>
     </section>
   );
@@ -120,34 +120,34 @@ export function BookingCard({ booking: b, onChanged }: { booking: Booking; onCha
         <strong>{b.itemTitle ?? b.offerId}</strong>
         <Badge tone={status.tone}>{status.label}</Badge>
       </div>
-      <p className="next-step"><strong>Qué hacer:</strong> {b.nextStep}</p>
+      <p className="next-step"><strong>What to do:</strong> {b.nextStep}</p>
       <dl>
-        <dt>Precio revisado</dt><dd>{usd(b.expectedPrice)} (cotización {b.expectedRevision})</dd>
-        {b.acceptedPrice && <><dt>Precio aceptado</dt><dd>{usd(b.acceptedPrice)}</dd></>}
-        {b.providerBookingId && <><dt>Referencia del proveedor</dt><dd><code>{b.providerBookingId}</code></dd></>}
-        <dt>Referencia propia</dt><dd><code>{b.clientReference}</code></dd>
-        <dt>Pedida por</dt><dd>{b.requestedBy} · {dateTime(b.createdAt)}</dd>
-        <dt>Actualizada</dt><dd>{dateTime(b.updatedAt)}</dd>
+        <dt>Reviewed price</dt><dd>{usd(b.expectedPrice)} (quote {b.expectedRevision})</dd>
+        {b.acceptedPrice && <><dt>Accepted price</dt><dd>{usd(b.acceptedPrice)}</dd></>}
+        {b.providerBookingId && <><dt>Provider reference</dt><dd><code>{b.providerBookingId}</code></dd></>}
+        <dt>Our reference</dt><dd><code>{b.clientReference}</code></dd>
+        <dt>Requested by</dt><dd>{b.requestedBy} · {dateTime(b.createdAt)}</dd>
+        <dt>Updated</dt><dd>{dateTime(b.updatedAt)}</dd>
       </dl>
       {b.lastError && (
         <div className="last-error">
-          <strong>Último error:</strong> <code>{b.lastError.code}</code> {b.lastError.message}
-          {b.lastError.retryAfterSeconds != null && ` · reintentar tras ${b.lastError.retryAfterSeconds} s`}
+          <strong>Last error:</strong> <code>{b.lastError.code}</code> {b.lastError.message}
+          {b.lastError.retryAfterSeconds != null && ` · retry after ${b.lastError.retryAfterSeconds} s`}
           {b.lastError.at && ` · ${dateTime(b.lastError.at)}`}
-          {b.lastError.providerRequestId && <small> · proveedor: {b.lastError.providerRequestId}</small>}
+          {b.lastError.providerRequestId && <small> · provider: {b.lastError.providerRequestId}</small>}
         </div>
       )}
       {b.failure && (
-        <div className="last-error"><strong>Fallo:</strong> <code>{b.failure.code}</code> {b.failure.message}</div>
+        <div className="last-error"><strong>Failure:</strong> <code>{b.failure.code}</code> {b.failure.message}</div>
       )}
       {b.currentTerms && (
-        <div className="muted">Términos actuales del proveedor: {usd(b.currentTerms.price)} · cotización {b.currentTerms.revision}</div>
+        <div className="muted">Current provider terms: {usd(b.currentTerms.price)} · quote {b.currentTerms.revision}</div>
       )}
       <ErrorBox error={action.error} onClose={action.clear} />
       {b.canRetry && allows("editor") && (
         <button disabled={action.busy} onClick={async () => {
           if (await action.run(() => api.post(`/trips/${trip.id}/bookings/${b.bookingId}/retry`))) onChanged();
-        }}>Reintentar (misma petición, sin duplicar)</button>
+        }}>Retry (same request, no duplicate)</button>
       )}
     </article>
   );

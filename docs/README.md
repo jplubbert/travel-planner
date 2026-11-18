@@ -1,1 +1,1 @@
-# docs — Documentación: decisiones de arquitectura (adr/), supuestos (assumptions.md) y notas de diseño.
+# docs — Documentation: architecture decisions (adr/), assumptions (assumptions.md) and design notes.

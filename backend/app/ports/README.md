@@ -1,1 +1,1 @@
-# ports — Interfaces Python (Protocol/ABC) que el dominio necesita: repositorios, proveedor de viajes, almacenamiento, reloj, etc.
+# ports — Python interfaces (Protocol/ABC) the domain needs: repositories, travel provider, storage, clock, etc.

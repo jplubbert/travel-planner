@@ -1,1 +1,1 @@
-# mcp — Servidor MCP de solo lectura (FastMCP) que expone búsqueda de opciones y lectura autorizada de viajes.
+# mcp — Read-only MCP server (FastMCP) that exposes option search and authorized reading of trips.

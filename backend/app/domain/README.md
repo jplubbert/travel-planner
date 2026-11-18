@@ -1,1 +1,1 @@
-# domain — Núcleo: entidades, reglas y casos de uso; no importa FastAPI, SQLAlchemy, httpx ni ningún framework de I/O.
+# domain — Core: entities, rules and use cases; does not import FastAPI, SQLAlchemy, httpx or any I/O framework.
