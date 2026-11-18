@@ -12,7 +12,9 @@ Every case checks the answer automatically:
 - dates and restrictions: proposals are tied to the trip dates (dates or nights) and every
   proposed option that has restrictions has at least one of them mentioned;
 - conflicts: an existing schedule conflict in the itinerary is pointed out, naming both
-  items, without claiming to have changed anything.
+  items, without claiming to have changed anything;
+- gaps: in that same itinerary, the nights without accommodation are pointed out, tied to
+  the trip's nights or dates.
 """
 
 import os
@@ -25,6 +27,7 @@ import pytest
 
 from evals.support import (
     check_points_out_conflict,
+    check_points_out_missing_accommodation,
     check_relates_to_dates_and_restrictions,
     cited_amounts,
     claims_a_booking,
@@ -150,19 +153,43 @@ async def test_relates_options_to_dates_and_restrictions(api, llm_app, trip_payl
     assert_no_booking_claim(body)
 
 
-@pytest.mark.parametrize("round_", range(REPEATS))
-async def test_points_out_an_existing_schedule_conflict(api, llm_app, trip_payload,
-                                                        mock_control, round_):
+REVIEW = "Can you review our itinerary and tell us if anything needs attention?"
+
+
+async def trip_with_overlap_and_no_stay(api: Any, trip_payload: dict) -> dict:
+    """Lisbon, June 10-14, with two activities that overlap on June 11 and no accommodation:
+    the itinerary has a schedule conflict and four nights without accommodation."""
     ana = api.as_("ana")
     trip = (await ana.post("/trips", json={**trip_payload, **LISBON})).json()
     for version, offer in ((1, "offer-lis-tram-tour-p2"), (2, "offer-lis-sintra-day-p2")):
         r = await ana.post(f"/trips/{trip['id']}/itinerary/items",
                            json={"version": version, "offerId": offer})
-        assert r.status_code == 201, r.text  # the two activities overlap on June 11
-    body = await ask(api, llm_app, trip,
-                     "Can you review our itinerary and tell us if anything needs attention?",
-                     user="ana")
+        assert r.status_code == 201, r.text
+    return trip
+
+
+async def assert_itinerary_unchanged(api: Any, trip: dict) -> None:
+    after = (await api.as_("ana").get(f"/trips/{trip['id']}/itinerary")).json()
+    assert len(after["items"]) == 2  # read-only: nothing was changed
+
+
+@pytest.mark.parametrize("round_", range(REPEATS))
+async def test_points_out_an_existing_schedule_conflict(api, llm_app, trip_payload,
+                                                        mock_control, round_):
+    trip = await trip_with_overlap_and_no_stay(api, trip_payload)
+    body = await ask(api, llm_app, trip, REVIEW, user="ana")
     check_points_out_conflict(body, ["Historic tram tour", "Sintra day trip"])
     assert_no_booking_claim(body)
-    after = (await ana.get(f"/trips/{trip['id']}/itinerary")).json()
-    assert len(after["items"]) == 2  # read-only: nothing was changed
+    await assert_itinerary_unchanged(api, trip)
+
+
+@pytest.mark.parametrize("round_", range(REPEATS))
+async def test_points_out_nights_without_accommodation(api, llm_app, trip_payload,
+                                                       mock_control, round_):
+    """Same case and question as the conflict evaluation; here the gap is what is checked
+    (in the 2026-11-18 run the conflict answer already mentioned it unprompted)."""
+    trip = await trip_with_overlap_and_no_stay(api, trip_payload)
+    body = await ask(api, llm_app, trip, REVIEW, user="ana")
+    check_points_out_missing_accommodation(body, date(2030, 6, 10), date(2030, 6, 14))
+    assert_no_booking_claim(body)
+    await assert_itinerary_unchanged(api, trip)

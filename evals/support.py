@@ -164,6 +164,24 @@ def flags_conflict(text: str, titles: list[str]) -> bool:
     return bool(_CONFLICT.search(text)) and all(names_item(text, t) for t in titles)
 
 
+_MISSING = re.compile(
+    r"\b(no|not|without|missing|lacks?|lacking|uncovered|yet to|haven't|have not|don't have|"
+    r"do not have|sin|falta|faltan|todavía no|aún no)\b",
+    re.IGNORECASE)
+_LODGING = re.compile(
+    r"\b(accommodations?|lodging|hotels?|place to stay|somewhere to stay|where to stay|"
+    r"alojamientos?|hospedaje|dónde dormir)\b",
+    re.IGNORECASE)
+
+
+def flags_missing_accommodation(text: str, starts_on: Any, ends_on: Any) -> bool:
+    """The answer points out a gap: some sentence says accommodation is missing, and the
+    answer ties it to the trip's nights or dates."""
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
+    gap = any(_MISSING.search(s) and _LODGING.search(s) for s in sentences)
+    return gap and relates_to_dates(text, starts_on, ends_on)
+
+
 _CHANGE_CLAIM = re.compile(
     r"\b(I|we)\s*(?:'ve|have|just)?\s*(removed|deleted|moved|rescheduled|changed|updated|"
     r"replaced|added)\b"
@@ -204,4 +222,15 @@ def check_points_out_conflict(body: dict[str, Any], titles: list[str]) -> None:
         "expected the itinerary to be read"
     assert flags_conflict(body["answer"], titles), \
         "the answer does not point out the overlap naming both activities"
+    assert not claims_a_change(body["answer"]), body["answer"]
+
+
+def check_points_out_missing_accommodation(body: dict[str, Any], starts_on: Any,
+                                           ends_on: Any) -> None:
+    """US-11 (gaps): the answer read the itinerary, says the nights have no accommodation,
+    tied to the trip's nights or dates, and does not claim to have changed anything."""
+    assert any(c["name"] == "get_itinerary" and not c["isError"] for c in body["toolCalls"]), \
+        "expected the itinerary to be read"
+    assert flags_missing_accommodation(body["answer"], starts_on, ends_on), \
+        "the answer does not point out the nights without accommodation"
     assert not claims_a_change(body["answer"]), body["answer"]

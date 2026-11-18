@@ -168,6 +168,21 @@ MCP.extend([
      "        if True:", "toda oferta cuenta como propuesta"),
 ])
 
+# US-11 gaps check: nights without accommodation (added 2026-11-18).
+MCP.extend([
+    (SP, "    return gap and relates_to_dates(text, starts_on, ends_on)", "    return gap",
+     "hueco sin atarlo a las noches"),
+    (SP, "    gap = any(_MISSING.search(s) and _LODGING.search(s) for s in sentences)",
+     "    gap = bool(_LODGING.search(text))", "hueco sin palabra de ausencia"),
+    (SP, "    gap = any(_MISSING.search(s) and _LODGING.search(s) for s in sentences)",
+     "    gap = bool(_MISSING.search(text) and _LODGING.search(text))",
+     "ausencia y alojamiento en frases distintas"),
+    (SP, '        "the answer does not point out the nights without accommodation"\n'
+         '    assert not claims_a_change(body["answer"]), body["answer"]',
+     '        "the answer does not point out the nights without accommodation"',
+     "huecos sin comprobar cambios"),
+])
+
 # --- from mutate_ui ----------------------------------------
 UF, UTV, USR, UBT, UCP, UAPI, USSE = (
     "frontend/src/format.ts", "frontend/src/TripView.tsx", "frontend/src/tabs/SearchTab.tsx",

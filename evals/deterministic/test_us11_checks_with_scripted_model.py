@@ -8,7 +8,11 @@ from datetime import date
 import pytest
 
 from app.adapters.scripted_model import ScriptedModel, call, say
-from evals.support import check_points_out_conflict, check_relates_to_dates_and_restrictions
+from evals.support import (
+    check_points_out_conflict,
+    check_points_out_missing_accommodation,
+    check_relates_to_dates_and_restrictions,
+)
 
 LISBON = {"name": "Lisbon", "destinations": ["Lisbon"], "startsOn": "2030-06-10",
           "endsOn": "2030-06-14", "budget": "3000.00"}
@@ -91,3 +95,31 @@ async def test_conflict_check_requires_reading_the_itinerary(api, make_app, trip
                            "Anything wrong with our plan?")
     with pytest.raises(AssertionError, match="itinerary"):
         check_points_out_conflict(body, CONFLICT)
+
+
+@pytest.mark.parametrize("answer,passes", [
+    ("Your Historic tram tour overlaps with the Sintra day trip. Also, you have no "
+     "accommodation for your 4 nights in Lisbon (June 10 to 14).", True),
+    ("Your Historic tram tour overlaps with the Sintra day trip.", False),  # gap not mentioned
+    ("You have no accommodation yet.", False),  # not tied to the nights or dates
+    # Claims to have changed the itinerary.
+    ("I added a hotel for your 4 nights, since you had no accommodation.", False),
+])
+async def test_missing_accommodation_check(api, make_app, trip_payload, mock_control, answer,
+                                           passes):
+    trip = await lisbon_trip(api, trip_payload)
+    ana = api.as_("ana")
+    for version, offer in ((1, "offer-lis-tram-tour-p2"), (2, "offer-lis-sintra-day-p2")):
+        r = await ana.post(f"/trips/{trip['id']}/itinerary/items",
+                           json={"version": version, "offerId": offer})
+        assert r.status_code == 201, r.text
+    body = await chat_with(api, make_app, trip,
+                           [call("get_itinerary", trip_id=trip["id"]), say(answer)],
+                           "Can you review our itinerary and tell us if anything needs attention?")
+    # The scripted model received the real gap computed by the application.
+    assert "NIGHTS_WITHOUT_ACCOMMODATION" in str(body["toolCalls"][0]["result"])
+    if passes:
+        check_points_out_missing_accommodation(body, START, END)
+    else:
+        with pytest.raises(AssertionError):
+            check_points_out_missing_accommodation(body, START, END)

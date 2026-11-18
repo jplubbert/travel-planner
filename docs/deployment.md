@@ -107,4 +107,4 @@ Toda la configuración se lee del entorno (`backend/app/config.py`, documentada 
 
 ## Coste
 
-No estimado, más allá del modelo: las evaluaciones con modelo cuestan unos 0,14–0,28 USD por pasada de los 7 casos, una estimación no medida (`evals/README.md`).
+No estimado, más allá del modelo: las evaluaciones con modelo cuestan unos 0,16–0,32 USD por pasada de los 8 casos, una estimación no medida (`evals/README.md`).

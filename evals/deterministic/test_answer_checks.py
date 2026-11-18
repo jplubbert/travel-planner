@@ -12,6 +12,7 @@ from evals.support import (
     claims_a_booking,
     claims_a_change,
     flags_conflict,
+    flags_missing_accommodation,
     is_grounded,
     known_amounts,
     mentioned_offers,
@@ -148,3 +149,19 @@ def test_flags_conflict(text, flagged):
 ])
 def test_claims_a_change(text, claims):
     assert claims_a_change(text) is claims
+
+
+@pytest.mark.parametrize("text,flagged", [
+    ("You have no accommodation for your 4 nights in Lisbon.", True),
+    ("Note: the nights of June 10 to 13 are still without a hotel.", True),
+    ("There is nowhere booked yet... Missing: a place to stay from June 10.", True),
+    ("Os falta alojamiento para las cuatro noches.", True),
+    ("Your hotel covers all 4 nights.", False),  # no missing-word in that sentence
+    # A missing-word and a lodging word in different sentences are not a gap.
+    ("Your hotel covers all 4 nights. There is no conflict on June 11.", False),
+    ("You have no accommodation yet.", False),  # not tied to the trip's nights or dates
+    ("There is no conflict on June 10.", False),  # missing-word, but not about lodging
+    ("Your tram tour overlaps with the Sintra day trip.", False),
+])
+def test_flags_missing_accommodation(text, flagged):
+    assert flags_missing_accommodation(text, START, END) is flagged

@@ -69,7 +69,7 @@ ADR 0003. Ensayado en Docker (ver [demo](demo.md), paso 5).
 | Recuperación tras desconexión | Los eventos SSE solo avisan; con `ready` en cada (re)conexión la UI relee con `GET` | `test_status_channel.py`; e2e "al reconectar relee" |
 | Proveedor lento, caído o limitado por tasa | Plazo total por llamada (`PROVIDER_TIMEOUT_SECONDS`), búsqueda parcial o fallida explícita, `lastError` y `nextStep` en las reservas, y la reconciliación nunca reintenta antes del `Retry-After` | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py` |
 | Una operación en segundo plano se puede rastrear | El `X-Request-Id` de la petición pasa al job, y el worker lo usa en sus logs y en las llamadas al proveedor | `test_request_id_propagation.py` |
-| El asistente no inventa ni escribe | Las tools son de solo lectura (test de arquitectura). Las instrucciones exigen datos de las tools, y hay verificadores automáticos de precios y afirmaciones | `evals/` (deterministas por defecto; con modelo, 5 de 5 el 2026-11-17) |
+| El asistente no inventa ni escribe | Las tools son de solo lectura (test de arquitectura). Las instrucciones exigen datos de las tools, y hay verificadores automáticos de precios, afirmaciones, fechas, restricciones, conflictos y huecos | `evals/` (deterministas por defecto; con modelo, 5 de 5 el 2026-11-17 y 7 de 7 el 2026-11-18) |
 
 Los tests se comprobaron también inyectando errores: [`scripts/mutations/`](../scripts/mutations/README.md).
 
@@ -94,7 +94,7 @@ Los tests se comprobaron también inyectando errores: [`scripts/mutations/`](../
   - con varias réplicas de la API hay que mantener sin buffer el proxy de `/trips/{id}/events`.
 - **Asistente:**
   - comparte proceso y pool de conexiones con la API;
-  - las evaluaciones con modelo son probabilísticas: los 5 casos originales se ejecutaron una vez (5 de 5); los 2 de US-11 añadidos después (fechas y restricciones, conflicto de horario) aún no; y no se midió el consumo de tokens.
+  - las evaluaciones con modelo son probabilísticas: 5 de 5 el 2026-11-17 y 7 de 7 el 2026-11-18, cada caso una vez. El caso de huecos (noches sin alojamiento) aún no se ha ejecutado, y no se midió el consumo de tokens.
 - **Reconciliación:**
   - concluir `rejected` tras reenviar depende de que el proveedor cumpla la idempotencia ante peticiones idénticas en vuelo (ADR 0003, riesgo documentado);
   - el `Retry-After` se respeta por job, pero no hay un limitador de tasa compartido entre workers.
