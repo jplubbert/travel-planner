@@ -38,6 +38,10 @@ class HtmlDocumentRenderer:
             "<p>", " → ".join(_e(d) for d in trip["destinations"]),
             f" · {_e(trip['startsOn'])} to {_e(trip['endsOn'])} · {_e(trip['travelers'])} "
             f"travelers · budget {_money(trip['budget'])}</p>",
+        ]
+        if trip.get("preferences"):  # absent in snapshots taken before migration 0007
+            parts.append(f"<p><strong>Preferences:</strong> {_e(trip['preferences'])}</p>")
+        parts += [
             "<h2>Itinerary</h2>",
         ]
         if snapshot["itinerary"]:

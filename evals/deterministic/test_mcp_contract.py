@@ -64,6 +64,33 @@ async def test_every_participant_reads_through_every_tool(mcp_as, planned, user)
     assert all(o["priceType"] == "estimate" for o in search["offers"])
 
 
+async def test_trip_tool_exposes_saved_preferences(mcp_as, api, shared_trip):
+    prefs = "Private bathroom; no overnight journeys."
+    r = await api.as_("ana").patch(f"/trips/{shared_trip['id']}",
+                                   json={"version": 1, "preferences": prefs})
+    assert r.status_code == 200, r.text
+    async with mcp_as("carla") as tools:  # a viewer reads them too
+        specs = {s.name: s for s in await tools.list_tools()}
+        trip = payload(await call(tools, "get_trip", trip_id=shared_trip["id"]))
+    assert trip["preferences"] == prefs and trip["version"] == 2
+    assert "preferences" in specs["get_trip"].description
+
+
+async def test_itinerary_tool_exposes_missing_transport(mcp_as, api, shared_trip,
+                                                        mock_control):
+    ana = api.as_("ana")
+    for version, offer in ((1, HOTEL), (2, "offer-mad-train-lis-p2")):  # Lisbon->Madrid
+        r = await ana.post(f"/trips/{shared_trip['id']}/itinerary/items",
+                           json={"version": version, "offerId": offer})
+        assert r.status_code == 201, r.text
+    async with mcp_as("carla") as tools:
+        itinerary = payload(await call(tools, "get_itinerary", trip_id=shared_trip["id"]))
+    gaps = [g for g in itinerary["missing"] if g["code"] == "MISSING_TRANSPORT"]
+    assert gaps == [{"code": "MISSING_TRANSPORT",
+                     "message": "Missing transport from Madrid to Paris."}]
+    assert any("consecutive destinations" in rule for rule in itinerary["rules"])
+
+
 async def test_nonparticipant_gets_not_found_on_every_trip_tool(mcp_as, planned):
     async with mcp_as("dani") as tools:
         assert payload(await call(tools, "list_my_trips"))["trips"] == []

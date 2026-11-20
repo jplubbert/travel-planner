@@ -13,6 +13,7 @@ export type Trip = {
   endsOn: string;
   travelers: number;
   budget: Money;
+  preferences: string;
   version: number;
   createdBy: string;
   createdAt: string;
@@ -27,6 +28,7 @@ export type TripInput = {
   endsOn: string;
   travelers: number;
   budget: string;
+  preferences: string;
 };
 
 export type Member = { userId: string; displayName: string; role: Role; addedAt: string };

@@ -30,6 +30,10 @@ RULES: tuple[str, ...] = (
     "Every night from the first day to the night before the last day should be covered by "
     "an accommodation; uncovered nights and destinations without accommodation are "
     "reported as missing.",
+    "With two or more destinations, they are visited in the order listed; each pair of "
+    "consecutive destinations needs a transport item from the first to the second "
+    "(matching its origin and destination, in that direction), otherwise the transport is "
+    "reported as missing. Travel to the first destination and back home is not checked.",
     "A price is flagged expired once its quote's validUntil has passed; refresh the item to "
     "get current terms. Items with a confirmed booking keep the accepted price.",
     "Availability and price reflect the last quote (quotedAt); they may have changed since.",
@@ -124,7 +128,9 @@ class Flag:
 
 @dataclass(frozen=True)
 class Gap:
-    code: str  # EMPTY_ITINERARY | NO_ACCOMMODATION_FOR_DESTINATION | NIGHTS_WITHOUT_ACCOMMODATION
+    # EMPTY_ITINERARY | NO_ACCOMMODATION_FOR_DESTINATION | NIGHTS_WITHOUT_ACCOMMODATION |
+    # MISSING_TRANSPORT
+    code: str
     message: str
 
 
@@ -227,6 +233,12 @@ def _gaps(trip: "Trip", items: list[ItineraryItem]) -> tuple[Gap, ...]:
     for first, last in _ranges(uncovered):
         span = f"night of {first}" if first == last else f"nights of {first} to {last}"
         gaps.append(Gap("NIGHTS_WITHOUT_ACCOMMODATION", f"No accommodation for the {span}."))
+    routes = {((i.origin or "").casefold(), i.destination.casefold())
+              for i in items if i.category == "transport"}
+    for origin, destination in zip(trip.destinations, trip.destinations[1:], strict=False):
+        if (origin.casefold(), destination.casefold()) not in routes:
+            gaps.append(Gap("MISSING_TRANSPORT",
+                            f"Missing transport from {origin} to {destination}."))
     return tuple(gaps)
 
 

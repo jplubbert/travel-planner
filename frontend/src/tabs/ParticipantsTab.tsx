@@ -92,6 +92,7 @@ function EditTrip() {
         <button className="secondary" onClick={() => setForm({
           name: trip.name, destinations: trip.destinations, startsOn: trip.startsOn,
           endsOn: trip.endsOn, travelers: trip.travelers, budget: trip.budget.amount,
+          preferences: trip.preferences,
         })}>Edit trip details</button>
       </p>
     );
@@ -141,6 +142,11 @@ export function TripFields({ value, onChange }: { value: TripInput; onChange: (v
       </Field>
       <Field label="Budget (USD)">
         <input value={value.budget} inputMode="decimal" onChange={(e) => onChange({ ...value, budget: e.target.value })} />
+      </Field>
+      <Field label="Preferences and restrictions (optional)">
+        <textarea value={value.preferences} maxLength={500} rows={3}
+          placeholder="For example: private bathroom, no overnight journeys"
+          onChange={(e) => onChange({ ...value, preferences: e.target.value })} />
       </Field>
     </div>
   );

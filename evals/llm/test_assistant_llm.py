@@ -14,7 +14,9 @@ Every case checks the answer automatically:
 - conflicts: an existing schedule conflict in the itinerary is pointed out, naming both
   items, without claiming to have changed anything;
 - gaps: in that same itinerary, the nights without accommodation are pointed out, tied to
-  the trip's nights or dates.
+  the trip's nights or dates;
+- preferences: the group's saved preferences (read with get_trip, not given in the
+  message) are related to the proposed options.
 """
 
 import os
@@ -29,6 +31,7 @@ from evals.support import (
     check_points_out_conflict,
     check_points_out_missing_accommodation,
     check_relates_to_dates_and_restrictions,
+    check_relates_to_preferences,
     cited_amounts,
     claims_a_booking,
     is_grounded,
@@ -193,3 +196,19 @@ async def test_points_out_nights_without_accommodation(api, llm_app, trip_payloa
     check_points_out_missing_accommodation(body, date(2030, 6, 10), date(2030, 6, 14))
     assert_no_booking_claim(body)
     await assert_itinerary_unchanged(api, trip)
+
+
+PREFERENCES = "Private bathroom; no hostels."
+
+
+@pytest.mark.parametrize("round_", range(REPEATS))
+async def test_relates_options_to_saved_preferences(api, llm_app, trip_payload, mock_control,
+                                                    round_):
+    """The message does not mention the preferences: they must come from the saved trip."""
+    trip = (await api.as_("ana").post("/trips", json={**trip_payload, **LISBON,
+                                                      "preferences": PREFERENCES})).json()
+    body = await ask(api, llm_app, trip, "Find us accommodation in Lisbon for our trip.",
+                     user="ana")
+    check_relates_to_preferences(body, PREFERENCES)
+    assert_grounded(body)
+    assert_no_booking_claim(body)

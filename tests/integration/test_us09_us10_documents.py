@@ -111,6 +111,33 @@ async def test_document_contains_itinerary_costs_and_booking_statuses(
     assert "<script" not in html and "http" not in html.split("<body>")[1]  # self-contained
 
 
+async def test_document_shows_preferences_and_missing_transport(
+    api, shared_trip, mock_control, make_worker
+):
+    ana = api.as_("ana")
+    r = await ana.patch(f"/trips/{shared_trip['id']}",
+                        json={"version": 1, "preferences": "Private bathroom <please>"})
+    assert r.status_code == 200, r.text
+    await add_item(ana, shared_trip, HOTEL)
+    d = await generated(api, make_worker, shared_trip)
+    html = (await download(ana, shared_trip, d["documentId"])).text
+    assert "Preferences:</strong> Private bathroom &lt;please&gt;" in html  # escaped
+    assert "Missing transport from Lisbon to Madrid." in html
+
+
+async def test_snapshot_without_preferences_still_renders():
+    """Snapshots taken before migration 0007 have no preferences key."""
+    snapshot = {"takenAt": "2030-06-01T12:00:00+00:00", "trip": {
+        "id": "t", "version": 1, "name": "T", "destinations": ["Lisbon"],
+        "startsOn": "2030-06-10", "endsOn": "2030-06-14", "travelers": 2,
+        "budget": {"amount": "1.00", "currency": "USD"}}, "itinerary": [], "missing": [],
+        "rules": [], "bookings": [], "costs": {
+            "lines": [], "estimatedTotal": None, "confirmedTotal": None, "total": None,
+            "budget": None, "remaining": None, "overBudget": False, "usedPercent": None,
+            "rounding": "r"}}
+    assert b"Preferences" not in HtmlDocumentRenderer().render(snapshot)
+
+
 async def test_repeated_requests_while_running_return_the_same_document(
     api, shared_trip, mock_control, make_worker, app
 ):

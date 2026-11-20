@@ -17,6 +17,7 @@ from evals.support import (
     known_amounts,
     mentioned_offers,
     relates_to_dates,
+    relates_to_preferences,
     says_no_option,
 )
 
@@ -165,3 +166,30 @@ def test_claims_a_change(text, claims):
 ])
 def test_flags_missing_accommodation(text, flagged):
     assert flags_missing_accommodation(text, START, END) is flagged
+
+
+PREFS = "Private bathroom; no hostels."
+
+
+@pytest.mark.parametrize("text,related", [
+    ("Since you prefer a private bathroom, the Alfama apartment fits; I left out the Baixa "
+     "hostel.", True),
+    ("Your requirement: no hostels and a private bathroom. The Central hotel meets it.", True),
+    ("Según vuestras preferencias (private bathroom, no hostels), el apartamento de Alfama "
+     "encaja.", True),
+    # Strict side: a translation shares only "hostel" with the saved text (known limitation).
+    ("Prefieren evitar hostels: el apartamento de Alfama tiene baño privado.", False),
+    # Names the words but never refers to them as the group's preference.
+    ("The Baixa hostel has a shared bathroom; the Alfama apartment has a private one.", False),
+    # Refers to preferences, but to none of the saved ones.
+    ("Given your preferences, the Alfama apartment is central and quiet.", False),
+    # Only one of the three distinctive words.
+    ("You prefer hostels? The Baixa one is cheap.", False),
+    ("", False),
+])
+def test_relates_to_preferences(text, related):
+    assert relates_to_preferences(text, PREFS) is related
+
+
+def test_empty_preferences_never_count_as_related():
+    assert relates_to_preferences("You prefer a private bathroom.", "") is False

@@ -192,6 +192,7 @@ export function TripView({ api, tripId, showAll, onBack }: {
               {trip.destinations.join(" → ")} · {day(trip.startsOn)} – {day(trip.endsOn)} ·{" "}
               {trip.travelers} travelers · budget {usd(trip.budget)}
             </div>
+            {trip.preferences && <div className="muted">Preferences: {trip.preferences}</div>}
           </div>
           <div className="right">
             <Badge tone="neutral">your role: {role ? ROLE_LABEL[role] : "—"}</Badge>{" "}

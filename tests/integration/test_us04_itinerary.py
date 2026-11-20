@@ -230,6 +230,25 @@ async def test_missing_information_and_rules_are_explained(api, shared_trip, moc
             "No accommodation for the nights of 2030-06-14 to 2030-06-21.") in missing
 
 
+async def test_missing_transport_between_consecutive_destinations(
+    api, shared_trip, mock_control
+):
+    def transport_gaps(view):
+        return [g["message"] for g in view["missing"] if g["code"] == "MISSING_TRANSPORT"]
+
+    view = await add_ok(api.as_("ana"), shared_trip, HOTEL)  # Lisbon, Madrid, Paris
+    assert transport_gaps(view) == ["Missing transport from Lisbon to Madrid.",
+                                    "Missing transport from Madrid to Paris."]
+    assert any("consecutive destinations" in rule for rule in view["rules"])
+
+    view = await add_ok(api.as_("ana"), shared_trip, "offer-lis-flight-mad-p2")  # Madrid->Lisbon
+    assert len(transport_gaps(view)) == 2  # the wrong direction does not count
+    view = await add_ok(api.as_("ana"), shared_trip, "offer-mad-train-lis-p2")  # Lisbon->Madrid
+    assert transport_gaps(view) == ["Missing transport from Madrid to Paris."]
+    reopened = await itinerary(api.as_("carla"), shared_trip)
+    assert transport_gaps(reopened) == ["Missing transport from Madrid to Paris."]
+
+
 # --- Refreshing a quote ----------------------------------------------------------------
 
 

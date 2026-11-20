@@ -63,6 +63,7 @@ class TripRow(Base):
         CheckConstraint("currency = 'USD'", name="currency_usd"),
         CheckConstraint("cardinality(destinations) >= 1", name="has_destination"),
         CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint("char_length(preferences) <= 500", name="preferences_length"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -72,6 +73,7 @@ class TripRow(Base):
     ends_on: Mapped[date] = mapped_column(Date)
     travelers: Mapped[int] = mapped_column(Integer)
     budget: Mapped[Decimal] = mapped_column(Money)
+    preferences: Mapped[str] = mapped_column(Text, server_default="")
     currency: Mapped[str] = mapped_column(String(3), server_default="USD")
     version: Mapped[int] = mapped_column(Integer)
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))

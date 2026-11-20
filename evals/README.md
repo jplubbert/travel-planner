@@ -13,7 +13,7 @@ Both need PostgreSQL (`docker compose up -d db`); the tests start the provider m
 uv run pytest evals/deterministic -s   # -s prints precision and recall for each search
 ```
 
-- `test_mcp_contract.py`: tool list, schemas and read-only annotation; each tool for organizer, editor and viewer; a non-participant gets the same response as for a nonexistent trip; missing, forged or expired tokens; `partial` and `empty` searches preserved; a `failed` search arrives as a tool error; invalid arguments explained; write tools do not exist.
+- `test_mcp_contract.py`: tool list, schemas and read-only annotation; `get_trip` exposes the saved preferences and `get_itinerary` the missing transport between destinations; each tool for organizer, editor and viewer; a non-participant gets the same response as for a nonexistent trip; missing, forged or expired tokens; `partial` and `empty` searches preserved; a `failed` search arrives as a tool error; invalid arguments explained; write tools do not exist.
 - `test_search_relevance.py`: 8 queries with their expected result, written by hand from the fixtures. Requires precision 1.0 (everything returned matches category, destination or origin, group and window) and recall 1.0 (everything expected appears).
 - `test_assistant_loop.py`: the chat endpoint with `ScriptedModel`. Covers:
   - tools discovered through MCP;
@@ -24,7 +24,7 @@ uv run pytest evals/deterministic -s   # -s prints precision and recall for each
   - the history;
   - a model failure gives 502 and a missing key, 503.
 - `test_answer_checks.py`: the automatic checkers in `evals/support.py`, with good and bad answers. If a checker never fired, it would let invented prices or false claims through silently.
-- `test_us11_checks_with_scripted_model.py`: the composite checks of the three US-11 cases (dates and restrictions, schedule conflict, nights without accommodation). They run against the real chat endpoint, with the real MCP tools and a scripted model. A good answer passes them and a deficient one fails them: without dates, without the restriction of a proposed option, without naming the conflicting items, without the gap or without tying it to the nights, or claiming it changed the itinerary.
+- `test_us11_checks_with_scripted_model.py`: the composite checks of the four US-11 cases (dates and restrictions, schedule conflict, nights without accommodation, saved preferences). They run against the real chat endpoint, with the real MCP tools and a scripted model. A good answer passes them and a deficient one fails them: without dates, without the restriction of a proposed option, without naming the conflicting items, without the gap or without tying it to the nights, without reading the trip, without referring to the saved preferences (repeating an offer's "shared bathroom" is not enough), or claiming it changed the itinerary.
 
 ## With a model (Gemini)
 
@@ -52,6 +52,7 @@ Each case verifies the answer automatically (`evals/support.py`):
 | Dates and restrictions (trip to Lisbon from 10 to 14 June; "Find us accommodation in Lisbon for our trip.") | Searches successfully and proposes retrieved options (detected by their price or by the distinctive words of the title). Relates the proposal to the trip: names a trip date or the number of nights (4). **Each proposed option that has restrictions** mentions at least one of them. Prices backed and no booking claims. *Added on 2026-11-18.* |
 | Existing schedule conflict (the itinerary has *Historic tram tour* and *Sintra day trip*, which overlap on 11 June; "Can you review our itinerary and tell us if anything needs attention?") | Reads the itinerary with `get_itinerary`, points out the overlap **naming both activities** and does not claim to have changed or booked anything. The itinerary still has both items. *Added on 2026-11-18.* |
 | Gaps: nights without accommodation (the **same** trip, itinerary and question as the previous case; the app computes "No accommodation for the nights of 2030-06-10 to 2030-06-13") | Reads the itinerary. Some sentence says accommodation is missing (a word of absence and a word of accommodation in the same sentence) and the answer ties it to the nights or dates of the trip. Does not claim to have changed or booked anything, and the itinerary does not change. *Added on 2026-11-18, after the 01:08 run pointed out this gap without anyone asking.* |
+| Saved preferences (trip to Lisbon from 10 to 14 June with preferences "Private bathroom; no hostels."; "Find us accommodation in Lisbon for our trip.", which does **not** mention them) | `get_trip` returned the saved preferences, the answer proposes a retrieved option, and relates it to the preferences: at least half of their distinctive words appear (singular or plural) and a sentence that refers to a preference ("you prefer", "your requirement", "preferencias") names one of them. Prices backed, no booking or change claims. *Added on 2026-11-20; **not run with the real model yet**.* |
 
 ### Recorded results
 
@@ -61,14 +62,14 @@ Each case verifies the answer automatically (`evals/support.py`):
 | 2026-11-18 01:08 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **7 of 7 pass**, in 97 s | Run by the project owner with a real key: the 5 original cases and the 2 US-11 cases (dates and restrictions, schedule conflict). In the conflict case, the answer **also** pointed out the 4 nights without accommodation and the lack of transport, without the question asking for it. |
 | 2026-11-18 01:31 | `gemini-3.8-flash` (`thinking_level=low`) | 1 | **1 of 1 passes**, in 14 s | Run by the project owner with a real key: the gaps case (nights without accommodation), added from the observation in the 01:08 run. |
 
-**Status:** all 8 cases have passed with the real model, **in two runs** (7 of 7 at 01:08 and 1 of 1 at 01:31 on 2026-11-18), not in a single pass of all 8. Each case ran once, so there is no pass rate with `EVAL_REPEATS` yet.
+**Status:** 8 of the 9 cases have passed with the real model, **in two runs** (7 of 7 at 01:08 and 1 of 1 at 01:31 on 2026-11-18), not in a single pass of all 8. The preferences case, added on 2026-11-20, has not been run with the model. Each case ran once, so there is no pass rate with `EVAL_REPEATS` yet.
 
 **Limitations:**
 - The checks are heuristic: regular expressions and keywords in English and Spanish (the assistant answers in the user's language).
 - The amounts check accepts sums of up to 3 terms and differences of 2, so a more complex calculation, even if correct, would be flagged as unbacked.
 - The US-11 checks are tuned to the **strict** side: a paraphrase without the keywords does not count as a mention. For example, "late check-in is not possible" does not quote "No check-in after 22:00", and "tranvía" (Spanish for tram) does not name the "Historic tram tour". A false negative fails the case and the answer printed with `-s` is reviewed; it never passes silently.
-- Of the gaps, only nights without accommodation are evaluated, the one the app computes (`NIGHTS_WITHOUT_ACCOMMODATION`). The lack of transport the model mentioned on 2026-11-18 is not a gap the app computes, and it is not evaluated.
-- Preferences are not evaluated: they only arrive in the chat message.
+- Of the gaps, only nights without accommodation are evaluated with the model. Since 2026-11-20 the app also computes missing transport between consecutive destinations (`MISSING_TRANSPORT`, which the model had mentioned on its own on 2026-11-18), but there is no LLM case for it.
+- The preferences check compares words with the saved text: an answer that translates the preferences (for example "baño privado" for "Private bathroom") fails it. It is a false negative that is reviewed with `-s`, never a silent pass.
 - The model is probabilistic, which is why `EVAL_REPEATS` exists to measure the pass rate.
 
 ### Approximate cost

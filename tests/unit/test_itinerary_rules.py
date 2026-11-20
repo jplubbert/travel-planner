@@ -1,5 +1,6 @@
 """US-04 read-time checks (simplified scheduling rules), as pure functions."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -16,11 +17,11 @@ TRIP = Trip(uuid4(), "T", ("Lisbon", "Madrid"), date(2030, 6, 10), date(2030, 6,
 
 
 def item(category, start, end, *, destination="Lisbon", title=None, travelers=2,
-         available=True, valid_until=NOW + timedelta(minutes=15), position=0):
+         available=True, valid_until=NOW + timedelta(minutes=15), position=0, origin=None):
     return ItineraryItem(
         id=uuid4(), trip_id=TRIP.id, position=position, offer_id=f"offer-{uuid4()}",
         provider_id="supplier-a", category=category, title=title or category,
-        description="d", destination=destination, origin=None, starts_at=start, ends_at=end,
+        description="d", destination=destination, origin=origin, starts_at=start, ends_at=end,
         travelers=travelers, price=Decimal("10.00"), offer_revision="r1", available=available,
         valid_until=valid_until, quoted_at=NOW, added_by="ana", created_at=NOW,
         offer_snapshot={},
@@ -115,9 +116,53 @@ def test_missing_accommodation_nights_and_destinations():
             "No accommodation for the nights of 2030-06-13 to 2030-06-17.") in gaps
 
 
+def train(origin, destination, day=14):
+    return item("transport", at(day, 8), at(day, 14, MAD), origin=origin,
+                destination=destination)
+
+
 def test_fully_covered_trip_has_no_gaps():
-    view = build_view(TRIP, [stay(10, 14), stay(14, 18, "madrid", MAD)], [], NOW)
+    view = build_view(TRIP, [stay(10, 14), train("lisbon", "MADRID"),
+                             stay(14, 18, "madrid", MAD)], [], NOW)
     assert view.missing == ()
+
+
+def transport_gaps(view):
+    return [g.message for g in view.missing if g.code == "MISSING_TRANSPORT"]
+
+
+def test_transport_between_consecutive_destinations_closes_the_gap():
+    view = build_view(TRIP, [stay(10, 14), train("Lisbon", "Madrid")], [], NOW)
+    assert transport_gaps(view) == []
+
+
+def test_missing_transport_between_consecutive_destinations_is_a_gap():
+    three = replace(TRIP, destinations=("Lisbon", "Madrid", "Paris"))
+    view = build_view(three, [stay(10, 14)], [], NOW)
+    assert transport_gaps(view) == ["Missing transport from Lisbon to Madrid.",
+                                    "Missing transport from Madrid to Paris."]
+
+    view = build_view(three, [stay(10, 14), train("Lisbon", "Madrid")], [], NOW)
+    assert transport_gaps(view) == ["Missing transport from Madrid to Paris."]
+
+
+def test_only_a_transport_in_that_direction_between_those_destinations_counts():
+    others = [train("Madrid", "Lisbon"),  # wrong direction
+              train("London", "Madrid"),  # another origin
+              item("activity", at(14, 8), at(14, 12), origin="Lisbon",  # not transport
+                   destination="Madrid")]
+    view = build_view(TRIP, [stay(10, 14), *others], [], NOW)
+    assert transport_gaps(view) == ["Missing transport from Lisbon to Madrid."]
+
+
+def test_a_single_destination_never_needs_transport():
+    single = replace(TRIP, destinations=("Lisbon",), ends_on=date(2030, 6, 14))
+    view = build_view(single, [stay(10, 14)], [], NOW)
+    assert view.missing == ()
+
+
+def test_the_transport_rule_is_explained():
+    assert any("consecutive destinations" in rule and "transport" in rule for rule in RULES)
 
 
 def test_empty_itinerary_and_rules_are_reported():

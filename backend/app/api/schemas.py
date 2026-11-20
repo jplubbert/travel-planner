@@ -16,6 +16,9 @@ class Input(BaseModel):
 
 
 AmountStr = Annotated[StrictStr, Field(description="USD decimal string, e.g. '1500.00'")]
+PreferencesStr = Annotated[StrictStr, Field(
+    description="The group's preferences and restrictions as free text (at most 500 "
+                "characters); \"\" for none")]
 
 
 class TripCreate(Input):
@@ -25,11 +28,13 @@ class TripCreate(Input):
     endsOn: date
     travelers: StrictInt
     budget: AmountStr
+    preferences: PreferencesStr = ""
 
     def to_fields(self) -> TripFields:
         return TripFields(name=self.name, destinations=self.destinations,
                           starts_on=self.startsOn, ends_on=self.endsOn,
-                          travelers=self.travelers, budget=self.budget)
+                          travelers=self.travelers, budget=self.budget,
+                          preferences=self.preferences)
 
 
 class TripUpdate(Input):
@@ -41,11 +46,13 @@ class TripUpdate(Input):
     endsOn: date | None = None
     travelers: StrictInt | None = None
     budget: AmountStr | None = None
+    preferences: PreferencesStr | None = None
 
     def to_fields(self) -> TripFields:
         return TripFields(name=self.name, destinations=self.destinations,
                           starts_on=self.startsOn, ends_on=self.endsOn,
-                          travelers=self.travelers, budget=self.budget)
+                          travelers=self.travelers, budget=self.budget,
+                          preferences=self.preferences)
 
 
 class MoneyOut(BaseModel):
@@ -61,6 +68,7 @@ class TripOut(BaseModel):
     endsOn: date
     travelers: int
     budget: MoneyOut
+    preferences: str
     version: int
     createdBy: str
     createdAt: datetime
@@ -72,7 +80,8 @@ def trip_out(trip: Trip, role: Role | None = None) -> TripOut:
     return TripOut(
         id=trip.id, name=trip.name, destinations=list(trip.destinations),
         startsOn=trip.starts_on, endsOn=trip.ends_on, travelers=trip.travelers,
-        budget=MoneyOut(amount=format_usd(trip.budget)), version=trip.version,
+        budget=MoneyOut(amount=format_usd(trip.budget)), preferences=trip.preferences,
+        version=trip.version,
         createdBy=trip.created_by, createdAt=trip.created_at, updatedAt=trip.updated_at,
         myRole=role,
     )

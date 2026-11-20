@@ -107,7 +107,7 @@ function CreateTrip({ api, onCreated, onCancel }: {
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<TripInput>({
-    name: "", destinations: [], startsOn: "", endsOn: "", travelers: 2, budget: "",
+    name: "", destinations: [], startsOn: "", endsOn: "", travelers: 2, budget: "", preferences: "",
   });
   const action = useAction();
   return (

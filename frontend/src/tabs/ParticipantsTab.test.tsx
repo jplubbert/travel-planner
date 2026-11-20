@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { createApi } from "../api";
@@ -36,5 +37,26 @@ describe("ParticipantsTab roles", () => {
     expect(screen.getByRole("cell", { name: "editor" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "organizer" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("EditTrip preferences", () => {
+  it("loads the saved preferences and sends the edited text with the version", async () => {
+    const sent: { method?: string; url: string; body: unknown }[] = [];
+    const recording = createApi("ana", ((url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") sent.push({ method: init.method, url, body: JSON.parse(String(init.body)) });
+      const body = url.endsWith("/members") ? MEMBERS : [];
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    }) as typeof fetch);
+    render(withTrip(<ParticipantsTab />, "editor", { api: recording, versioned: (_label, op) => op(3) }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit trip details" }));
+    const field = screen.getByLabelText("Preferences and restrictions (optional)");
+    expect(field).toHaveValue("Private bathroom");
+    await userEvent.clear(field);
+    await userEvent.type(field, "No overnight journeys");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(sent).toHaveLength(1);
+    expect(sent[0].url).toMatch(/\/trips\/t1$/);
+    expect(sent[0].body).toMatchObject({ version: 3, preferences: "No overnight journeys" });
   });
 });

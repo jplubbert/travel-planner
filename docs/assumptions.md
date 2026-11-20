@@ -26,6 +26,8 @@ Record of ambiguities in the PRD (`assignment/prd.md`), the candidate guide and 
 
 > **Assumption:** The budget is sent as a decimal string with up to 2 decimal places (`"1500"`, `"1500.5"`, `"1500.00"`) and stored as `numeric(12,2)`. JSON numbers are rejected to avoid floating-point errors. — **Affects:** US-01, US-05.
 
+> **Assumption:** A trip has optional **preferences**: one free-text field (at most 500 characters after trimming, `""` by default and for trips created before migration 0007) for the group's preferences and restrictions, such as "private bathroom, no overnight journeys". It is edited like the other trip details: `PATCH` with `version`, it bumps the version, it appears in the change history ("Updated preferences") and errors are reported per field. Whoever can edit the trip (organizer or editor) can edit it; `""` clears it. It is not structured (no categories or flags) and the application does not filter or flag options with it: the assistant reads it with `get_trip` and relates the options to it. — **Affects:** US-01, US-11 — **Reason:** the PRD asks the assistant to relate options to "preferences and restrictions" without defining them; free text covers any preference without inventing a taxonomy, and a structured model can be added later.
+
 > **Assumption:** Input errors return `422 VALIDATION_ERROR` with `details.fields[]` (field and message) and are all reported at once. An edit without `version` returns `400 VERSION_REQUIRED` (ADR 0001); the version is sent in the body (`"version": n`) and `GET` also exposes it in `ETag`. — **Affects:** US-01, US-06.
 
 ### Simplified itinerary rules (US-04)
@@ -38,8 +40,11 @@ The API returns these rules in `rules` on every itinerary read (source: `RULES` 
 4. Transfer times, connections, check-in windows and opening hours are not considered.
 5. An item falls outside the trip if its local start date is before the first day of the trip or its local end date is after the last.
 6. Every night, from the first day to the eve of the last, should have accommodation. Uncovered nights and destinations without accommodation are reported in `missing`.
-7. A price is flagged as expired when its quote's `validUntil` has passed; the item must be refreshed to get the current terms. Items with a confirmed booking keep the accepted price.
-8. Availability and price reflect the last quote (`quotedAt`) and may have changed since.
+7. With two or more destinations, they are visited in the order listed. Each pair of consecutive destinations needs a transport item from the first to the second (its origin and destination, in that direction); otherwise `missing` reports `MISSING_TRANSPORT` ("Missing transport from X to Y."). Travel to the first destination and back home is not checked.
+8. A price is flagged as expired when its quote's `validUntil` has passed; the item must be refreshed to get the current terms. Items with a confirmed booking keep the accepted price.
+9. Availability and price reflect the last quote (`quotedAt`) and may have changed since.
+
+> **Assumption:** "Identifies missing information" includes missing transport between consecutive destinations (rule 7). The order of `destinations` is the travel order. A transport item counts when its origin and destination match the two destinations (case-insensitive) in that direction, whatever its date, availability or price state (those have their own flags). The way out to the first destination and the way home are not checked, because the trip does not record where the group starts. An empty itinerary only reports `EMPTY_ITINERARY`, as before. — **Affects:** US-04, US-11 (the assistant sees the gap through `get_itinerary`).
 
 > **Assumption:** An unavailable offer cannot be added (`409 OFFER_UNAVAILABLE`), nor one quoted for a different number of travelers (`422`), nor the same offer twice in a trip (`409`). An offer may become unavailable or out of dates **after** being added, and is then flagged instead of removed. — **Affects:** US-04.
 

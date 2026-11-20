@@ -84,4 +84,13 @@ Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it
 
 The last 4 belong to the gaps checker and were run with the runner after commit `c0293c7`.
 
-**Total:** 75 distinct mutations (62 + 13). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
+**Mutations added on 2026-11-20** (new `planning` suite, run alone with `python3 scripts/mutations/run.py planning` once the code was committed, with nothing else running; the tree was clean afterwards):
+
+| Suite | Mutation | Result |
+| --- | --- | --- |
+| `planning` | preferences length not validated | Killed (3 tests). The database check (`char_length(preferences) <= 500`) is a second layer: without the domain check the write fails, but not as a per-field `422` |
+| `planning` | missing transport never reported | Killed (4 tests: unit, integration and MCP contract) |
+
+The other suites were not rerun on 2026-11-20. The MCP mutation "instructions without the data-not-instructions rule" was updated to the new wording of that rule (it now also names preferences); its pattern was checked to match, but it was not rerun.
+
+**Total:** 77 distinct mutations (62 + 13 + 2). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.

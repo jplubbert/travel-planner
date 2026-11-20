@@ -194,6 +194,32 @@ def claims_a_change(text: str) -> bool:
     return bool(_CHANGE_CLAIM.search(text))
 
 
+_PREFERENCE_REF = re.compile(
+    r"\b(prefer\w*|requirements?|requested|asked for|you want(ed)?|wish(es)?|"
+    r"prefier\w*|preferencias?|pidieron|pediste|requisitos?)\b",
+    re.IGNORECASE)
+
+
+def _stem(word: str) -> str:
+    return word[:-1] if len(word) > 4 and word.endswith("s") else word
+
+
+def relates_to_preferences(text: str, preferences: str) -> bool:
+    """The answer relates its proposal to the group's saved preferences: at least half of
+    their distinctive words appear (singular or plural), and some sentence that refers to
+    a preference ("you prefer", "your requirement", "preferencia") names one of them.
+    Mentioning "shared bathroom" as an offer's restriction is not enough on its own."""
+    key = {_stem(w) for w in _distinctive(preferences)}
+    if not key:
+        return False
+    found = {_stem(w) for w in _words(text)} & key
+    if len(found) * 2 < len(key):
+        return False
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
+    return any(_PREFERENCE_REF.search(s) and {_stem(w) for w in _words(s)} & key
+               for s in sentences)
+
+
 # --- Composite checks used by the model evaluations (and tested with a scripted model) -------
 
 
@@ -233,4 +259,22 @@ def check_points_out_missing_accommodation(body: dict[str, Any], starts_on: Any,
         "expected the itinerary to be read"
     assert flags_missing_accommodation(body["answer"], starts_on, ends_on), \
         "the answer does not point out the nights without accommodation"
+    assert not claims_a_change(body["answer"]), body["answer"]
+
+
+def check_relates_to_preferences(body: dict[str, Any], preferences: str) -> None:
+    """US-11 (preferences): the preferences reached the model through get_trip (the chat
+    message does not contain them), the answer proposes a retrieved option and relates it
+    to the saved preferences, and does not claim to have changed anything."""
+    trips = [c for c in body["toolCalls"] if c["name"] == "get_trip" and not c["isError"]]
+    assert trips, "expected the trip to be read"
+    assert trips[0]["result"]["preferences"] == preferences, trips[0]["result"]
+    searches = [c for c in body["toolCalls"]
+                if c["name"] == "search_offers" and not c["isError"]]
+    assert searches, "expected a successful search"
+    offers = [o for c in searches for o in c["result"]["offers"]]
+    assert mentioned_offers(body["answer"], offers), \
+        "expected the answer to propose at least one retrieved option"
+    assert relates_to_preferences(body["answer"], preferences), \
+        f"the answer does not relate its proposal to the saved preferences: {preferences!r}"
     assert not claims_a_change(body["answer"]), body["answer"]

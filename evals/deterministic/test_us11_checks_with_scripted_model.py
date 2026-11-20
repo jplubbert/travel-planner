@@ -12,6 +12,7 @@ from evals.support import (
     check_points_out_conflict,
     check_points_out_missing_accommodation,
     check_relates_to_dates_and_restrictions,
+    check_relates_to_preferences,
 )
 
 LISBON = {"name": "Lisbon", "destinations": ["Lisbon"], "startsOn": "2030-06-10",
@@ -123,3 +124,39 @@ async def test_missing_accommodation_check(api, make_app, trip_payload, mock_con
     else:
         with pytest.raises(AssertionError):
             check_points_out_missing_accommodation(body, START, END)
+
+
+PREFS = "Private bathroom; no hostels."
+GOOD_PREFS = ("Since you prefer a private bathroom and no hostels, the Alfama apartment at "
+              "600.00 USD fits; I left out the Baixa hostel. I cannot book it for you.")
+
+
+@pytest.mark.parametrize("answer,read_trip,passes", [
+    (GOOD_PREFS, True, True),
+    # Same answer, but the preferences never reached the model through get_trip.
+    (GOOD_PREFS, False, False),
+    # Proposes an option without relating it to the saved preferences.
+    ("The Alfama apartment at 600.00 USD is a good choice for 4 nights.", True, False),
+    # Repeats the offer's words (shared bathroom, hostel) without referring to the preferences.
+    ("The Baixa hostel at 225.60 USD has a shared bathroom; the Alfama apartment at 600.00 USD "
+     "has a private one.", True, False),
+    # Relates to the preferences but proposes nothing that was retrieved.
+    ("Since you prefer a private bathroom and no hostels, look for a quiet hotel.", True, False),
+    # Claims to have changed the itinerary.
+    ("Since you prefer a private bathroom, I added the Alfama apartment at 600.00 USD.", True,
+     False),
+])
+async def test_preferences_check(api, make_app, trip_payload, mock_control, answer, read_trip,
+                                 passes):
+    trip = (await api.as_("ana").post("/trips", json={**trip_payload, **LISBON,
+                                                      "preferences": PREFS})).json()
+    steps = [call("search_offers", trip_id=trip["id"], **SEARCH), say(answer)]
+    if read_trip:
+        steps.insert(0, call("get_trip", trip_id=trip["id"]))
+    body = await chat_with(api, make_app, trip, steps,
+                           "Find us accommodation in Lisbon for our trip.")
+    if passes:
+        check_relates_to_preferences(body, PREFS)
+    else:
+        with pytest.raises(AssertionError):
+            check_relates_to_preferences(body, PREFS)

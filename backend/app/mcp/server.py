@@ -103,7 +103,8 @@ def build_mcp_server(
 
     @server.tool(annotations=READ_ONLY)
     async def get_trip(ctx: Context, trip_id: str) -> dict[str, Any]:
-        """Trip details: destinations, dates, travelers, budget (USD), version, your role."""
+        """Trip details: destinations, dates, travelers, budget (USD), the group's saved
+        preferences and restrictions (free text, "" if none), version, your role."""
         async with trip_scope(ctx, trip_id) as (uow, access):
             return _dump(trip_out(await read_trip(uow, access), access.role))
 
@@ -111,7 +112,8 @@ def build_mcp_server(
     async def get_itinerary(ctx: Context, trip_id: str) -> dict[str, Any]:
         """Itinerary items with schedules, quoted prices and their flags (expired price,
         unavailable, outside trip dates, schedule conflicts), missing information such as
-        nights without accommodation, and the simplified planning rules applied."""
+        nights without accommodation or transport between consecutive destinations, and
+        the simplified planning rules applied."""
         async with trip_scope(ctx, trip_id) as (uow, access):
             return _dump(itinerary_out(await read_itinerary(uow, clock, access)))
 

@@ -55,7 +55,7 @@ def _trip(row: TripRow) -> Trip:
         id=row.id, name=row.name, destinations=tuple(row.destinations),
         starts_on=row.starts_on, ends_on=row.ends_on, travelers=row.travelers,
         budget=row.budget, version=row.version, created_by=row.created_by,
-        created_at=row.created_at, updated_at=row.updated_at,
+        created_at=row.created_at, updated_at=row.updated_at, preferences=row.preferences,
     )
 
 

@@ -56,7 +56,7 @@ def take_snapshot(trip: Trip, items: list[Any], bookings: list[Booking],
             "id": str(trip.id), "version": trip.version, "name": trip.name,
             "destinations": list(trip.destinations), "startsOn": trip.starts_on.isoformat(),
             "endsOn": trip.ends_on.isoformat(), "travelers": trip.travelers,
-            "budget": _money(trip.budget),
+            "budget": _money(trip.budget), "preferences": trip.preferences,
         },
         "itinerary": [{
             "title": v.item.title, "category": v.item.category,

@@ -6,7 +6,8 @@ import type { Booking, Role, SearchResult, Trip } from "../types";
 
 export const TRIP: Trip = {
   id: "t1", name: "Lisbon", destinations: ["Lisbon"], startsOn: "2030-06-10", endsOn: "2030-06-14",
-  travelers: 2, budget: { amount: "3000.00", currency: "USD" }, version: 3, createdBy: "ana",
+  travelers: 2, budget: { amount: "3000.00", currency: "USD" }, preferences: "Private bathroom",
+  version: 3, createdBy: "ana",
   createdAt: "2030-01-01T00:00:00Z", updatedAt: "2030-01-01T00:00:00Z", myRole: "editor",
 };
 

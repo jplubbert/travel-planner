@@ -26,6 +26,7 @@ MAX_NAME = 120
 MAX_DESTINATIONS = 10
 MAX_DESTINATION_LENGTH = 100
 MIN_TRAVELERS, MAX_TRAVELERS = 1, 20  # provider contract limits
+MAX_PREFERENCES = 500
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class Trip:
     created_by: str
     created_at: datetime
     updated_at: datetime
+    preferences: str = ""  # free text from the group (US-11); "" when none
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,7 @@ class TripFields:
     ends_on: Any = None
     travelers: Any = None
     budget: Any = None
+    preferences: Any = None
 
     def provided(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if v is not None}
@@ -115,6 +118,15 @@ def validate_trip_values(
             fields["budget"] = parse_usd(budget)
         except ValueError as exc:
             errors.append(FieldError("budget", f"{exc} (USD)"))
+
+    preferences = fields["preferences"]
+    if preferences is None:  # optional on create
+        fields["preferences"] = ""
+    elif not isinstance(preferences, str):
+        errors.append(FieldError("preferences", "must be text"))
+    elif len(preferences.strip()) > MAX_PREFERENCES:
+        errors.append(
+            FieldError("preferences", f"must be at most {MAX_PREFERENCES} characters"))
     return errors
 
 
@@ -123,6 +135,7 @@ def normalize_trip_values(fields: dict[str, Any]) -> dict[str, Any]:
         **fields,
         "name": fields["name"].strip(),
         "destinations": tuple(d.strip() for d in fields["destinations"]),
+        "preferences": fields["preferences"].strip(),
     }
 
 
