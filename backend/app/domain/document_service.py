@@ -205,8 +205,9 @@ async def download_document(
     raw_id: str, max_attempts: int = 3,
 ) -> DownloadResult:
     """Delivers the file only if it is exactly what was recorded as complete. A missing or
-    altered file is never served: the problem is recorded and the document is regenerated
-    from its snapshot."""
+    altered file is never served. An editor's download records the problem and regenerates
+    the document from its snapshot; a viewer's changes nothing (viewers are read-only), and
+    the worker's storage sweep repairs it (ADR 0005)."""
     document = await get_document(uow, access, raw_id)
     if document.status != D.COMPLETE:
         raise Conflict("DOCUMENT_NOT_READY",
@@ -214,15 +215,16 @@ async def download_document(
                        "download.", {"status": document.status.value})
     assert document.storage_key is not None
     content = await storage.read(document.storage_key)
-    problem = None
-    if content is None:
-        problem = "FILE_MISSING"
-    elif content_sha256(content) != document.content_sha256 or \
-            len(content) != document.size_bytes:
-        problem = "FILE_CORRUPT"
+    problem = file_problem(document, content)
     if problem is None:
         assert content is not None
         return DownloadResult(document, content)
+    if not access.role.allows(Role.EDITOR):
+        raise Conflict("DOCUMENT_NEEDS_REGENERATION",
+                       "The document needs regeneration by an editor: its stored file is "
+                       "missing or does not match its recorded checksum, so it was not "
+                       "delivered. The periodic storage check also regenerates it.",
+                       {"problem": problem, "status": document.status.value})
 
     now = clock.now()
     document.move(D.WAITING, now)
@@ -235,6 +237,16 @@ async def download_document(
                    "The stored file is missing or does not match its recorded checksum, so "
                    "it was not delivered. It is being regenerated from the saved snapshot; "
                    "try again shortly.", {"problem": problem, "status": D.WAITING.value})
+
+
+def file_problem(document: Document, content: bytes | None) -> str | None:
+    """Why a complete document's stored file cannot be served, or None if it is intact."""
+    if content is None:
+        return "FILE_MISSING"
+    if content_sha256(content) != document.content_sha256 or \
+            len(content) != document.size_bytes:
+        return "FILE_CORRUPT"
+    return None
 
 
 # --- Generation (run by the worker) ----------------------------------------------------------
@@ -295,7 +307,7 @@ async def give_up_generation(uow: "UnitOfWork", clock: "Clock", document_id: UUI
 class SweepReport:
     orphans_removed: list[str]
     temp_files_removed: int
-    missing_files: list[UUID]
+    damaged_files: list[UUID]  # missing or not matching their checksum
 
 
 async def sweep_documents(
@@ -304,7 +316,7 @@ async def sweep_documents(
 ) -> SweepReport:
     """Reconciles files with document records: removes files no document refers to (and
     stale temporary files from interrupted writes), and sends complete documents whose file
-    disappeared back to generation."""
+    disappeared or no longer matches its checksum back to generation."""
     documents = await uow.documents.list_all()
     expected = {d.file_key for d in documents}
     orphans = [key for key in await storage.list_keys() if key not in expected]
@@ -313,13 +325,17 @@ async def sweep_documents(
     temp_removed = await storage.remove_temp_files(
         clock.now() - timedelta(seconds=temp_older_than_seconds))
 
-    missing = []
+    damaged = []
     for d in documents:
-        if d.status == D.COMPLETE and d.storage_key and not await storage.exists(d.storage_key):
-            d.move(D.WAITING, clock.now())
-            d.error = f"FILE_MISSING detected by storage sweep at {clock.now().isoformat()}"
-            if await uow.documents.save(d, expected_status=D.COMPLETE):
-                await enqueue_generation(uow, clock, d.id, max_attempts)
-                missing.append(d.id)
+        if d.status != D.COMPLETE or not d.storage_key:
+            continue
+        problem = file_problem(d, await storage.read(d.storage_key))
+        if problem is None:
+            continue
+        d.move(D.WAITING, clock.now())
+        d.error = f"{problem} detected by storage sweep at {clock.now().isoformat()}"
+        if await uow.documents.save(d, expected_status=D.COMPLETE):
+            await enqueue_generation(uow, clock, d.id, max_attempts)
+            damaged.append(d.id)
     await uow.commit()
-    return SweepReport(orphans, temp_removed, missing)
+    return SweepReport(orphans, temp_removed, damaged)

@@ -34,6 +34,9 @@ def create_app(
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level,
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    if settings.uses_dev_mcp_token_secret():
+        logger.warning("MCP_TOKEN_SECRET is the development value from .env.example: anyone "
+                       "can forge MCP session tokens. Set a random secret outside local use.")
     engine = make_engine(settings.database_url)
     http_provider = None
     if provider is None:
@@ -75,6 +78,7 @@ def create_app(
     app.state.chat_model = chat_model
     app.state.provider = provider
     app.state.settings = settings
+    app.state.reconcile_policy = settings.reconcile_policy()
     app.state.storage = LocalDocumentStorage(settings.document_storage_dir)
     app.state.renderer = HtmlDocumentRenderer()
     app.state.shutdown = shutdown  # for callers that do not run the lifespan (tests)

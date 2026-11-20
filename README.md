@@ -97,7 +97,7 @@ Cross-cutting criterion: no story is considered done without tests that prove it
 
 ## Criteria not met or with partial evidence
 
-Reviewed against the PRD and the guide on 2026-11-18. Everything else has automated tests (see "Current status").
+Reviewed against the PRD and the guide on 2026-11-20. Everything else has automated tests (see "Current status").
 
 | Criterion | Situation |
 | --- | --- |

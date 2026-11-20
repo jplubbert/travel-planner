@@ -115,8 +115,8 @@ async def _booking_of_trip(uow: "UnitOfWork", trip_id: UUID, raw_id: str) -> Boo
 
 
 async def request_booking(
-    uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", access: TripAccess,
-    raw_item_id: str, expected_revision: object, expected_price: object,
+    uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", policy: ReconcilePolicy,
+    access: TripAccess, raw_item_id: str, expected_revision: object, expected_price: object,
 ) -> BookingView:
     """Explicit editor action on one itinerary item, with the terms the user reviewed."""
     access.require(Role.EDITOR)
@@ -156,16 +156,25 @@ async def request_booking(
         requested_by=access.user_id, status=S.DRAFT, created_at=now, updated_at=now,
     )
     booking.submit(now)
+    # The item may have been removed during the provider call. Re-check it under the trip
+    # lock every itinerary change holds (ADR 0001): a removal in progress is waited for and
+    # then seen, and a removal starting now waits for this insert and then sees the
+    # booking. (Locking only the item would deadlock: the insert's foreign key also needs
+    # the trip row, which remove_item locks first.)
+    await uow.trips.get_for_update(trip.id)
+    if await uow.itinerary.get(item.id) is None:
+        raise NotFound("ITEM_NOT_FOUND", "Itinerary item not found; it was removed while "
+                       "its terms were checked. Nothing was booked.")
     await uow.bookings.add(booking)  # raises Conflict on a concurrent second attempt
     await uow.commit()  # durable before anything reaches the provider (ADR 0003 rule 2)
 
-    await send(uow, provider, clock, booking)
+    await send(uow, provider, clock, booking, policy)
     return BookingView(booking, item.title)
 
 
 async def retry_booking(
-    uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", access: TripAccess,
-    raw_booking_id: str,
+    uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", policy: ReconcilePolicy,
+    access: TripAccess, raw_booking_id: str,
 ) -> BookingView:
     """Re-sends a draft (not accepted, e.g. after 429/503) with the same key and body."""
     access.require(Role.EDITOR)
@@ -179,7 +188,7 @@ async def retry_booking(
         raise Conflict("BOOKING_IN_PROGRESS",
                        "Someone else is already retrying this booking; reload to see it.")
     await uow.commit()
-    await send(uow, provider, clock, booking)
+    await send(uow, provider, clock, booking, policy)
     item = (await uow.itinerary.get(booking.itinerary_item_id)
             if booking.itinerary_item_id else None)
     return BookingView(booking, item.title if item else None)
@@ -236,7 +245,8 @@ def _request(booking: Booking) -> BookingRequest:
 
 
 async def send(
-    uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", booking: Booking
+    uow: "UnitOfWork", provider: "ProviderClient", clock: "Clock", booking: Booking,
+    policy: ReconcilePolicy,
 ) -> ProviderError | None:
     """POST /bookings for a ``submitted`` (or resent ``unknown``) booking and record what the
     answer proves. Returns the provider error, if any, so a caller can honour its
@@ -256,7 +266,9 @@ async def send(
         await _record_failure(uow, provider, clock, booking, exc)
     else:
         _adopt(booking, result, clock.now())
-    await _save_and_schedule(uow, clock, booking, ReconcilePolicy())
+    # Accepted but pending: nothing to learn before the configured poll interval.
+    delay = policy.pending_poll_seconds if booking.status == S.PENDING else 0.0
+    await _save_and_schedule(uow, clock, booking, delay)
     return error
 
 
@@ -298,8 +310,7 @@ def _adopt(booking: Booking, result: ProviderBooking, now: datetime) -> None:
 
 
 async def _save_and_schedule(
-    uow: "UnitOfWork", clock: "Clock", booking: Booking, policy: ReconcilePolicy,
-    delay: float = 0.0,
+    uow: "UnitOfWork", clock: "Clock", booking: Booking, delay: float = 0.0
 ) -> bool:
     """Saves the booking (optimistic) and, if its outcome is still open, enqueues the sync
     job in the same transaction so it can never be forgotten."""
@@ -381,10 +392,10 @@ async def sync_booking(
         except ProviderError as exc:
             booking.note_error(error_info(exc, now), now)  # still pending: it was accepted
             delay = retry_delay(exc, attempts, policy)
-            await _save_and_schedule(uow, clock, booking, policy, delay)
+            await _save_and_schedule(uow, clock, booking, delay)
             return SyncResult(False, delay)
         _adopt(booking, result, clock.now())
-        await _save_and_schedule(uow, clock, booking, policy, policy.pending_poll_seconds)
+        await _save_and_schedule(uow, clock, booking, policy.pending_poll_seconds)
         return _after(booking, policy.pending_poll_seconds)
 
     # unknown: look it up by reference first
@@ -397,11 +408,11 @@ async def sync_booking(
     except ProviderError as exc:
         booking.note_error(error_info(exc, now), now)
         delay = retry_delay(exc, attempts, policy)
-        await _save_and_schedule(uow, clock, booking, policy, delay)
+        await _save_and_schedule(uow, clock, booking, delay)
         return SyncResult(False, delay)
     if found is not None:
         _adopt(booking, found, clock.now())
-        await _save_and_schedule(uow, clock, booking, policy, policy.pending_poll_seconds)
+        await _save_and_schedule(uow, clock, booking, policy.pending_poll_seconds)
         return _after(booking, policy.pending_poll_seconds)
 
     assert booking.submitted_at is not None
@@ -409,7 +420,7 @@ async def sync_booking(
     if waited < policy.unknown_grace_seconds:
         return SyncResult(False, policy.unknown_grace_seconds - waited)
     # Still not visible after the grace period: re-send the same request with the same key.
-    error = await send(uow, provider, clock, booking)
+    error = await send(uow, provider, clock, booking, policy)
     if isinstance(error, ProviderWaitRequired):
         return _wait(error, clock)
     return _after(booking, retry_delay(error, attempts, policy))

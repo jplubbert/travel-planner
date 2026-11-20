@@ -1029,10 +1029,13 @@ dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "mcp" },
+    { name = "mcp-types" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "starlette" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1053,10 +1056,13 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "google-genai", specifier = ">=3.4.0" },
     { name = "httpx", specifier = ">=0.28" },
-    { name = "mcp", specifier = ">=1.2" },
+    { name = "httpx2", specifier = ">=2.16" },
+    { name = "mcp", specifier = ">=2.3" },
+    { name = "mcp-types", specifier = ">=2.3" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
+    { name = "starlette", specifier = ">=1.10" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 

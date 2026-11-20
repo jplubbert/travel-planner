@@ -21,15 +21,18 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
-    environment:
+    # Every setting app/config.py reads comes from .env (optional: without it the defaults
+    # in config.py apply). `environment` wins over it, so only Docker-specific values and
+    # values a caller must be able to override from the shell are listed there.
+    env_file:
+      - path: .env
+        required: false
+    environment: &backend-docker-env
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-travel}:${POSTGRES_PASSWORD:-travel}@db:5432/${POSTGRES_DB:-travel}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PROVIDER_BASE_URL: http://provider-mock:4010/v1
-      PROVIDER_TOKEN: ${PROVIDER_TOKEN:-travel-demo-token}
       DOCUMENT_STORAGE_DIR: /data/documents
-      MCP_TOKEN_SECRET: ${MCP_TOKEN_SECRET:-dev-only-insecure-mcp-secret}
+      # From the shell first, then .env: scripts/e2e.sh blanks it so no model is called.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
@@ -53,14 +56,10 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "app.workers"]
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-travel}:${POSTGRES_PASSWORD:-travel}@db:5432/${POSTGRES_DB:-travel}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      PROVIDER_BASE_URL: http://provider-mock:4010/v1
-      PROVIDER_TOKEN: ${PROVIDER_TOKEN:-travel-demo-token}
-      BOOKING_UNKNOWN_GRACE_SECONDS: ${BOOKING_UNKNOWN_GRACE_SECONDS:-30}
-      BOOKING_SUBMITTED_STALE_SECONDS: ${BOOKING_SUBMITTED_STALE_SECONDS:-60}
-      DOCUMENT_STORAGE_DIR: /data/documents
+    env_file:  # the same settings as the API
+      - path: .env
+        required: false
+    environment: *backend-docker-env
     volumes:
       - documents:/data/documents  # shared with the API, which serves downloads
     depends_on:

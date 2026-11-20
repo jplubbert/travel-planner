@@ -72,11 +72,11 @@ class JobWorker:
     async def sweep_documents(self) -> None:
         async with SqlUnitOfWork(self.sessions) as uow:
             report = await sweep_documents(uow, self.storage, self.clock)
-        if report.orphans_removed or report.temp_files_removed or report.missing_files:
+        if report.orphans_removed or report.temp_files_removed or report.damaged_files:
             logger.warning("%s: storage sweep removed %d orphan file(s) and %d temp file(s); "
-                           "%d document(s) with a missing file sent back to generation",
+                           "%d document(s) with a missing or damaged file sent back to generation",
                            self.name, len(report.orphans_removed),
-                           report.temp_files_removed, len(report.missing_files))
+                           report.temp_files_removed, len(report.damaged_files))
         self._last_document_sweep = time.monotonic()
 
     async def claim(self) -> list[Job]:

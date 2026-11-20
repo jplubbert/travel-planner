@@ -286,13 +286,7 @@ async def test_the_database_keeps_snapshots_immutable(api, app, shared_trip, moc
 # --- Stored files that do not match their references ------------------------------------------
 
 
-@pytest.mark.parametrize("damage", ["deleted", "corrupted", "truncated"])
-async def test_damaged_file_is_never_served_and_is_regenerated_from_the_snapshot(
-    api, shared_trip, mock_control, make_worker, storage_dir, damage
-):
-    await add_item(api.as_("ana"), shared_trip, HOTEL)
-    d = await generated(api, make_worker, shared_trip)
-    path = storage_dir / str(shared_trip["id"]) / f"{d['documentId']}.html"
+def damage_file(path, damage):
     original = path.read_bytes()
     if damage == "deleted":
         path.unlink()
@@ -300,8 +294,19 @@ async def test_damaged_file_is_never_served_and_is_regenerated_from_the_snapshot
         path.write_bytes(original.replace(b"670.00", b"070.00"))  # same size, other bytes
     else:
         path.write_bytes(original[:100])
+    return original
 
-    r = await download(api.as_("carla"), shared_trip, d["documentId"])
+
+@pytest.mark.parametrize("damage", ["deleted", "corrupted", "truncated"])
+async def test_damaged_file_is_never_served_and_is_regenerated_from_the_snapshot(
+    api, shared_trip, mock_control, make_worker, storage_dir, damage
+):
+    await add_item(api.as_("ana"), shared_trip, HOTEL)
+    d = await generated(api, make_worker, shared_trip)
+    path = storage_dir / str(shared_trip["id"]) / f"{d['documentId']}.html"
+    original = damage_file(path, damage)
+
+    r = await download(api.as_("beto"), shared_trip, d["documentId"])
     assert r.status_code == 409 and r.json()["code"] == "DOCUMENT_FILE_UNAVAILABLE"
     assert r.json()["details"]["problem"] == ("FILE_MISSING" if damage == "deleted"
                                               else "FILE_CORRUPT")
@@ -312,6 +317,33 @@ async def test_damaged_file_is_never_served_and_is_regenerated_from_the_snapshot
     await make_worker().run_once()
     restored = await doc(api.as_("carla"), shared_trip, d["documentId"])
     assert restored["status"] == "complete" and restored["sha256"] == d["sha256"]
+    assert (await download(api.as_("carla"), shared_trip, d["documentId"])).content == original
+
+
+@pytest.mark.parametrize("damage", ["deleted", "corrupted"])
+async def test_a_viewer_hitting_a_damaged_file_changes_nothing_and_the_sweep_repairs_it(
+    api, app, shared_trip, mock_control, make_worker, storage_dir, damage
+):
+    """Viewers are read-only (ADR 0005): their download neither changes the document nor
+    enqueues work. An editor's download or the worker's storage sweep regenerates it."""
+    await add_item(api.as_("ana"), shared_trip, HOTEL)
+    d = await generated(api, make_worker, shared_trip)
+    path = storage_dir / str(shared_trip["id"]) / f"{d['documentId']}.html"
+    original = damage_file(path, damage)
+
+    r = await download(api.as_("carla"), shared_trip, d["documentId"])
+    assert r.status_code == 409 and r.json()["code"] == "DOCUMENT_NEEDS_REGENERATION"
+    assert r.json()["message"].startswith("The document needs regeneration by an editor")
+    assert b"070.00" not in r.content
+    assert (await doc(api.as_("carla"), shared_trip, d["documentId"])) == d
+    async with SqlUnitOfWork(app.state.sessions) as uow:
+        assert (await uow.session.execute(text(
+            "SELECT count(*) FROM jobs WHERE status IN ('queued', 'running')"))).scalar() == 0
+
+    worker = make_worker()
+    await worker.sweep_documents()
+    assert (await doc(api.as_("carla"), shared_trip, d["documentId"]))["status"] == "waiting"
+    await worker.run_once()
     assert (await download(api.as_("carla"), shared_trip, d["documentId"])).content == original
 
 

@@ -107,4 +107,4 @@ All configuration is read from the environment (`backend/app/config.py`, documen
 
 ## Cost
 
-Not estimated, beyond the model: model evaluations cost about 0.16–0.32 USD per run of the 8 cases, an unmeasured estimate (`evals/README.md`).
+Not estimated, beyond the model: model evaluations cost about 0.18–0.36 USD per run of the 9 cases (three times as much with `EVAL_REPEATS=3`), an unmeasured estimate (`evals/README.md`).

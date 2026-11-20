@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 from pydantic import BaseModel, StrictStr
 
-from app.api.deps import ClockDep, Editor, Provider, UoW, Viewer
+from app.api.deps import ClockDep, Editor, Policy, Provider, UoW, Viewer
 from app.api.schemas import Input, MoneyOut
 from app.domain import reservations
 from app.domain.bookings import BookingStatus, next_step
@@ -86,19 +86,21 @@ def booking_out(view: BookingView) -> BookingOut:
              status_code=status.HTTP_201_CREATED)
 async def request_booking(
     item_id: str, body: BookingRequestBody, access: Editor, uow: UoW, provider: Provider,
-    clock: ClockDep,
+    clock: ClockDep, policy: Policy,
 ) -> BookingOut:
     """Books one itinerary item with the terms the user reviewed. 201 means an attempt was
     recorded; its ``status`` says what happened (it may be unknown, draft or rejected)."""
     return booking_out(await reservations.request_booking(
-        uow, provider, clock, access, item_id, body.expectedRevision, body.expectedPrice))
+        uow, provider, clock, policy, access, item_id, body.expectedRevision,
+        body.expectedPrice))
 
 
 @router.post("/trips/{trip_id}/bookings/{booking_id}/retry")
 async def retry_booking(
-    booking_id: str, access: Editor, uow: UoW, provider: Provider, clock: ClockDep
+    booking_id: str, access: Editor, uow: UoW, provider: Provider, clock: ClockDep,
+    policy: Policy,
 ) -> BookingOut:
-    return booking_out(await reservations.retry_booking(uow, provider, clock, access,
+    return booking_out(await reservations.retry_booking(uow, provider, clock, policy, access,
                                                         booking_id))
 
 

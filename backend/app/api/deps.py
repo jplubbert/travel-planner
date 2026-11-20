@@ -8,6 +8,7 @@ from fastapi import Depends, Header, Request
 from app.adapters.sqlalchemy.uow import SqlUnitOfWork
 from app.api.errors import Unauthenticated
 from app.domain.access import Role, TripAccess, load_access, parse_trip_id
+from app.domain.reservations import ReconcilePolicy
 from app.domain.users import User
 from app.ports.clock import Clock
 from app.ports.provider import ProviderClient
@@ -28,9 +29,15 @@ def get_provider(request: Request) -> ProviderClient:
     return provider
 
 
+def get_reconcile_policy(request: Request) -> ReconcilePolicy:
+    policy: ReconcilePolicy = request.app.state.reconcile_policy
+    return policy
+
+
 UoW = Annotated[SqlUnitOfWork, Depends(get_uow)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 Provider = Annotated[ProviderClient, Depends(get_provider)]
+Policy = Annotated[ReconcilePolicy, Depends(get_reconcile_policy)]
 
 
 async def current_user(

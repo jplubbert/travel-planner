@@ -27,7 +27,7 @@ These are different things: Claude Code is the tool the project was built with, 
 - Node and npm (tested with Node 26, the Docker image's version);
 - for model evaluations, a Gemini key.
 
-There is no versioned Claude Code configuration (permissions, hooks): the default configuration was used. `.gitignore` excludes `.claude/settings.local.json`, which is machine-specific.
+Claude Code configuration: until 2026-11-20 the default configuration was used. Since then [`.claude/settings.json`](../.claude/settings.json) is versioned with permissions (it allows the test, lint, type-check, `docker compose` and read-only `git` commands, and asks before `git push` and `rm`); there are no hooks. `.gitignore` excludes `.claude/settings.local.json`, which is machine-specific.
 
 ## How the work was directed
 
@@ -62,6 +62,18 @@ There is no versioned Claude Code configuration (permissions, hooks): the defaul
 | A UI mutation (SSE parser) left syntactically invalid code, so it was "detected" by a compilation error and not by a test | Reading the runner's output | Mutation rewritten to be valid; the tests now detect it |
 | The `pending` booking e2e reopened the tab after confirming, and the re-read could hide a lost SSE event: the "ignore booking events" mutation was detected one day and not another | Re-running the mutation suite with the new runner | Test fixed so that only a live event can update the card; detected in 2 of 2 runs |
 
+**Detected by an independent review (2026-11-20)**
+
+| Error | Fix |
+| --- | --- |
+| `docker-compose.yml` passed api and worker only some of the settings `config.py` reads: values in `.env` such as `PROVIDER_TIMEOUT_SECONDS`, the worker and document timings, `MCP_ALLOWED_HOSTS` or the assistant limits never reached the containers | `env_file` (optional) plus the Docker-specific overrides; `.env.example` marks the host-only values; `tests/unit/test_compose_config.py` checks it with `docker compose config` |
+| A booking and a removal of the same item could cross: the removal committed while the booking re-read the offer, and recording the booking failed with a foreign-key `500` | The booking re-checks the item under the trip row lock every itinerary change holds; two concurrent integration tests, one failing before the fix |
+| A viewer's download of a damaged document changed its state and enqueued work, although viewers are read-only | `409 DOCUMENT_NEEDS_REGENERATION` for viewers; the storage sweep now also detects corrupt files (ADR 0005, note of 2026-11-20) |
+| `send()` used a default `ReconcilePolicy` instead of the configured one, so `BOOKING_PENDING_POLL_SECONDS` was ignored for bookings sent by the API | The configured policy is passed through; integration test on the job's `run_after` |
+| `httpx2`, `mcp-types` and `starlette` were imported by the application but only arrived as other packages' dependencies; `mcp>=1.2` allowed the 1.x SDK the code no longer works with | Declared in `pyproject.toml` (`mcp>=2.3`); an architecture test checks every third-party import is a declared dependency |
+| No warning when `MCP_TOKEN_SECRET` kept the development value | Warning at API start-up, with a test |
+| Stale documentation (this file, the "8 cases" cost, the review date of "Criteria not met", an assumption still "to be evaluated") and the 13:13 LLM answers not committed | Corrected; answers in `evals/results/` |
+
 **Detected by the candidate**
 
 | Error | Fix |
@@ -81,15 +93,15 @@ There is no versioned Claude Code configuration (permissions, hooks): the defaul
 - **Security:** secrets as `SecretStr`. Gemini retries only for 429, 503 and the sporadic 403, never for 400, 401 or 402; the agent also added 5xx and reported it.
 - **Frontend:** React + Vite + TypeScript without a UI library; SSE read with `fetch`; 409 with re-apply; the UI is not the permission barrier; order of blocks with one commit per block.
 - **Method:** inject faults in every story, one commit per task, and present nothing as done without a test or a run.
-- **Model evaluations:** the candidate ran them with their own key (5 of 5 on 2026-11-17). On 2026-11-18 at 01:08 they ran the 7 cases, including the 2 US-11 cases added that day, and 7 of 7 passed. At 01:31 they ran the gaps case, added based on what they observed in the previous run, and it passed 1 of 1 (14 s). All 8 cases have passed with the real model, across two runs. The agent ran none of them.
+- **Model evaluations:** the candidate ran them with their own key (5 of 5 on 2026-11-17). On 2026-11-18 at 01:08 they ran the 7 cases, including the 2 US-11 cases added that day, and 7 of 7 passed. At 01:31 they ran the gaps case, added based on what they observed in the previous run, and it passed 1 of 1 (14 s). On 2026-11-20 at 13:13 they ran the 9 cases (the preferences case was added that day) 3 times each: 24 of 27 passed; the 3 failures were a too-strict check, which the candidate decided to change after reviewing the answers, and the 2 affected cases then passed 6 of 6 at 13:26. The 27 answers of the 13:13 run are committed in [`evals/results/`](../evals/results/). The agent ran none of these runs; it rechecked the saved 13:13 answers against later checker changes, without model calls ([`evals/README.md`](../evals/README.md)).
 - **Testing the assistant from the UI with a real key:** done by the candidate on 2026-11-17 (see `docs/demo.md`, step 7).
 - **Gap closing on 2026-11-18:** respect `Retry-After` in reconciliation, propagate `X-Request-Id` to worker jobs, and evaluate with the model the relation to dates and constraints, schedule conflicts and nights without accommodation.
 
 ## How the output was verified
 
-- **`uv run pytest`:** backend, mock and deterministic evals; 542 pass (5 model ones excluded), 2026-11-18.
-- **`npm test`:** 31 Vitest tests pass, 2026-11-18.
-- **`scripts/e2e.sh`:** 5 of 5, from scratch, 2026-11-18 (after fixing the `pending` booking test).
+- **`uv run pytest`:** backend, mock and deterministic evals; 690 pass (the 9 model ones excluded), 2026-11-20.
+- **`npm test`:** 35 Vitest tests pass, 2026-11-20.
+- **`scripts/e2e.sh`:** 5 of 5, from scratch, 2026-11-20.
 - **Static checks:** `ruff`, `mypy --strict` and strict `tsc`.
 - **Fault injection** (`scripts/mutations/`).
 - **Docker rehearsals** of the demo script ([`docs/demo.md`](demo.md) states which steps were rehearsed and which were not).

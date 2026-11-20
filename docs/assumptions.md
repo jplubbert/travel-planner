@@ -72,7 +72,7 @@ The API returns these rules in `rules` on every itinerary read (source: `RULES` 
 
 > **Assumption:** If a search ends partial and with no offers (some suppliers fail and those that respond find nothing), it is classified as `partial`, not `empty`, because it is unknown whether the failed suppliers had options. — **Affects:** US-03.
 
-> **Assumption:** Search results are not cached yet; each search queries the provider. `quoteExpired` is computed with the application's clock against the provider's `validUntil`. — **Affects:** US-03 — **Impact:** more calls to the provider; reusing results will be evaluated with US-04/US-07.
+> **Assumption:** Search results are not cached; each search queries the provider. `quoteExpired` is computed with the application's clock against the provider's `validUntil`. — **Affects:** US-03 — **Resolved by ADR 0004:** a search cache was considered and discarded (a search is for one group and date window, and its TTL would have to match `validUntil`). Adding an item fetches the offer again and stores its snapshot; itinerary and cost reads use that snapshot without calling the provider; booking (US-07) re-reads the offer. — **Impact:** one provider call per search, per item added and per booking.
 
 ## Costs and rounding (US-05)
 
@@ -90,7 +90,7 @@ The API returns these rules in `rules` on every itinerary read (source: `RULES` 
 
 > **Assumption:** `clientReference` is unique per caller for the whole lifetime of the mock's dataset. — **Affects:** `createBooking` — **Reason:** the schema defines it as "unique within the caller's dataset".
 
-> **Assumption:** Booking does not require the trip version (ADR 0001): it does not modify the trip or the itinerary, and its concurrency is protected by the one-active-attempt-per-item index. It does require the reviewed terms (`expectedRevision`, `expectedPrice`). — **Affects:** US-06, US-07.
+> **Assumption:** Booking does not require the trip version (ADR 0001): it does not modify the trip or the itinerary, and its concurrency is protected by the one-active-attempt-per-item index. It does require the reviewed terms (`expectedRevision`, `expectedPrice`). Against a concurrent removal of the item, the attempt is recorded under the trip row lock that every itinerary change holds, after checking again that the item exists: a removal that won answers the booking with `404 ITEM_NOT_FOUND` and nothing is sent; a booking that won makes the removal answer `409 ITEM_HAS_BOOKING` (since 2026-11-20; before, the first case ended in a `500`). — **Affects:** US-04, US-06, US-07.
 
 > **Assumption:** If, when booking, the offer is quoted for a different number of travelers (because the trip's group changed), the response is `409 PARTY_SIZE_MISMATCH` without submitting anything. — **Affects:** US-07.
 
@@ -110,7 +110,7 @@ The API returns these rules in `rules` on every itinerary read (source: `RULES` 
 
 > **Assumption:** Requesting a document again returns the same one if one is in progress for the same trip version (`202`), or if there is a `complete` one whose content is identical, ignoring the snapshot time (`200`). If the trip or the state of any booking changed, a new one is created. — **Affects:** US-09.
 
-> **Assumption:** If on download the file is missing or does not match its hash, the download itself, even when made by a viewer, returns the document to `waiting` and re-enqueues it to be regenerated from the snapshot. This is system maintenance, not a user change. Since rendering is deterministic, the same hash results. — **Affects:** US-10.
+> **Assumption:** If on download the file is missing or does not match its hash, nothing is served. An editor's download returns the document to `waiting` and re-enqueues it to be regenerated from the snapshot; since rendering is deterministic, the same hash results. A viewer's download changes nothing and answers `409 DOCUMENT_NEEDS_REGENERATION` (viewers are read-only); the worker's periodic storage sweep, which checks hash and size, regenerates it. Until 2026-11-20 a viewer's download also triggered the regeneration (ADR 0005, note of 2026-11-20). — **Affects:** US-02, US-10.
 
 > **Assumption:** After `DOCUMENT_MAX_ATTEMPTS` generation failures the document stays `failed` with the error, and is not retried automatically. — **Affects:** US-09.
 

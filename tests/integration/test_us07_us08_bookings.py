@@ -211,6 +211,112 @@ async def test_double_click_creates_one_attempt_and_one_provider_booking(
     assert len(await provider_bookings(provider_client)) == 1
 
 
+class OfferCheckHook(WrappedProvider):
+    """Runs ``during`` while the booking re-reads the offer (no database lock held yet),
+    and counts the POSTs that reach the provider."""
+
+    def __init__(self, inner: Any, during: Any) -> None:
+        super().__init__(inner)
+        self.during, self.posts = during, 0
+
+    async def get_offer(self, offer_id: str) -> Any:
+        await self.during()
+        return await self.inner.get_offer(offer_id)
+
+    async def create_booking(self, request: Any, *, idempotency_key: str) -> Any:
+        self.posts += 1
+        return await super().create_booking(request, idempotency_key=idempotency_key)
+
+
+async def remove(client, trip, item):
+    version = (await client.get(f"/trips/{trip['id']}")).json()["version"]
+    return await client.delete(f"/trips/{trip['id']}/itinerary/items/{item['itemId']}",
+                               params={"version": version})
+
+
+async def test_an_item_removed_while_its_booking_checks_terms_is_not_booked(
+    api, make_app, shared_trip, mock_control, provider_client
+):
+    item = await add_item(api.as_("ana"), shared_trip, HOTEL)
+    removed = []
+
+    async def remove_now():
+        removed.append(await remove(api.as_("ana"), shared_trip, item))
+    hooked = OfferCheckHook(provider_client, during=remove_now)
+    r = await book(api.as_("beto", app=make_app(provider=hooked)), shared_trip, item)
+    assert removed[0].status_code == 200, removed[0].text
+    assert r.status_code == 404 and r.json()["code"] == "ITEM_NOT_FOUND"
+    assert hooked.posts == 0 and await provider_bookings(provider_client) == []
+    assert await bookings(api.as_("ana"), shared_trip) == []
+
+
+async def test_a_booking_waits_for_a_removal_in_progress_and_books_nothing(
+    app, api, make_app, shared_trip, mock_control, provider_client
+):
+    """The removal holds the trip lock and has deleted the item, but has not committed
+    when the booking is about to be recorded: the booking waits and then sees it gone."""
+    from uuid import UUID
+
+    from app.adapters.sqlalchemy.uow import SqlUnitOfWork
+
+    item = await add_item(api.as_("ana"), shared_trip, HOTEL)
+    commits = []
+
+    async def removal_in_progress():
+        uow = SqlUnitOfWork(app.state.sessions)
+        await uow.__aenter__()
+        await uow.trips.get_for_update(UUID(shared_trip["id"]))  # as remove_item's _start
+        await uow.itinerary.remove(UUID(item["itemId"]))
+
+        async def commit_later():
+            await asyncio.sleep(0.5)
+            await uow.commit()
+            await uow.__aexit__(None, None, None)
+        commits.append(asyncio.create_task(commit_later()))
+    hooked = OfferCheckHook(provider_client, during=removal_in_progress)
+    r = await book(api.as_("beto", app=make_app(provider=hooked)), shared_trip, item)
+    await commits[0]
+    assert r.status_code == 404 and r.json()["code"] == "ITEM_NOT_FOUND"
+    assert hooked.posts == 0 and await provider_bookings(provider_client) == []
+
+
+async def test_a_removal_waits_for_a_booking_being_recorded_and_then_refuses(
+    app, api, shared_trip, mock_control
+):
+    """The booking's insert transaction holds the trip lock when the removal starts: the
+    removal waits, then sees the booking instead of deleting the item under it."""
+    from uuid import UUID
+
+    from app.adapters.sqlalchemy.uow import SqlUnitOfWork
+
+    item = await add_item(api.as_("ana"), shared_trip, HOTEL)
+    async with SqlUnitOfWork(app.state.sessions) as uow:
+        await uow.trips.get_for_update(UUID(shared_trip["id"]))  # as request_booking
+        await insert_booking_in(uow, shared_trip["id"], item)
+        removal = asyncio.create_task(remove(api.as_("ana"), shared_trip, item))
+        await asyncio.sleep(0.5)
+        assert not removal.done()  # waiting on the lock, not deleting
+        await uow.commit()
+    r = await removal
+    assert r.status_code == 409 and r.json()["code"] == "ITEM_HAS_BOOKING"
+
+
+async def insert_booking_in(uow, trip_id, item):
+    from datetime import UTC, datetime
+    from uuid import UUID, uuid4
+
+    from app.domain.bookings import Booking, BookingStatus
+
+    now = datetime.now(UTC)
+    await uow.bookings.add(Booking(
+        id=uuid4(), trip_id=UUID(trip_id), itinerary_item_id=UUID(item["itemId"]),
+        offer_id=item["offerId"], expected_revision=item["quote"]["revision"],
+        expected_price=Decimal(item["quote"]["price"]["amount"]),
+        client_reference=f"ref-{uuid4()}", idempotency_key=f"key-{uuid4()}",
+        requested_by="ana", status=BookingStatus.SUBMITTED, created_at=now, updated_at=now,
+        submitted_at=now))
+
+
 async def test_a_booked_item_cannot_be_booked_again(api, shared_trip, mock_control):
     item = await add_item(api.as_("ana"), shared_trip, HOTEL)
     first = (await book(api.as_("ana"), shared_trip, item)).json()
@@ -440,6 +546,25 @@ async def test_pending_booking_resolves_through_the_worker(
     assert after["acceptedPrice"] == b["acceptedPrice"]  # accepted snapshot unchanged
     if outcome == "failed":
         assert after["failure"]["code"] and "new booking" in after["nextStep"]
+
+
+async def test_a_pending_booking_is_next_checked_after_the_configured_poll_interval(
+    api, make_app, shared_trip, mock_control
+):
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import text
+
+    configured = make_app(booking_pending_poll_seconds=120.0)
+    item = await add_item(api.as_("ana"), shared_trip, APARTMENT)
+    b = (await book(api.as_("ana", app=configured), shared_trip, item)).json()
+    assert b["status"] == "pending"
+    async with configured.state.sessions() as session:
+        run_after, created_at = (await session.execute(text(
+            "SELECT run_after, created_at FROM jobs WHERE dedupe_key = :key"),
+            {"key": f"sync_booking:{b['bookingId']}"})).one()
+    assert isinstance(run_after, datetime)
+    assert run_after - created_at == timedelta(seconds=120)
 
 
 async def test_one_confirmed_and_one_failed_are_both_visible_with_next_steps(

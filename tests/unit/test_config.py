@@ -79,3 +79,21 @@ def test_mcp_token_secret_is_masked_in_tracebacks_from_token_code() -> None:
             exc, capture_locals=True).format())
     assert "signature" in rendered
     assert MCP_SECRET not in rendered
+
+
+@pytest.mark.parametrize("secret,warned", [(None, True), (MCP_SECRET, False)])
+async def test_startup_warns_when_the_mcp_token_secret_is_the_development_value(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch, secret: str | None,
+    warned: bool,
+) -> None:
+    from app.api.app import create_app
+
+    monkeypatch.delenv("MCP_TOKEN_SECRET", raising=False)
+    configured = settings(**({"mcp_token_secret": secret} if secret else {}))
+    with caplog.at_level("WARNING", logger="app"):
+        app = create_app(configured)
+    await app.state.shutdown()
+    warnings = [r.getMessage() for r in caplog.records
+                if r.levelname == "WARNING" and "MCP_TOKEN_SECRET" in r.getMessage()]
+    assert bool(warnings) is warned
+    assert all(MCP_SECRET not in w for w in warnings)

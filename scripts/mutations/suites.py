@@ -34,6 +34,12 @@ BOOKINGS = [
         "    booking.submit(clock.now())\n    booking.idempotency_key = f'tp-key-{uuid4()}'\n    if not await uow.bookings.save(booking):",
         "retry with a new key"),
     (R, "    await _ensure_no_active_attempt(uow, item)\n", "", "no active-attempt pre-check"),
+    (R, "    await uow.trips.get_for_update(trip.id)\n    if await uow.itinerary.get(item.id) is None:",
+        "    if await uow.itinerary.get(item.id) is None:", "item re-check without the trip lock"),
+    (R, "    if await uow.itinerary.get(item.id) is None:\n        raise NotFound(",
+        "    if False:\n        raise NotFound(", "item not re-checked before recording"),
+    (R, "    delay = policy.pending_poll_seconds if booking.status == S.PENDING else 0.0",
+        "    delay = 0.0", "configured pending poll interval ignored"),
     (R, "        booking.record_rejection(exc.code, exc.message, now, terms)",
         "        booking.record_rejection(exc.code, exc.message, now, None)", "rejection without new terms"),
     (B, "        if self.accepted_offer is None:  # accepted snapshot is immutable",
@@ -64,9 +70,15 @@ DOCUMENTS = [
          "document generated from live data"),
     (DS, "    await storage.write(document.file_key, content)  # temp file, fsync, atomic rename\n",
          "", "complete without writing the file"),
-    (DS, "    elif content_sha256(content) != document.content_sha256 or \\\n"
+    (DS, "    if content_sha256(content) != document.content_sha256 or \\\n"
          "            len(content) != document.size_bytes:",
-         "    elif False:", "download without hash check"),
+         "    if False:", "download and sweep without hash check"),
+    (DS, "    if not access.role.allows(Role.EDITOR):\n        raise Conflict(\"DOCUMENT_NEEDS_REGENERATION\",",
+         "    if False:\n        raise Conflict(\"DOCUMENT_NEEDS_REGENERATION\",",
+         "a viewer's download writes and enqueues"),
+    (DS, "        problem = file_problem(d, await storage.read(d.storage_key))",
+         "        problem = None if await storage.exists(d.storage_key) else \"FILE_MISSING\"",
+         "sweep only detects missing files"),
     (DS, "    if await uow.documents.save(document, expected_status=D.COMPLETE):\n"
          "        await enqueue_generation(uow, clock, document.id, max_attempts)\n"
          "        await uow.commit()\n    raise Conflict(",

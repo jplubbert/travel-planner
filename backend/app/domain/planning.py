@@ -198,6 +198,8 @@ async def remove_item(
     trip = await _start(uow, clock, access, expected_version)
     assert expected_version is not None
     item = await _item(uow, trip.id, raw_item_id)
+    # Read under the trip lock, which request_booking also takes before inserting: a
+    # booking being recorded is committed (and seen here) before this read runs.
     bookings = [b for b in await uow.bookings.list_for_trip(trip.id)
                 if b.itinerary_item_id == item.id and b.status in ACTIVE_BOOKING]
     if bookings:

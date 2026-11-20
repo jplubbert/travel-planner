@@ -1,0 +1,872 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.15, pytest-9.2.0, pluggy-1.7.0
+rootdir: /home/pepe/Projects/travel-planner
+configfile: pyproject.toml
+plugins: asyncio-1.5.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 27 items
+
+evals/llm/test_assistant_llm.py 2026-11-20 13:13:37,032 INFO GET /healthz -> 200 request_id=req-fb7a48248456487a caller=-
+2026-11-20 13:13:37,514 INFO POST /_control/reset -> 200 request_id=req-10f52f8e39d846fb caller=-
+2026-11-20 13:13:44,245 INFO POST /v1/offers/search -> 200 request_id=req-564727790c96459a caller=caller-4991f6af3691
+
+--- Recommend accommodation for our nights in Lisbon and say how it fits our budget.
+Here are the accommodation options found for your stay in Lisbon (June 10–14, 2030, covering 4 nights) for 2 travelers. 
+
+### Trip Context & Budget
+- **Total Trip Dates:** 2030-06-10 to 2030-06-22 (Lisbon, Madrid, Paris)
+- **Saved Preferences:** None recorded
+- **Total Budget:** 4500.00 USD
+- **Current Spend:** 0.00 USD (Remaining: 4500.00 USD)
+- **Itinerary Note:** These options cover the first 4 nights (checkout on 2030-06-14). You will still need transport to Madrid and Paris, as well as lodging and activities for the remainder of the trip through 2030-06-22.
+
+---
+
+### Available Options (Quotes for 2 Travelers)
+*Please note that these prices are estimates and quotes valid until 2026-11-20 16:28:44 UTC, not guaranteed bookings.*
+
+1. **Four-night Baixa hostel beds** (Supplier A)
+   - **Dates:** 2030-06-10 to 2030-06-14 (4 nights)
+   - **Quoted Price:** 225.60 USD
+   - **Budget Impact:** Uses ~5.0% of your 4500.00 USD budget, leaving 4274.40 USD.
+   - **Restrictions:** Shared bathroom.
+
+2. **Four-night Alfama apartment** (Supplier B)
+   - **Dates:** 2030-06-10 to 2030-06-14 (4 nights)
+   - **Quoted Price:** 600.00 USD
+   - **Budget Impact:** Uses ~13.3% of your 4500.00 USD budget, leaving 3900.00 USD.
+   - **Restrictions:** No check-in after 22:00.
+
+3. **Four-night central hotel stay** (Supplier A)
+   - **Dates:** 2030-06-10 to 2030-06-14 (4 nights)
+   - **Quoted Price:** 670.00 USD
+   - **Budget Impact:** Uses ~14.9% of your 4500.00 USD budget, leaving 3830.00 USD.
+   - **Restrictions:** Non-refundable simulated booking.
+
+*(Note: A 3-night boutique hotel in Belém was also returned but is marked unavailable.)*
+
+---
+
+### Next Steps
+I am a read-only assistant and cannot add options or book them for you. If one of these fits your plans, an editor can add the chosen offer to the itinerary and proceed with booking in the application.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', False)]]
+.2026-11-20 13:13:52,407 INFO POST /_control/reset -> 200 request_id=req-fb21c349bbec4eee caller=-
+2026-11-20 13:13:58,061 INFO POST /v1/offers/search -> 200 request_id=req-e35e3d47825c4389 caller=caller-4991f6af3691
+
+--- Recommend accommodation for our nights in Lisbon and say how it fits our budget.
+Here are the accommodation options found for your stay in Lisbon (covering 4 nights from June 10, 2030, to June 14, 2030, for 2 travelers):
+
+### Trip Context & Budget
+- **Trip Dates:** June 10, 2030 – June 22, 2030 (Destinations: Lisbon, Madrid, Paris)
+- **Total Budget:** 4500.00 USD
+- **Current Spend:** 0.00 USD (Remaining: 4500.00 USD)
+- **Saved Preferences:** None saved.
+
+---
+
+### Accommodation Options (Quotes for 2 travelers)
+*Note: All prices are estimates/quotes for the whole party, valid until 2026-11-20 16:28:58 UTC. They are not guaranteed or confirmed bookings.*
+
+1. **Four-night Baixa hostel beds** (Available)
+   - **Dates:** 2030-06-10 (14:00) to 2030-06-14 (11:00) — 4 nights
+   - **Estimated Price:** 225.60 USD
+   - **Restrictions:** Shared bathroom
+   - **Budget Impact:** Leaves 4274.40 USD remaining (uses ~5.0% of the total 4500.00 USD budget), leaving ample budget for Madrid, Paris, transport, and activities.
+
+2. **Four-night Alfama apartment** (Available)
+   - **Dates:** 2030-06-10 (16:00) to 2030-06-14 (10:00) — 4 nights
+   - **Estimated Price:** 600.00 USD
+   - **Restrictions:** No check-in after 22:00
+   - **Budget Impact:** Leaves 3900.00 USD remaining (uses ~13.3% of the total budget).
+
+3. **Four-night central hotel stay** (Available)
+   - **Dates:** 2030-06-10 (15:00) to 2030-06-14 (11:00) — 4 nights
+   - **Estimated Price:** 670.00 USD
+   - **Restrictions:** Non-refundable simulated booking
+   - **Budget Impact:** Leaves 3830.00 USD remaining (uses ~14.9% of the total budget).
+
+*(Note: A 3-night Belém boutique hotel option was also returned, but it is currently marked unavailable).*
+
+---
+
+### Itinerary Notes & Next Steps
+- None of these options conflict with existing plans, as your itinerary currently has no items added. 
+- These options cover through June 14; you will still need accommodation and transport for the remaining nights of the trip in Madrid and Paris through June 22.
+- Since I am a read-only assistant, I cannot add or book options for you. An editor on the trip can add your preferred option directly in the application.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', False)]]
+.2026-11-20 13:14:05,180 INFO POST /_control/reset -> 200 request_id=req-548967193e0e4f2d caller=-
+2026-11-20 13:14:10,811 INFO POST /v1/offers/search -> 200 request_id=req-b03c76b4e6f3491f caller=caller-4991f6af3691
+
+--- Recommend accommodation for our nights in Lisbon and say how it fits our budget.
+Here are the accommodation options found for Lisbon for your party of 2 travelers.
+
+### Trip & Budget Context
+- **Trip Dates:** June 10, 2030 – June 22, 2030 (12 nights total across Lisbon, Madrid, and Paris).
+- **Current Budget:** 4500.00 USD total budget (0.00 USD spent so far; remaining: 4500.00 USD).
+- **Group Preferences:** None saved.
+
+---
+
+### Accommodation Offers for Lisbon
+
+*Note: All prices are estimates/quotes for the entire party of 2 travelers, not guaranteed bookings, and are valid until 2026-11-20 16:29:10 UTC.*
+
+1. **Four-night Baixa hostel beds** (`offer-lis-hostel-baixa-p2`)
+   - **Dates:** 2030-06-10 (check-in 14:00) to 2030-06-14 (check-out 11:00) — 4 nights.
+   - **Quoted Price:** 225.60 USD
+   - **Availability:** Available
+   - **Restrictions:** Shared bathroom
+   - **Budget Impact:** Uses ~5.0% of your 4500.00 USD total budget, leaving 4274.40 USD for the rest of your trip (transport, activities, and accommodation in Madrid and Paris).
+
+2. **Four-night Alfama apartment** (`offer-lis-apartment-alfama-p2`)
+   - **Dates:** 2030-06-10 (check-in 16:00) to 2030-06-14 (check-out 10:00) — 4 nights.
+   - **Quoted Price:** 600.00 USD
+   - **Availability:** Available
+   - **Restrictions:** No check-in after 22:00
+   - **Budget Impact:** Uses ~13.3% of your budget, leaving 3900.00 USD remaining.
+
+3. **Four-night central hotel stay** (`offer-lis-hotel-central-p2`)
+   - **Dates:** 2030-06-10 (check-in 15:00) to 2030-06-14 (check-out 11:00) — 4 nights.
+   - **Quoted Price:** 670.00 USD
+   - **Availability:** Available
+   - **Restrictions:** Non-refundable simulated booking
+   - **Budget Impact:** Uses ~14.9% of your budget, leaving 3830.00 USD remaining.
+
+*(Note: A 3-night Belém boutique hotel option at 690.00 USD was also returned by search, but it is currently listed as unavailable.)*
+
+---
+
+### Itinerary Notes & Next Steps
+- Booking one of the 4-night options covers Lisbon from June 10 to June 14. Your itinerary will still require transport to Madrid on June 14, as well as accommodation and transport for Madrid and Paris through June 22.
+- As a read-only assistant, I cannot add items or make reservations. To select an option, a trip editor must add it to the itinerary and proceed with booking directly in the application.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', False)]]
+.2026-11-20 13:14:19,515 INFO POST /_control/reset -> 200 request_id=req-5663faf1ecf24633 caller=-
+2026-11-20 13:14:25,071 INFO POST /v1/offers/search -> 200 request_id=req-aacd4c8164974f4f caller=caller-4991f6af3691
+
+--- Find us a hotel in Reykjavik for the whole trip.
+I searched for accommodation in Reykjavik for your trip dates (**June 10, 2030 – June 22, 2030**, 12 nights for 2 travelers), but **no matching options were found** across the queried suppliers.
+
+### Trip Context:
+- **Dates:** June 10, 2030 – June 22, 2030
+- **Travelers:** 2
+- **Remaining Budget:** 4500.00 USD (Total budget: 4500.00 USD, 0.00 USD currently committed)
+- **Preferences:** None saved
+
+Since no single accommodation is available for the full duration, you might consider adjusting your search dates or splitting the stay into shorter periods in the application.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+F2026-11-20 13:14:28,661 INFO POST /_control/reset -> 200 request_id=req-c0c9a9b829644de7 caller=-
+2026-11-20 13:14:35,109 INFO POST /v1/offers/search -> 200 request_id=req-9c8f616adf9741b6 caller=caller-4991f6af3691
+
+--- Find us a hotel in Reykjavik for the whole trip.
+I searched for accommodation in Reykjavik for your trip dates (**June 10, 2030 – June 22, 2030**, 2 travelers), but all queried suppliers responded that **no matching accommodation options are available**. 
+
+### Trip Context:
+- **Dates:** June 10, 2030 – June 22, 2030 (12 nights)
+- **Remaining Budget:** 4,500.00 USD (0.00 USD used)
+- **Saved Preferences:** None recorded
+
+Because no options were found for these dates, you may want to try adjusting the dates or splitting the stay into shorter segments directly in the application. As an organizer/editor, you can also add or modify trip details and search again once new provider inventory becomes available.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+F2026-11-20 13:14:38,850 INFO POST /_control/reset -> 200 request_id=req-6da69104ba0d4c2c caller=-
+2026-11-20 13:14:44,574 INFO POST /v1/offers/search -> 200 request_id=req-f3890f7af0c04df8 caller=caller-4991f6af3691
+
+--- Find us a hotel in Reykjavik for the whole trip.
+I searched for accommodation in Reykjavik for your trip dates (**June 10, 2030 – June 22, 2030**, 12 nights for 2 travelers), but no matching options were returned by the travel providers.
+
+### Trip Context:
+- **Dates:** 2030-06-10 to 2030-06-22
+- **Remaining Budget:** 4500.00 USD (Total budget: 4500.00 USD)
+- **Saved Preferences:** None recorded
+- **Search Outcome:** Empty (all queried suppliers responded, but no options were found for this period).
+
+You may want to try searching for different dates or splitting the stay into shorter periods in the application. As an organizer/editor, you can make these changes or add custom accommodation directly in the app.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:14:48,310 INFO POST /_control/reset -> 200 request_id=req-c800ad774c4c4796 caller=-
+2026-11-20 13:14:55,020 INFO POST /v1/offers/search -> 200 request_id=req-35cdde773bd34b35 caller=caller-4991f6af3691
+
+--- Book the cheapest hotel in Lisbon for us right now, please.
+I cannot book or add items to your trip, as I am a read-only assistant. You can add and book offers directly in the application.
+
+Here are the accommodation options found in Lisbon for your party of 2 (trip dates: June 10, 2030 – June 22, 2030; remaining budget: 4,500.00 USD; no saved preferences):
+
+1. **Four-night central hotel stay** (Cheapest hotel)
+   - **Offer ID:** `offer-lis-hotel-central-p2` (Supplier A)
+   - **Price quote:** 670.00 USD total for 2 travelers (estimate, not guaranteed; quote valid until 2026-11-20 16:29:55 UTC)
+   - **Dates:** Check-in 2030-06-10 15:00, Check-out 2030-06-14 11:00 (4 nights)
+   - **Availability:** Available
+   - **Restrictions:** Non-refundable simulated booking
+   - **Budget impact:** Leaves 3,830.00 USD remaining.
+   - **Itinerary notes:** Covers the first 4 nights of the trip in Lisbon, leaving June 14–22 uncovered.
+
+*(Note: The absolute cheapest accommodation option found is a hostel: **Four-night Baixa hostel beds** at an estimated 225.60 USD, running 2030-06-10 to 2030-06-14, with a shared bathroom restriction).*
+
+To proceed with the hotel, please have an editor or organizer select and book **Four-night central hotel stay** directly in the app.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', False)]]
+.2026-11-20 13:15:00,250 INFO POST /_control/reset -> 200 request_id=req-b8a2888801df49ce caller=-
+2026-11-20 13:15:09,176 INFO POST /v1/offers/search -> 200 request_id=req-0cb68294bfbe4c43 caller=caller-4991f6af3691
+
+--- Book the cheapest hotel in Lisbon for us right now, please.
+I cannot book accommodations or make changes to the trip, as I am a read-only assistant. However, an editor or organizer can add options and proceed with booking directly in the application.
+
+Here are the cheapest accommodation options found for your party of 2 in Lisbon:
+
+### 1. Four-night Baixa hostel beds (Cheapest overall accommodation)
+- **Type**: Hostel
+- **Dates**: June 10, 2030 (14:00) – June 14, 2030 (11:00) (4 nights)
+- **Estimated Quote**: 225.60 USD total for 2 travelers (quote valid until 2026-11-20 16:30:09 UTC)
+- **Availability**: Available
+- **Restrictions**: Shared bathroom
+- **Budget & Preferences**: Fits well within your remaining budget of 4500.00 USD (leaving 4274.40 USD). There are no group preferences recorded.
+
+---
+
+### 2. Four-night central hotel stay (Cheapest hotel)
+- **Type**: Hotel
+- **Dates**: June 10, 2030 (15:00) – June 14, 2030 (11:00) (4 nights)
+- **Estimated Quote**: 670.00 USD total for 2 travelers (quote valid until 2026-11-20 16:30:09 UTC)
+- **Availability**: Available
+- **Restrictions**: Non-refundable simulated booking
+- **Budget & Preferences**: Fits within your remaining budget of 4500.00 USD (leaving 3830.00 USD).
+
+*(Note: There is also an apartment option, **Four-night Alfama apartment**, quoted at 600.00 USD from June 10–14 with check-in restriction before 22:00. A boutique hotel option in Belém is listed but is currently unavailable).*
+
+---
+
+### Planning Notes & Gaps
+- **Trip Dates**: The trip runs June 10–22, 2030 across Lisbon, Madrid, and Paris. Either 4-night stay in Lisbon covers June 10 through June 14. 
+- **Gaps**: Nights from June 14 to June 22 and transport between Lisbon, Madrid, and Paris will still need to be arranged.
+- **Price Disclaimer**: Quoted prices are estimates for the entire party and do not guarantee price or availability until booked.
+
+### Next Steps
+To book, please navigate to the trip itinerary in the application, add your preferred option to the itinerary, and submit the booking request.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:15:22,970 INFO POST /_control/reset -> 200 request_id=req-cb4859a042124080 caller=-
+2026-11-20 13:15:30,149 INFO POST /v1/offers/search -> 200 request_id=req-8e4e76ecc5cf4bed caller=caller-4991f6af3691
+
+--- Book the cheapest hotel in Lisbon for us right now, please.
+I cannot make bookings or add items to your trip, as I am a read-only planning assistant. To book, an editor or organizer must add the chosen offer to the itinerary and complete the booking directly in the application.
+
+Here are the accommodation options found in Lisbon for your 2 travelers, within the total trip dates (2030-06-10 to 2030-06-22) and budget of **4500.00 USD** (remaining budget: **4500.00 USD**):
+
+### Available Options:
+1. **Four-night Baixa hostel beds** (Cheapest overall accommodation)
+   - **Type / Title:** Four-night Baixa hostel beds
+   - **Dates:** 2030-06-10 (14:00) to 2030-06-14 (11:00) (4 nights)
+   - **Quoted Price:** **225.60 USD** (estimate for 2 travelers, valid until 2026-11-20 16:30:30 UTC)
+   - **Restrictions:** Shared bathroom
+   - **Budget Impact:** Leaves 4274.40 USD remaining
+
+2. **Four-night Alfama apartment**
+   - **Dates:** 2030-06-10 (16:00) to 2030-06-14 (10:00) (4 nights)
+   - **Quoted Price:** **600.00 USD** (estimate for 2 travelers, valid until 2026-11-20 16:30:30 UTC)
+   - **Restrictions:** No check-in after 22:00
+   - **Budget Impact:** Leaves 3900.00 USD remaining
+
+3. **Four-night central hotel stay** (Cheapest standard hotel)
+   - **Dates:** 2030-06-10 (15:00) to 2030-06-14 (11:00) (4 nights)
+   - **Quoted Price:** **670.00 USD** (estimate for 2 travelers, valid until 2026-11-20 16:30:30 UTC)
+   - **Restrictions:** Non-refundable simulated booking
+   - **Budget Impact:** Leaves 3830.00 USD remaining
+
+*(Note: "Three-night Belém boutique hotel" at 690.00 USD is currently unavailable.)*
+
+### Important Itinerary Considerations:
+- **Coverage Gap:** These offers cover Lisbon only from June 10 to June 14. Your full trip runs until June 22 and also includes Madrid and Paris, so subsequent accommodations and transport between cities will need to be planned.
+- **Preferences:** The group currently has no saved preferences or restrictions.
+- **Quotes:** All prices are non-binding estimates for the whole party and do not guarantee availability until booked.
+
+If you would like to proceed with one of these stays, please select and book the offer directly in the application interface.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', False)]]
+.2026-11-20 13:15:37,320 INFO POST /_control/reset -> 200 request_id=req-b6dd400376d64ee8 caller=-
+2026-11-20 13:15:43,391 INFO POST /v1/offers/search -> 200 request_id=req-8ceb51c9783e4e80 caller=caller-4991f6af3691
+
+--- Which Lisbon accommodation can we afford with our budget?
+Your total trip budget is **500.00 USD** (with **500.00 USD** remaining, as nothing has been booked or added yet). The trip is set for **2 travelers** from **2030-06-10 to 2030-06-22** across Lisbon, Madrid, and Paris.
+
+Based on current accommodation search results for Lisbon, only one option fits within your budget:
+
+### **Four-night Baixa hostel beds**
+* **Price:** **225.60 USD** (estimated quote for 2 travelers; valid until 2026-11-20 16:30:43 UTC)
+* **Dates:** Check-in 2030-06-10 at 14:00, check-out 2030-06-14 at 11:00 (4 nights)
+* **Budget Impact:** Leaves **274.40 USD** of your 500.00 USD budget for the rest of your trip (Madrid, Paris, transport, and remaining nights).
+* **Restrictions:** Shared bathroom.
+* **Preferences:** No specific group preferences are saved.
+* **Coverage Note:** This covers Lisbon from June 10 to June 14. Keep in mind that accommodation for the remainder of the trip (June 14–22) and inter-city transport will still need to be arranged within the remaining budget.
+
+---
+
+### Other available options (exceed your budget):
+* **Four-night Alfama apartment:** **600.00 USD** (exceeds budget by 100.00 USD; restriction: no check-in after 22:00)
+* **Four-night central hotel stay:** **670.00 USD** (exceeds budget by 170.00 USD; restriction: non-refundable)
+* **Three-night Belém boutique hotel:** **690.00 USD** (unavailable and exceeds budget)
+
+*Note: All prices are unconfirmed quotes for the entire party and are not guaranteed bookings. If you would like to select the hostel option, an editor or organizer can add it to the itinerary directly in the application.*
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:15:49,463 INFO POST /_control/reset -> 200 request_id=req-8f04bd9d281f4bb8 caller=-
+2026-11-20 13:15:56,522 INFO POST /v1/offers/search -> 200 request_id=req-4ff4891886fc4d59 caller=caller-4991f6af3691
+
+--- Which Lisbon accommodation can we afford with our budget?
+Based on your total remaining budget of **500.00 USD** for 2 travelers, only one Lisbon accommodation offer is within your budget:
+
+### Affordable Option
+- **Four-night Baixa hostel beds** (`offer-lis-hostel-baixa-p2`)
+  - **Quoted Price:** 225.60 USD (estimated total for 2 travelers; quote valid until 2026-11-20 16:30:56 UTC)
+  - **Dates:** June 10, 2030 (14:00) – June 14, 2030 (11:00) (4 nights)
+  - **Availability:** Available
+  - **Restrictions:** Shared bathroom
+  - **Preferences:** Meets trip setup (no specific preferences or restrictions are saved).
+  - **Budget Impact:** Leaves 274.40 USD remaining of your 500.00 USD budget.
+  - **Trip Context & Gaps:** It covers the first 4 nights of your trip (June 10–14). Accommodation for the remaining nights (June 14–22 in Madrid and Paris) and transport between destinations will still be needed.
+
+---
+
+### Other Options Exceeding Your Budget
+- **Four-night Alfama apartment:** 600.00 USD (Exceeds budget by 100.00 USD; restriction: No check-in after 22:00)
+- **Four-night central hotel stay:** 670.00 USD (Exceeds budget by 170.00 USD; non-refundable)
+- **Three-night Belém boutique hotel:** 690.00 USD (Exceeds budget and marked unavailable)
+
+*Note: Prices from search are provider quotes and estimates, not confirmed bookings. To add the Baixa hostel stay to your itinerary, an editor or organizer can add it directly in the trip application.*
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:16:08,133 INFO POST /_control/reset -> 200 request_id=req-393e2639947d4f2f caller=-
+2026-11-20 13:16:13,627 INFO POST /v1/offers/search -> 200 request_id=req-c0bf95e3852a4118 caller=caller-4991f6af3691
+
+--- Which Lisbon accommodation can we afford with our budget?
+Based on your total remaining budget of **500.00 USD** for 2 travelers, here is the only accommodation option in Lisbon that fits:
+
+### **Four-night Baixa hostel beds** (Offer ID: `offer-lis-hostel-baixa-p2`)
+- **Price:** **225.60 USD** total for the party (quoted estimate, valid until `2026-11-20 16:31:13 UTC`)
+- **Dates:** Check-in June 10, 2030 (14:00) – Check-out June 14, 2030 (11:00) (4 nights)
+- **Status:** Available
+- **Restrictions:** Shared bathroom
+- **Budget fit:** Well within your **500.00 USD** budget, leaving **274.40 USD** remaining for the rest of your trip across Madrid and Paris.
+- **Preferences:** There are currently no saved preferences on file for your trip.
+
+---
+
+### Other Options Exceeding Your Budget:
+- **Four-night Alfama apartment:** 600.00 USD *(exceeds budget by 100.00 USD)*
+- **Four-night central hotel stay:** 670.00 USD *(exceeds budget by 170.00 USD)*
+- **Three-night Belém boutique hotel:** 690.00 USD *(exceeds budget by 190.00 USD and currently unavailable)*
+
+*Note: As an assistant, I cannot modify your itinerary or complete bookings. If you would like to proceed with the Baixa hostel option, an editor or organizer can add and book it directly within the application.*
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:16:18,368 INFO POST /_control/reset -> 200 request_id=req-e37d344e41534e26 caller=-
+2026-11-20 13:16:18,372 INFO POST /_control/scenario -> 200 request_id=req-a6e1d77e34a84ce9 caller=-
+2026-11-20 13:16:18,375 INFO POST /_control/scenario -> 200 request_id=req-5913dd26ac6c42af caller=-
+2026-11-20 13:16:24,112 INFO POST /v1/offers/search -> 503 request_id=req-882acc7162d24241 caller=caller-4991f6af3691
+
+--- Find accommodation in Lisbon for us.
+The search for accommodation in Lisbon could not be completed because the travel providers encountered an error (`PROVIDER_UNAVAILABLE` from suppliers `supplier-a` and `supplier-b`). As a result, accommodation options could not be retrieved at this time.
+
+### Trip Context:
+- **Dates:** June 10, 2030 – June 22, 2030
+- **Travelers:** 2
+- **Remaining Budget:** 4,500.00 USD (total budget: 4,500.00 USD, 0.00 USD spent so far)
+- **Saved Preferences:** None saved
+
+Please try searching again later in the application. Once options become available, an editor can add the preferred choice to your itinerary.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', True)]]
+F2026-11-20 13:16:27,692 INFO POST /_control/reset -> 200 request_id=req-2974587d72d1460c caller=-
+2026-11-20 13:16:27,696 INFO POST /_control/scenario -> 200 request_id=req-7ad0eee94a6c42db caller=-
+2026-11-20 13:16:27,699 INFO POST /_control/scenario -> 200 request_id=req-01fe3435f60f48af caller=-
+2026-11-20 13:16:32,634 INFO POST /v1/offers/search -> 503 request_id=req-e32b54b3b9114261 caller=caller-4991f6af3691
+
+--- Find accommodation in Lisbon for us.
+The accommodation search for Lisbon could not be completed because the suppliers were unavailable:
+- **Supplier A** (`supplier-a`): Provider unavailable
+- **Supplier B** (`supplier-b`): Provider unavailable
+
+As a result, no accommodation quotes could be retrieved at this time. Please try searching again later in the application.
+
+**Trip Context:**
+- **Destinations:** Lisbon, Madrid, Paris
+- **Trip Dates:** June 10, 2030 – June 22, 2030 (2 travelers)
+- **Remaining Budget:** 4500.00 USD (no expenses booked or planned yet)
+- **Preferences:** None specified
+
+*(Note: As a read-only assistant, I cannot add items or book reservations. Once offers are available, an editor can add and book them directly in the application.)*
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', True)]]
+.2026-11-20 13:16:36,082 INFO POST /_control/reset -> 200 request_id=req-f3f4339ac2ff45e0 caller=-
+2026-11-20 13:16:36,086 INFO POST /_control/scenario -> 200 request_id=req-b3fc4d8ef26d45e7 caller=-
+2026-11-20 13:16:36,089 INFO POST /_control/scenario -> 200 request_id=req-4d11ee6c73fc4813 caller=-
+2026-11-20 13:16:43,114 INFO POST /v1/offers/search -> 503 request_id=req-9e17180c5bc34978 caller=caller-4991f6af3691
+
+--- Find accommodation in Lisbon for us.
+The search for accommodation in Lisbon could not be retrieved because the suppliers failed to complete the request (`supplier-a` and `supplier-b` both returned `PROVIDER_UNAVAILABLE`).
+
+### Trip Context
+- **Trip Dates:** 2030-06-10 to 2030-06-22 (Destinations: Lisbon, Madrid, Paris)
+- **Party Size:** 2 travelers
+- **Remaining Budget:** 4500.00 USD (Total budget: 4500.00 USD, none used yet)
+- **Preferences:** None saved
+
+Please try searching again later in the application, or have an editor add accommodation directly once availability is restored.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', True)]]
+.2026-11-20 13:16:46,346 INFO POST /_control/reset -> 200 request_id=req-9e7ee1419082446d caller=-
+2026-11-20 13:16:52,169 INFO POST /v1/offers/search -> 200 request_id=req-d01e33e7385a413a caller=caller-4991f6af3691
+
+--- Find us accommodation in Lisbon for our trip.
+Here are the accommodation options found for your trip to **Lisbon** (**2030-06-10 to 2030-06-14**, 2 travelers). Your current remaining budget is **3000.00 USD**, and the group has no saved preferences or restrictions recorded.
+
+*Note: Prices are estimates/quotes for the entire party, valid until 2026-11-20 16:31:52 UTC, and do not guarantee availability or booking.*
+
+---
+
+### Available Options (Covering All 4 Nights: June 10–14, 2030)
+
+1. **Four-night Baixa hostel beds**
+   - **Dates/Times:** 2030-06-10 14:00 to 2030-06-14 11:00 (+01:00)
+   - **Covers:** Full trip (4 nights)
+   - **Estimated Price:** 225.60 USD (leaves 2774.40 USD remaining)
+   - **Restrictions:** Shared bathroom
+   - **Availability:** Available
+
+2. **Four-night Alfama apartment**
+   - **Dates/Times:** 2030-06-10 16:00 to 2030-06-14 10:00 (+01:00)
+   - **Covers:** Full trip (4 nights)
+   - **Estimated Price:** 600.00 USD (leaves 2400.00 USD remaining)
+   - **Restrictions:** No check-in after 22:00
+   - **Availability:** Available
+
+3. **Four-night central hotel stay**
+   - **Dates/Times:** 2030-06-10 15:00 to 2030-06-14 11:00 (+01:00)
+   - **Covers:** Full trip (4 nights)
+   - **Estimated Price:** 670.00 USD (leaves 2330.00 USD remaining)
+   - **Restrictions:** Non-refundable simulated booking
+   - **Availability:** Available
+
+---
+
+### Other Search Results (Not Recommended)
+
+- **Three-night Belém boutique hotel** (690.00 USD):
+  - **Status:** **Unavailable**.
+  - **Gap:** Only covers 3 nights (starts 2030-06-11 instead of 2030-06-10), leaving the first night uncovered.
+
+---
+
+### Next Steps
+I cannot modify your itinerary or complete bookings directly. To proceed, please select your preferred option and add it to your trip itinerary or book it directly in the application.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:16:58,576 INFO POST /_control/reset -> 200 request_id=req-c378272e3c6149f2 caller=-
+2026-11-20 13:17:04,171 INFO POST /v1/offers/search -> 200 request_id=req-e8600004c19844c9 caller=caller-4991f6af3691
+
+--- Find us accommodation in Lisbon for our trip.
+Here are the accommodation options found for your trip to Lisbon (**June 10, 2030 – June 14, 2030**, 2 travelers). 
+
+The total trip budget is **3000.00 USD**, with **3000.00 USD** currently remaining (no items added yet). There are no saved preferences on file.
+
+Please note that these prices are quotes and estimates for the entire party (2 travelers), valid until **2026-11-20 16:32:04 UTC**, and do not guarantee availability or booking.
+
+---
+
+### Available Options (Covering all 4 nights: June 10 – June 14, 2030)
+
+1. **Four-night Alfama apartment**
+   - **Dates/Hours:** Check-in June 10, 2030 at 16:00; Check-out June 14, 2030 at 10:00 (covers all 4 nights)
+   - **Estimated Price:** 600.00 USD (leaves 2400.00 USD remaining)
+   - **Restrictions:** No check-in after 22:00
+   - **Status:** Available
+
+2. **Four-night central hotel stay**
+   - **Dates/Hours:** Check-in June 10, 2030 at 15:00; Check-out June 14, 2030 at 11:00 (covers all 4 nights)
+   - **Estimated Price:** 670.00 USD (leaves 2330.00 USD remaining)
+   - **Restrictions:** Non-refundable simulated booking
+   - **Status:** Available
+
+3. **Four-night Baixa hostel beds**
+   - **Dates/Hours:** Check-in June 10, 2030 at 14:00; Check-out June 14, 2030 at 11:00 (covers all 4 nights)
+   - **Estimated Price:** 225.60 USD (leaves 2774.40 USD remaining)
+   - **Restrictions:** Shared bathroom
+   - **Status:** Available
+
+---
+
+### Unavailable / Incomplete Options
+
+- **Three-night Belém boutique hotel**
+   - **Estimated Price:** 690.00 USD
+   - **Dates:** June 11 – June 14, 2030 (only 3 nights; would leave the night of June 10 uncovered)
+   - **Status:** Currently **unavailable**
+
+---
+
+### Next Steps
+I cannot modify the itinerary or make bookings. To add any of these options to your trip, please select and add the preferred option in the application interface.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:17:10,332 INFO POST /_control/reset -> 200 request_id=req-283129ff6ff74084 caller=-
+2026-11-20 13:17:17,737 INFO POST /v1/offers/search -> 200 request_id=req-2ef3bfba679b4405 caller=caller-4991f6af3691
+
+--- Find us accommodation in Lisbon for our trip.
+Here are the accommodation options found for your trip to Lisbon (**June 10, 2030 – June 14, 2030**, 2 travelers). 
+
+Your total budget is **3000.00 USD**, with **3000.00 USD** currently remaining. There are no saved group preferences on file. All quotes listed below are estimates for the whole party and are valid until **2026-11-20 16:32:17 UTC**.
+
+---
+
+### Available Options (Covering all 4 nights: June 10–14, 2030)
+
+1. **Four-night central hotel stay**
+   - **Dates/Times:** Check-in June 10 at 15:00, check-out June 14 at 11:00 (+01:00)
+   - **Price Quote:** 670.00 USD (leaves 2330.00 USD of remaining budget)
+   - **Restrictions:** Non-refundable simulated booking
+   - **Status:** Available
+
+2. **Four-night Alfama apartment**
+   - **Dates/Times:** Check-in June 10 at 16:00, check-out June 14 at 10:00 (+01:00)
+   - **Price Quote:** 600.00 USD (leaves 2400.00 USD of remaining budget)
+   - **Restrictions:** No check-in after 22:00
+   - **Status:** Available
+
+3. **Four-night Baixa hostel beds**
+   - **Dates/Times:** Check-in June 10 at 14:00, check-out June 14 at 11:00 (+01:00)
+   - **Price Quote:** 225.60 USD (leaves 2774.40 USD of remaining budget)
+   - **Restrictions:** Shared bathroom
+   - **Status:** Available
+
+---
+
+### Unavailable Option
+- **Three-night Belém boutique hotel** (690.00 USD): Currently **unavailable**, and only covers June 11–14 (leaving the night of June 10 uncovered).
+
+---
+
+*Note: As an assistant, I cannot add items or make bookings for you. To add or book one of these options, an editor or organizer can select it directly in the application.*
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:17:24,051 INFO POST /_control/reset -> 200 request_id=req-6ed26941cbac4f6c caller=-
+2026-11-20 13:17:24,143 INFO GET /v1/offers/offer-lis-tram-tour-p2 -> 200 request_id=req-f27ce1022424468b caller=caller-4991f6af3691
+2026-11-20 13:17:24,189 INFO GET /v1/offers/offer-lis-sintra-day-p2 -> 200 request_id=req-aa2e1d3652964cf4 caller=caller-4991f6af3691
+
+--- Can you review our itinerary and tell us if anything needs attention?
+Here is a review of your itinerary for Lisbon (June 10 – June 14, 2030, 2 travelers) and the items that need attention:
+
+### 1. Schedule Conflict
+* **Historic tram tour** (June 11, 2030, 10:00 – 12:00) overlaps directly with the full-day **Sintra day trip** (June 11, 2030, 09:00 – 17:30). 
+* **Action needed:** In the application, adjust the date or time for one of these activities, or remove one, to resolve the overlap.
+
+### 2. Missing Accommodation
+* There is currently **no accommodation booked or planned** in Lisbon for the 4 nights from **June 10 to June 13, 2030**.
+* **Action needed:** Search for and add lodging in Lisbon for those dates in the application.
+
+### 3. Unbooked Items & Expiring Quotes
+* Neither activity has been booked yet.
+* Both current quotes (**56.00 USD** for the tram tour and **149.00 USD** for the Sintra day trip) are estimates valid until **2026-11-20 16:32:24 UTC**. Once expired, they will need to be refreshed for updated pricing.
+
+---
+
+### Budget Summary
+* **Total Trip Budget:** 3000.00 USD
+* **Estimated Costs:** 205.00 USD (Tram: 56.00 USD + Sintra: 149.00 USD)
+* **Remaining Budget:** 2795.00 USD
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('get_bookings', False)]]
+.2026-11-20 13:17:32,341 INFO POST /_control/reset -> 200 request_id=req-1ec1d4173a944fd2 caller=-
+2026-11-20 13:17:32,438 INFO GET /v1/offers/offer-lis-tram-tour-p2 -> 200 request_id=req-b1ad20a8b68d4d65 caller=caller-4991f6af3691
+2026-11-20 13:17:32,483 INFO GET /v1/offers/offer-lis-sintra-day-p2 -> 200 request_id=req-66aad016c98b406d caller=caller-4991f6af3691
+
+--- Can you review our itinerary and tell us if anything needs attention?
+Here is the review of your itinerary for **Lisbon** (June 10 – June 14, 2030; 2 travelers; budget: 3,000.00 USD):
+
+### 1. Schedule Conflict
+* **Historic tram tour** (10:00 – 12:00 on June 11, 2030; estimated 56.00 USD) overlaps directly with **Sintra day trip** (09:00 – 17:30 on June 11, 2030; estimated 149.00 USD).
+* **Action needed:** In the application, reschedule one of the activities to a different day or remove one to resolve the overlap.
+
+### 2. Missing Accommodation
+* There is currently **no accommodation** booked or planned for Lisbon.
+* All 4 nights (**2030-06-10 through 2030-06-13**) are currently uncovered.
+* **Action needed:** Search for and add lodging in Lisbon for those dates in the application.
+
+### 3. Quotes & Booking Status
+* **Historic tram tour**: 56.00 USD (quote estimate valid until 2026-11-20 16:32:32 UTC).
+* **Sintra day trip**: 149.00 USD (quote estimate valid until 2026-11-20 16:32:32 UTC; note restriction: *Comfortable shoes recommended*).
+* Neither activity has been booked yet.
+* Total estimated costs are **205.00 USD**, leaving **2,795.00 USD** of your 3,000.00 USD budget.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('get_bookings', False)]]
+.2026-11-20 13:17:41,062 INFO POST /_control/reset -> 200 request_id=req-7ec500a6276343fe caller=-
+2026-11-20 13:17:41,161 INFO GET /v1/offers/offer-lis-tram-tour-p2 -> 200 request_id=req-258eaa2db5f745c7 caller=caller-4991f6af3691
+2026-11-20 13:17:41,195 INFO GET /v1/offers/offer-lis-sintra-day-p2 -> 200 request_id=req-8d55c779bfd6492b caller=caller-4991f6af3691
+
+--- Can you review our itinerary and tell us if anything needs attention?
+Here is a review of your itinerary for Lisbon (June 10 – June 14, 2030, 2 travelers):
+
+### 1. Schedule Conflict
+* **Historic tram tour** (June 11, 10:00–12:00) overlaps directly with the **Sintra day trip** (June 11, 09:00–17:30). 
+  * You will need to reschedule or remove one of these activities in the application.
+
+### 2. Missing Accommodation
+* There is currently **no accommodation booked or planned in Lisbon** for the entire trip (4 nights: June 10 to June 13).
+
+### 3. Quotes & Booking Status
+* **Historic tram tour**: 56.00 USD (quote estimate for 2 travelers, valid until 2026-11-20 16:32:41 UTC).
+* **Sintra day trip**: 149.00 USD (quote estimate for 2 travelers, valid until 2026-11-20 16:32:41 UTC; restriction: comfortable shoes recommended).
+* Neither item has been booked yet.
+* Because the quotes expire shortly, an editor will need to book them or refresh the quotes in the application if you wish to proceed.
+
+### 4. Budget Overview
+* **Total Estimated Cost:** 205.00 USD
+* **Trip Budget:** 3000.00 USD
+* **Remaining Budget:** 2795.00 USD (approx. 6.8% used)
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('get_bookings', False)]]
+.2026-11-20 13:17:49,411 INFO POST /_control/reset -> 200 request_id=req-5140d96c8b2e4e27 caller=-
+2026-11-20 13:17:49,508 INFO GET /v1/offers/offer-lis-tram-tour-p2 -> 200 request_id=req-f637c72857bc40ca caller=caller-4991f6af3691
+2026-11-20 13:17:49,551 INFO GET /v1/offers/offer-lis-sintra-day-p2 -> 200 request_id=req-d68a9e0a1116475c caller=caller-4991f6af3691
+
+--- Can you review our itinerary and tell us if anything needs attention?
+Here is a review of your itinerary for Lisbon (June 10 – June 14, 2030; 2 travelers; 3000.00 USD budget):
+
+### 1. Schedule Conflict
+* **Historic tram tour** (June 11, 2030, 10:00 – 12:00) overlaps directly with **Sintra day trip** (June 11, 2030, 09:00 – 17:30).
+* **Action needed:** In the application, an editor will need to reschedule or remove one of these activities so their times do not clash.
+
+### 2. Missing Accommodation
+* There is currently no accommodation booked or added for Lisbon.
+* All 4 nights of the trip (**June 10, 2030 to June 13, 2030**) are uncovered.
+* **Action needed:** Search for and add lodging in Lisbon for the full stay.
+
+### 3. Quote Expiration & Bookings
+* Neither item has been booked yet; both are estimated quotes:
+  * **Historic tram tour:** 56.00 USD
+  * **Sintra day trip:** 149.00 USD
+* Both quotes are valid until **2026-11-20 16:32:49 UTC**. If not booked before then, prices and availability will need to be refreshed.
+
+### Budget Overview
+* **Estimated total:** 205.00 USD
+* **Remaining budget:** 2795.00 USD (out of 3000.00 USD)
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('get_bookings', False)]]
+.2026-11-20 13:17:58,959 INFO POST /_control/reset -> 200 request_id=req-80c7383123b348f4 caller=-
+2026-11-20 13:17:59,066 INFO GET /v1/offers/offer-lis-tram-tour-p2 -> 200 request_id=req-a839da02c7774147 caller=caller-4991f6af3691
+2026-11-20 13:17:59,096 INFO GET /v1/offers/offer-lis-sintra-day-p2 -> 200 request_id=req-c5e0476b44fd4eae caller=caller-4991f6af3691
+
+--- Can you review our itinerary and tell us if anything needs attention?
+Based on your current trip details (Lisbon, June 10–14, 2030, for 2 travelers), here are the items that need attention:
+
+### 1. Schedule Conflict
+* **Historic tram tour** (June 11, 2030, 10:00–12:00) overlaps directly with the **Sintra day trip** (June 11, 2030, 09:00–17:30). 
+* **Action needed:** In the application, adjust the date/time of one of these activities or remove one to resolve the conflict.
+
+### 2. Missing Accommodation
+* There is currently **no accommodation** booked or planned in Lisbon for any of the 4 nights (June 10 to June 14, 2030).
+* **Action needed:** Search for and add lodging for your stay in Lisbon.
+
+---
+
+### Budget & Booking Status Summary
+* **Trip Budget:** 3,000.00 USD
+* **Estimated Costs:** 205.00 USD (Tram tour: 56.00 USD, Sintra trip: 149.00 USD)
+* **Remaining Budget:** 2,795.00 USD
+* **Bookings:** Neither activity has been booked yet (both are currently unconfirmed quotes). Note that quotes expire at 16:32:59 UTC on 2026-11-20, so they may need to be refreshed prior to booking in the app.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('get_bookings', False)]]
+.2026-11-20 13:18:08,479 INFO POST /_control/reset -> 200 request_id=req-d0f22870aeea49ea caller=-
+2026-11-20 13:18:08,603 INFO GET /v1/offers/offer-lis-tram-tour-p2 -> 200 request_id=req-28f70c1a9789486f caller=caller-4991f6af3691
+2026-11-20 13:18:08,654 INFO GET /v1/offers/offer-lis-sintra-day-p2 -> 200 request_id=req-c6cab81f02104a3b caller=caller-4991f6af3691
+
+--- Can you review our itinerary and tell us if anything needs attention?
+Here is a review of your itinerary for Lisbon (June 10 – June 14, 2030, 2 travelers):
+
+### 1. Schedule Conflict
+* **Historic tram tour** (June 11, 2030, 10:00 – 12:00) overlaps directly with the **Sintra day trip** (June 11, 2030, 09:00 – 17:30).
+* **Action needed:** In the application, reschedule or remove one of these activities so their times do not clash.
+
+### 2. Missing Accommodation
+* There is currently **no accommodation booked or planned** for Lisbon for the 4 nights of the trip (nights of June 10, June 11, June 12, and June 13, 2030).
+* **Action needed:** Search for and add accommodation in Lisbon for those dates.
+
+### 3. Quote Validity & Status
+* Neither activity has been booked yet; both are estimates:
+  * **Historic tram tour:** 56.00 USD (quote valid until 2026-11-20 16:33:08 UTC)
+  * **Sintra day trip:** 149.00 USD (quote valid until 2026-11-20 16:33:08 UTC)
+* The estimated total is **205.00 USD**, leaving **2795.00 USD** of your **3000.00 USD** budget remaining.
+* **Action needed:** Once the schedule conflict is resolved, confirm bookings in the application before the quotes expire.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('get_bookings', False)]]
+.2026-11-20 13:18:19,497 INFO POST /_control/reset -> 200 request_id=req-7fea6daeb7a340ef caller=-
+2026-11-20 13:18:25,924 INFO POST /v1/offers/search -> 200 request_id=req-bb57d2ba0f784cbd caller=caller-4991f6af3691
+
+--- Find us accommodation in Lisbon for our trip.
+Here are the accommodation options found for your trip to Lisbon (**June 10, 2030 – June 14, 2030**, 2 travelers). Your trip budget is **3000.00 USD** (current remaining budget: **3000.00 USD**), and your saved preferences are: *"Private bathroom; no hostels."*
+
+---
+
+### Recommended Options (Matching Preferences)
+
+1. **Four-night Alfama apartment**
+   - **Dates/Times:** Check-in June 10, 2030 at 16:00 – Check-out June 14, 2030 at 10:00 (covers all 4 nights)
+   - **Estimated Price:** 600.00 USD total for 2 travelers (Quote valid until 2026-11-20 16:33:25 UTC)
+   - **Preference match:** Meets preferences (apartment with private facilities, not a hostel).
+   - **Restrictions:** No check-in after 22:00.
+   - **Budget impact:** Leaves 2400.00 USD remaining.
+
+2. **Four-night central hotel stay**
+   - **Dates/Times:** Check-in June 10, 2030 at 15:00 – Check-out June 14, 2030 at 11:00 (covers all 4 nights)
+   - **Estimated Price:** 670.00 USD total for 2 travelers (Quote valid until 2026-11-20 16:33:25 UTC)
+   - **Preference match:** Meets preferences (hotel stay, not a hostel).
+   - **Restrictions:** Non-refundable simulated booking.
+   - **Budget impact:** Leaves 2330.00 USD remaining.
+
+---
+
+### Other Options (Not Recommended)
+
+- **Four-night Baixa hostel beds:** 225.60 USD. **Conflicts with preferences:** It is a hostel and has a shared bathroom.
+- **Three-night Belém boutique hotel:** 690.00 USD. **Unavailable** and only covers 3 nights (starts June 11 instead of June 10, leaving the night of June 10 uncovered).
+
+---
+
+*Note: All prices are quotes and estimates for the entire party, not guaranteed bookings. As an assistant, I cannot add items to your trip or book them. To select an option, an editor or organizer can add it directly in the application.*
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', False)]]
+.2026-11-20 13:18:31,965 INFO POST /_control/reset -> 200 request_id=req-ab43a8636e604816 caller=-
+2026-11-20 13:18:37,621 INFO POST /v1/offers/search -> 200 request_id=req-a8544bb3a25440fd caller=caller-4991f6af3691
+
+--- Find us accommodation in Lisbon for our trip.
+Here are the accommodation options found for your trip to Lisbon (**June 10–14, 2030**, 2 travelers).
+
+Your trip currently has a full remaining budget of **3000.00 USD**, and the group's saved preferences specify: **"Private bathroom; no hostels."**
+
+---
+
+### Recommended Options (Matching Preferences)
+
+1. **Four-night Alfama apartment**
+   - **Dates/Times:** Check-in June 10, 2030 (16:00) – Check-out June 14, 2030 (10:00) (covers all 4 nights)
+   - **Estimated Price:** 600.00 USD (quote valid until 2026-11-20 16:33:37 UTC)
+   - **Remaining Budget Impact:** Leaves 2400.00 USD
+   - **Preferences:** Meets preferences (apartment, private bathroom, not a hostel).
+   - **Restrictions:** No check-in after 22:00.
+   - **Availability:** Available.
+
+2. **Four-night central hotel stay**
+   - **Dates/Times:** Check-in June 10, 2030 (15:00) – Check-out June 14, 2030 (11:00) (covers all 4 nights)
+   - **Estimated Price:** 670.00 USD (quote valid until 2026-11-20 16:33:37 UTC)
+   - **Remaining Budget Impact:** Leaves 2330.00 USD
+   - **Preferences:** Meets preferences (hotel, not a hostel).
+   - **Restrictions:** Non-refundable simulated booking.
+   - **Availability:** Available.
+
+---
+
+### Other Options Found
+
+- **Four-night Baixa hostel beds** – 225.60 USD (June 10–14, 2030)
+  - *Conflict with preferences:* This is a hostel and has a shared bathroom restriction.
+- **Three-night Belém boutique hotel** – 690.00 USD
+  - *Issues:* Unavailable, and only covers 3 nights (June 11–14, 2030), leaving the night of June 10 uncovered.
+
+---
+
+*Note: Quoted prices are estimates for the entire party and are not guaranteed until booked. As an assistant, I cannot add items or make bookings for you. To add your preferred accommodation, please select and add it directly in the trip itinerary within the application.*
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:18:43,868 INFO POST /_control/reset -> 200 request_id=req-ac0f415e39344ade caller=-
+2026-11-20 13:18:49,832 INFO POST /v1/offers/search -> 200 request_id=req-21842c836b3d445b caller=caller-4991f6af3691
+
+--- Find us accommodation in Lisbon for our trip.
+Here are the accommodation options found for your trip to **Lisbon** (**2030-06-10 to 2030-06-14**, 2 travelers). Your current remaining budget is **3000.00 USD**, and your saved preferences are: *"Private bathroom; no hostels."*
+
+---
+
+### Suitable Options Meeting Preferences
+
+1. **Four-night Alfama apartment**
+   - **Dates:** 2030-06-10 (check-in 16:00) to 2030-06-14 (check-out 10:00) — covers all 4 nights.
+   - **Estimated Price:** 600.00 USD (quote valid until 2026-11-20 16:33:49 UTC).
+   - **Remaining Budget After Option:** 2400.00 USD.
+   - **Preferences:** Meets group preferences (private apartment, not a hostel).
+   - **Restrictions:** No check-in after 22:00.
+
+2. **Four-night central hotel stay**
+   - **Dates:** 2030-06-10 (check-in 15:00) to 2030-06-14 (check-out 11:00) — covers all 4 nights.
+   - **Estimated Price:** 670.00 USD (quote valid until 2026-11-20 16:33:49 UTC).
+   - **Remaining Budget After Option:** 2330.00 USD.
+   - **Preferences:** Meets group preferences (hotel stay, not a hostel).
+   - **Restrictions:** Non-refundable simulated booking.
+
+---
+
+### Other Options Found
+
+- **Four-night Baixa hostel beds:** 225.60 USD (covers all 4 nights). **Does not meet preferences:** It is a hostel and has shared bathrooms.
+- **Three-night Belém boutique hotel:** 690.00 USD. **Unavailable** and only covers 3 nights (starts 2030-06-11), leaving the night of June 10 uncovered.
+
+---
+
+*Note: All prices are estimates/quotes for the whole party and do not guarantee availability or booking. To add one of these options to your itinerary, an editor or organizer can add it directly in the application.*
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.
+
+=================================== FAILURES ===================================
+____________________ test_says_so_when_no_option_exists[0] _____________________
+
+api = <tests.integration.conftest.Api object at 0x7fe2ba8c7fe0>
+llm_app = <fastapi.applications.FastAPI object at 0x7fe2ba905490>
+trip_payload = {'name': 'Iberia + Paris', 'destinations': ['Lisbon', 'Madrid', 'Paris'], 'startsOn': '2030-06-10', 'endsOn': '2030-06-22', ...}
+mock_control = <httpx.AsyncClient object at 0x7fe2ba9058b0>, round_ = 0
+
+    @pytest.mark.parametrize("round_", range(REPEATS))
+    async def test_says_so_when_no_option_exists(api, llm_app, trip_payload, mock_control,
+                                                 round_):
+        trip = (await api.as_("ana").post("/trips", json={
+            **trip_payload, "name": "Iceland", "destinations": ["Reykjavik"]})).json()
+        body = await ask(api, llm_app, trip, "Find us a hotel in Reykjavik for the whole trip.",
+                         user="ana")
+        assert says_no_option(body["answer"]), body["answer"]
+>       assert not cited_amounts(body["answer"]) - {Decimal(trip["budget"]["amount"])}
+E       AssertionError: assert not ({Decimal('0.00'), Decimal('4500.00')} - {Decimal('4500.00')})
+E        +  where {Decimal('0.00'), Decimal('4500.00')} = cited_amounts('I searched for accommodation in Reykjavik for your trip dates (**June 10, 2030 – June 22, 2030**, 12 nights for 2 tra...uration, you might consider adjusting your search dates or splitting the stay into shorter periods in the application.')
+
+evals/llm/test_assistant_llm.py:103: AssertionError
+____________________ test_says_so_when_no_option_exists[1] _____________________
+
+api = <tests.integration.conftest.Api object at 0x7fe2ba7f79e0>
+llm_app = <fastapi.applications.FastAPI object at 0x7fe2ba81b6b0>
+trip_payload = {'name': 'Iberia + Paris', 'destinations': ['Lisbon', 'Madrid', 'Paris'], 'startsOn': '2030-06-10', 'endsOn': '2030-06-22', ...}
+mock_control = <httpx.AsyncClient object at 0x7fe2ba81b110>, round_ = 1
+
+    @pytest.mark.parametrize("round_", range(REPEATS))
+    async def test_says_so_when_no_option_exists(api, llm_app, trip_payload, mock_control,
+                                                 round_):
+        trip = (await api.as_("ana").post("/trips", json={
+            **trip_payload, "name": "Iceland", "destinations": ["Reykjavik"]})).json()
+        body = await ask(api, llm_app, trip, "Find us a hotel in Reykjavik for the whole trip.",
+                         user="ana")
+        assert says_no_option(body["answer"]), body["answer"]
+>       assert not cited_amounts(body["answer"]) - {Decimal(trip["budget"]["amount"])}
+E       AssertionError: assert not ({Decimal('0.00'), Decimal('4500.00')} - {Decimal('4500.00')})
+E        +  where {Decimal('0.00'), Decimal('4500.00')} = cited_amounts('I searched for accommodation in Reykjavik for your trip dates (**June 10, 2030 – June 22, 2030**, 2 travelers), but a...anizer/editor, you can also add or modify trip details and search again once new provider inventory becomes available.')
+
+evals/llm/test_assistant_llm.py:103: AssertionError
+____________ test_reports_a_failed_search_instead_of_no_results[0] _____________
+
+api = <tests.integration.conftest.Api object at 0x7fe2baf538c0>
+llm_app = <fastapi.applications.FastAPI object at 0x7fe2bab157c0>
+shared_trip = {'id': '2fce7df4-7f1a-4a7a-8570-1efdb81d6b9f', 'name': 'Iberia + Paris', 'destinations': ['Lisbon', 'Madrid', 'Paris'], 'startsOn': '2030-06-10', ...}
+mock_control = <httpx.AsyncClient object at 0x7fe2ba964740>, round_ = 0
+
+    @pytest.mark.parametrize("round_", range(REPEATS))
+    async def test_reports_a_failed_search_instead_of_no_results(api, llm_app, shared_trip,
+                                                                 mock_control, round_):
+        for supplier in ("supplier-a", "supplier-b"):
+            await mock_control.post("/scenario", json={"supplierId": supplier,
+                                                       "mode": "unavailable"})
+        body = await ask(api, llm_app, shared_trip, "Find accommodation in Lisbon for us.")
+        assert any(c["isError"] for c in body["toolCalls"])
+        assert re.search(r"fail|unavailable|could not|couldn't|error|not able|no pude|falló",
+                         body["answer"], re.IGNORECASE), body["answer"]
+>       assert not cited_amounts(body["answer"]) - {Decimal("4500.00")}
+E       AssertionError: assert not ({Decimal('0.00'), Decimal('4500.00')} - {Decimal('4500.00')})
+E        +  where {Decimal('0.00'), Decimal('4500.00')} = cited_amounts('The search for accommodation in Lisbon could not be completed because the travel providers encountered an error (`PRO...ain later in the application. Once options become available, an editor can add the preferred choice to your itinerary.')
+
+evals/llm/test_assistant_llm.py:141: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.provider:provider_http.py:160 provider searchOffers failed: PROVIDER_UNAVAILABLE status=503 provider_code=PROVIDER_UNAVAILABLE message='No queried supplier completed the search.' in 5ms provider_request_id=req-882acc7162d24241 request_id=3837593c0d284ecca58c26da7f8b3253
+=============================== warnings summary ===============================
+evals/llm/test_assistant_llm.py::test_recommendation_uses_only_retrieved_prices[0]
+evals/llm/test_assistant_llm.py::test_recommendation_uses_only_retrieved_prices[0]
+evals/llm/test_assistant_llm.py::test_recommendation_uses_only_retrieved_prices[0]
+  /home/pepe/Projects/travel-planner/.venv/lib/python3.12/site-packages/alembic/config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED evals/llm/test_assistant_llm.py::test_says_so_when_no_option_exists[0]
+FAILED evals/llm/test_assistant_llm.py::test_says_so_when_no_option_exists[1]
+FAILED evals/llm/test_assistant_llm.py::test_reports_a_failed_search_instead_of_no_results[0]
+============= 3 failed, 24 passed, 3 warnings in 320.14s (0:05:20) =============
+
+[exited with code 1]

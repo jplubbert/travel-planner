@@ -35,6 +35,30 @@ def test_core_does_not_import_frameworks_or_adapters(layer):
     assert offenders == {}
 
 
+def test_every_third_party_import_of_the_application_is_a_declared_dependency():
+    """A package the code imports must not arrive only as another package's dependency."""
+    import re
+    import sys
+    import tomllib
+    from importlib.metadata import packages_distributions
+
+    root = APP.parents[1]
+    declared = {re.split(r"[\[<>=!~ ;]", d, maxsplit=1)[0].lower().replace("_", "-")
+                for d in tomllib.loads((root / "pyproject.toml").read_text())["project"][
+                    "dependencies"]}
+    distributions = packages_distributions()
+    undeclared = {}
+    for path in APP.rglob("*.py"):
+        for module in imported_modules(path):
+            top = module.split(".")[0]
+            if top == "app" or top in sys.stdlib_module_names:
+                continue
+            owners = {d.lower().replace("_", "-") for d in distributions.get(top, [top])}
+            if not owners & declared:
+                undeclared[top] = sorted(owners)
+    assert undeclared == {}
+
+
 def test_application_never_calls_mock_control_endpoints():
     offenders = [str(p.relative_to(APP)) for p in APP.rglob("*.py")
                  if "/_control" in p.read_text(encoding="utf-8")]

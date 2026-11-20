@@ -13,7 +13,13 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "httpx>=0.28",
-    "mcp>=1.2",
+    # mcp 2.x (MCPServer); mcp-types and httpx2 are imported directly (app/mcp/server.py,
+    # app/adapters/mcp_client.py), so they are declared, not left as transitive.
+    "mcp>=2.3",
+    "mcp-types>=2.3",
+    "httpx2>=2.16",
+    # Imported directly by app/api/errors.py (it also arrives with fastapi).
+    "starlette>=1.10",
     "google-genai>=3.4.0",
 ]
 

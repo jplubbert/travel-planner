@@ -6,6 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 if TYPE_CHECKING:
     from app.domain.reservations import ReconcilePolicy
 
+# Committed in .env.example and used as the default: fine locally, never in a deployment.
+DEV_MCP_TOKEN_SECRET = "dev-only-insecure-mcp-secret"
+
 
 class Settings(BaseSettings):
     """Environment configuration (see .env.example)."""
@@ -42,7 +45,7 @@ class Settings(BaseSettings):
     events_heartbeat_seconds: float = 15.0
 
     # MCP server (ADR 0006). The token secret signs the identity of MCP sessions.
-    mcp_token_secret: SecretStr = SecretStr("dev-only-insecure-mcp-secret")  # masked, like below
+    mcp_token_secret: SecretStr = SecretStr(DEV_MCP_TOKEN_SECRET)  # masked, like below
     mcp_token_ttl_seconds: float = 300.0
     mcp_allowed_hosts: list[str] = ["localhost", "localhost:*", "127.0.0.1:*", "api:*"]
 
@@ -53,6 +56,9 @@ class Settings(BaseSettings):
     gemini_thinking_level: str = "low"
     assistant_max_iterations: int = 6
     assistant_timeout_seconds: float = 60.0
+
+    def uses_dev_mcp_token_secret(self) -> bool:
+        return self.mcp_token_secret.get_secret_value() == DEV_MCP_TOKEN_SECRET
 
     def reconcile_policy(self) -> "ReconcilePolicy":
         from app.domain.reservations import ReconcilePolicy

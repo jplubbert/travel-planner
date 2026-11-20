@@ -159,6 +159,8 @@ async def make_app(database_url: str, mock_provider_url: str,
             "provider_timeout_seconds": 3.0,
             "document_storage_dir": str(storage_dir),
             "events_poll_seconds": 0.05,
+            # Like make_worker: a pending booking's sync job is due at once.
+            "booking_pending_poll_seconds": 0.0,
             **overrides,
         })
         application = create_app(settings, provider=provider, chat_model=chat_model)

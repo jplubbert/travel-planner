@@ -56,8 +56,8 @@ Three things need deciding: where background jobs live, what a document is, and 
 - **Immutability:** a trigger prevents modifying the snapshot, the version, the trip and the requester. Later edits produce new documents.
 - **Download (any participant):**
   - sha256 and size are verified before serving;
-  - if the file is missing or does not match, **nothing is served**, the problem is logged and the document goes back to `waiting` to be regenerated from the snapshot; since rendering is deterministic, the same hash comes out;
-  - a periodic sweep deletes unreferenced files and old temporary files, and re-enqueues complete documents whose file disappeared.
+  - if the file is missing or does not match, **nothing is served**. For an editor, the problem is recorded and the document goes back to `waiting` to be regenerated from the snapshot; since rendering is deterministic, the same hash comes out. A viewer's download changes nothing (see the note of 2026-11-20);
+  - a periodic sweep deletes unreferenced files and old temporary files, and re-enqueues complete documents whose file disappeared or no longer matches its checksum.
 
 ## Decision 3: SSE status channel, as a notification only
 
@@ -81,6 +81,14 @@ Three things need deciding: where background jobs live, what a document is, and 
 - The middleware restores the context at the end of each request, so the id does not leak into whatever runs afterwards.
 - Test: `tests/integration/test_request_id_propagation.py`.
 
+**Note (2026-11-20): a viewer's download never writes.**
+- **Problem:** the download endpoint is open to viewers, and on a damaged file it moved the document to `waiting` and enqueued its regeneration. Viewers are read-only (US-02), so a viewer's request was changing state and creating work.
+- **Options considered:**
+  - *Keep it and justify it as system recovery, not a user action:* the viewer does not choose anything, and the result is the same document with the same hash. But it still makes a read endpoint write for a read-only role, and the permission model becomes "read-only, except for side effects".
+  - *A viewer's download records nothing and enqueues nothing (chosen).* It answers `409 DOCUMENT_NEEDS_REGENERATION` ("The document needs regeneration by an editor…"), with the `problem` (`FILE_MISSING` or `FILE_CORRUPT`) and the unchanged `status`. An editor's download keeps triggering the regeneration (`409 DOCUMENT_FILE_UNAVAILABLE`, document back to `waiting`).
+- **Consequence:** without an editor, the repair comes from the worker's storage sweep (`DOCUMENT_SWEEP_INTERVAL_SECONDS`, 300 s by default). For that, the sweep now verifies sha256 and size of every complete document, not only that the file exists: it reads every stored file on each sweep, which is acceptable at this scale (small HTML files); with many documents it would need sampling or a cheaper integrity check.
+- **Tests:** `test_a_viewer_hitting_a_damaged_file_changes_nothing_and_the_sweep_repairs_it` (deleted and corrupted file: viewer gets `409`, the document is unchanged and no job is queued; the sweep requeues it and the worker restores the same bytes) and `test_damaged_file_is_never_served_and_is_regenerated_from_the_snapshot` (editor path).
+
 ## Consequences
 
 - **Positive:**
@@ -103,6 +111,7 @@ Three things need deciding: where background jobs live, what a document is, and 
   - snapshot taken at request time, not at generation time;
   - later edits that do not alter the document;
   - deleted, corrupted or truncated file that is not served and is regenerated with the same hash;
+  - a viewer's download of a damaged file changes nothing; the sweep repairs it;
   - orphan sweep;
   - permissions.
 - `tests/integration/test_status_channel.py`: document, booking and trip notifications; reconnection without replay plus `GET`; closing on loss of access; `404` and `401`.
