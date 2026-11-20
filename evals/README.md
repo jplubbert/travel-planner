@@ -70,6 +70,7 @@ Each case verifies the answer automatically (`evals/support.py`):
 
 **Limitations:**
 - The checks are heuristic: regular expressions and keywords in English and Spanish (the assistant answers in the user's language).
+- Since 2026-11-20 the amounts check also counts numbers with two decimals and no `$` or `USD` ("costs 600.00"); before, an invented price written that way was not checked, and the runs recorded above were judged without it. Percentages ("22.35%") are excluded, but a time written with a dot ("15.00") would count as an amount.
 - The amounts check accepts sums of up to 3 terms and differences of 2, so a more complex calculation, even if correct, would be flagged as unbacked.
 - The US-11 checks are tuned to the **strict** side: a paraphrase without the keywords does not count as a mention. For example, "late check-in is not possible" does not quote "No check-in after 22:00", and "tranvía" (Spanish for tram) does not name the "Historic tram tour". A false negative fails the case and the answer printed with `-s` is reviewed. The checks can also have **false positives** (an answer that should fail and passes): see "Checker false positives found on 2026-11-20" below.
 - Of the gaps, only nights without accommodation are evaluated with the model. Since 2026-11-20 the app also computes missing transport between consecutive destinations (`MISSING_TRANSPORT`, which the model had mentioned on its own on 2026-11-18), but there is no LLM case for it.

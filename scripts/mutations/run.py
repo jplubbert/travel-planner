@@ -36,6 +36,16 @@ def summary_line(output: str) -> str:
     return " | ".join(lines[-2:]) if lines else "no output"
 
 
+def edits_of(mutation: tuple) -> tuple[list[tuple[str, str, str]], str]:
+    """A mutation is (path, old, new, label), or (((path, old, new), ...), label) when it
+    must change several places at once (e.g. removing two layers of the same guarantee)."""
+    if len(mutation) == 2:
+        edits, label = mutation
+        return list(edits), label
+    path, old, new, label = mutation
+    return [(path, old, new)], label
+
+
 def killed(returncode: int) -> bool:
     return returncode != 0
 
@@ -46,19 +56,22 @@ def run_suite(name: str, only: str | None = None) -> list[tuple[str, str, str]]:
     cwd = ROOT / suite.get("cwd", ".")
     results = []
     print(f"\n### {name}: {suite['description']}", flush=True)
-    for path, old, new, label in suite["mutations"]:
+    for mutation in suite["mutations"]:
+        edits, label = edits_of(mutation)
         if only and only not in label:
             continue
-        target = ROOT / path
-        if dirty(path):
-            sys.exit(f"{path} has uncommitted changes; commit or stash them first")
-        original = target.read_text()
-        if original.count(old) != 1:
+        for path, _, _ in edits:
+            if dirty(path):
+                sys.exit(f"{path} has uncommitted changes; commit or stash them first")
+        originals = {path: (ROOT / path).read_text() for path, _, _ in edits}
+        if any(originals[path].count(old) != 1 for path, old, _ in edits):
             print(f"== {label}: PATTERN NOT FOUND", flush=True)
             results.append((name, label, "pattern"))
             continue
         try:
-            target.write_text(original.replace(old, new))
+            for path, old, new in edits:  # every edit of one mutation applies together
+                target = ROOT / path
+                target.write_text(target.read_text().replace(old, new))
             time.sleep(suite.get("settle_seconds", 0))  # e.g. let Vite reload the change
             proc = subprocess.run(suite["command"], cwd=cwd, env=env, capture_output=True,
                                   text=True)
@@ -67,7 +80,8 @@ def run_suite(name: str, only: str | None = None) -> list[tuple[str, str, str]]:
                   f"({summary_line(proc.stdout + proc.stderr)})", flush=True)
             results.append((name, label, outcome))
         finally:
-            target.write_text(original)
+            for path, original in originals.items():
+                (ROOT / path).write_text(original)
     return results
 
 

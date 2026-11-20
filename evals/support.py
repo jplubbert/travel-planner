@@ -26,12 +26,19 @@ _MONEY = re.compile(
     re.IGNORECASE)
 
 
+# A number with exactly two decimals, even without "$" or "USD" ("costs 600.00"): every price
+# the tools return has cents. Not a percentage ("22.35%") or part of a longer number.
+_BARE_CENTS = re.compile(r"(?<![\d.,$])(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})(?![\d%]|\.\d)")
+
+
 def cited_amounts(text: str) -> set[Decimal]:
-    """Money amounts the answer states (with $ or USD next to them)."""
+    """Money amounts the answer states: with $ or USD next to them, or with cents."""
     found = set()
     for m in _MONEY.finditer(text):
         whole, cents = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
         found.add(Decimal(f"{whole.replace(',', '')}.{(cents or '0').ljust(2, '0')}"))
+    for m in _BARE_CENTS.finditer(text):
+        found.add(Decimal(f"{m.group(1).replace(',', '')}.{m.group(2)}"))
     return found
 
 

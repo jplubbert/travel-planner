@@ -30,6 +30,12 @@ TOOL_OUTPUT = [{"offers": [{"price": {"amount": "670.00"}}, {"price": {"amount":
     ("It is $600 for both of you", {"600.00"}),
     ("Total: USD 1,270.00 vs a budget of 4,500 USD", {"1270.00", "4500.00"}),
     ("Cuesta 670,00 euros", set()),  # not USD-marked: not counted
+    # Amounts with cents but without "$" or "USD" (missed before 2026-11-20).
+    ("The Alfama apartment costs 600.00 for the group.", {"600.00"}),
+    ("Remaining after the hotel: 3,830.00.", {"3830.00"}),
+    ("Hotel 670.00 + apartment 600.00 = 1,270.00 USD", {"670.00", "600.00", "1270.00"}),
+    # Not money: a percentage, one decimal, a version-like number.
+    ("That uses 22.35% of the budget, rated 4.5, see v1.10.2.", set()),
 ])
 def test_cited_amounts(text, amounts):
     assert cited_amounts(text) == {Decimal(a) for a in amounts}

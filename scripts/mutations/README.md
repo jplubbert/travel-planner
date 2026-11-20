@@ -45,7 +45,8 @@ Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it
 
 | Suite | Mutations | Killed | Survivors |
 | --- | --- | --- | --- |
-| `bookings` | 16 (+1 on 2026-11-18) | 16 (+1) | — |
+| `bookings` | 17 (rerun 2026-11-20) | 17 | — |
+| `tracing` | 3 (rerun 2026-11-20) | 3 | — |
 | `documents` | 12 | 11 | "in-flight requests not deduplicated" (see below) |
 | `mcp` | 28 (2026-11-20) | 28 | — |
 | `planning` | 2 (2026-11-20) | 2 | — |
@@ -98,7 +99,9 @@ The last 4 belong to the gaps checker and were run with the runner after commit 
 - "booking checker never fires (active voice)", "conflict without naming the items", "gap without a word of absence" and "gap as 'no' and a lodging word in one sentence (the 2026-11-20 false positive)", updated to the fixed checkers (the last one replaces "absence and accommodation in different sentences");
 - three new ones for the checker fixes: "negated conflict counts as a conflict", "booking checker ignores the passive voice" and "negated passive counts as a booking claim".
 
-The other suites (`bookings`, `documents`, `tracing`, `secrets`, `ui-unit`, `ui-e2e`) were not rerun on 2026-11-20; their results are from 2026-11-18.
+**Run of 2026-11-20 on `5069c99`** (another machine, reported by the project owner): `bookings` and `tracing`, **20 of 20 killed** (`bookings` 17 of 17, `tracing` 3 of 3).
+
+The suites `documents`, `secrets`, `ui-unit` and `ui-e2e` were not rerun on 2026-11-20; their results are from 2026-11-18.
 
 **Shared provider rate limit, 2026-11-20** (new `rate-limit` suite, run alone with `python3 scripts/mutations/run.py rate-limit` once the code was committed, with nothing else running; the tree was clean afterwards):
 

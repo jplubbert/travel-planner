@@ -270,6 +270,61 @@ PLANNING = [
      "        if False:", "missing transport never reported"),
 ]
 
+# --- Core: trips, sharing, search, itinerary, costs, concurrency (US-01 to US-06) -----------
+# Added 2026-11-20 to replace the scripts of the first stories, which were not kept.
+ACC = "backend/app/domain/access.py"
+TRP = "backend/app/domain/trips.py"
+PLN = "backend/app/domain/planning.py"
+SRCH = "backend/app/domain/search.py"
+ITN = "backend/app/domain/itinerary.py"
+CST = "backend/app/domain/costs.py"
+MNY = "backend/app/domain/money.py"
+NO_START_CHECK = (
+    PLN, "    if trip.version != expected_version:\n"
+         "        raise await _conflict(uow, clock, access, expected_version)\n    return trip",
+    "    if False:\n        raise await _conflict(uow, clock, access, expected_version)\n"
+    "    return trip")
+NO_UPDATE_WHERE = (REPO, "            .where(TripRow.id == trip.id, TripRow.version == expected_version)",
+                   "            .where(TripRow.id == trip.id)")
+CORE = [
+    (ACC, "        if not self.role.allows(required):", "        if False:",
+     "role never checked in TripAccess.require"),
+    (ACC, "    if member is None:\n        raise trip_not_found()",
+     "    if member is None:\n        return TripAccess(trip_id=trip_id, user_id=user_id, role=Role.VIEWER)",
+     "non-participant gets in as a viewer in load_access"),
+    (TRP, "    await uow.members.remove(access.trip_id, user_id)\n", "",
+     "removing a participant does nothing"),
+    (*NO_START_CHECK, "no version check in _start"),
+    (REPO, "            .where(TripRow.id == trip_id, TripRow.version == expected_version)\n"
+           "            .values(version=TripRow.version + 1, updated_at=now)",
+     "            .where(TripRow.id == trip_id)\n"
+     "            .values(version=TripRow.version + 1, updated_at=now)",
+     "bump_version without WHERE version"),
+    (*NO_UPDATE_WHERE, "trip update without WHERE version"),
+    ((NO_START_CHECK, NO_UPDATE_WHERE),
+     "trip update without WHERE version and without the _start check"),
+    (TRP, "        if ends_on < starts_on:", "        if False:", "end before start accepted"),
+    (SRCH, "    if result.partial:\n        kind = SearchOutcomeKind.PARTIAL",
+     "    if result.partial:\n        kind = SearchOutcomeKind.COMPLETE",
+     "partial search reported as complete"),
+    (ITN, "    return a.starts_at < b.ends_at and b.starts_at < a.ends_at", "    return False",
+     "_overlaps always False"),
+    (ITN, "    return a.starts_at < b.ends_at and b.starts_at < a.ends_at",
+     "    return a.starts_at <= b.ends_at and b.starts_at <= a.ends_at", "_overlaps with <="),
+    (ITN, "        if confirmed is None and now >= item.valid_until:", "        if False:",
+     "expired price never flagged"),
+    (ITN, "        if item.starts_at.date() < trip.starts_on or item.ends_at.date() > trip.ends_on:",
+     "        if False:", "outside trip dates never flagged"),
+    (CST, "        return CostLine(item.id, item.title, item.category, round_usd(confirmed.accepted_price),",
+     "        return CostLine(item.id, item.title, item.category, round_usd(item.price),",
+     "confirmed cost uses the current price"),
+    (MNY, "    return amount.quantize(CENT, rounding=ROUND_HALF_UP)",
+     "    return amount.quantize(CENT, rounding=\"ROUND_HALF_EVEN\")", "half-even rounding"),
+    (CST, "    return (part / whole * 100).quantize(Decimal(\"0.1\"), rounding=ROUND_HALF_UP)",
+     "    return (part / whole * 100).quantize(Decimal(\"0.1\"), rounding=\"ROUND_DOWN\")",
+     "budget percentage rounded down"),
+]
+
 # --- Shared provider rate limit (added 2026-11-20) -------------------------------------------
 RLA = "backend/app/adapters/sqlalchemy/rate_limits.py"
 RLD = "backend/app/domain/rate_limit.py"
@@ -285,6 +340,18 @@ RATE_LIMIT = [
 _E2E_ENV = {"E2E_BASE_URL": "http://localhost:5174", "E2E_MOCK_URL": "http://localhost:14010"}
 
 SUITES = {
+    "core": {
+        "description": "trips, sharing, search, itinerary, costs and concurrency (US-01 to US-06)",
+        "mutations": CORE,
+        "command": PYTEST + ["tests/unit", "tests/integration/test_persistence.py",
+                            "tests/integration/test_us01_trips.py",
+                            "tests/integration/test_us02_sharing.py",
+                            "tests/integration/test_us03_search.py",
+                            "tests/integration/test_us04_itinerary.py",
+                            "tests/integration/test_us05_costs.py",
+                            "tests/integration/test_us06_concurrency.py",
+                            "tests/integration/test_us11_preferences.py"],
+    },
     "bookings": {
         "description": "bookings, reconciliation and job queue (US-05, US-07, US-08; ADR 0003)",
         "mutations": BOOKINGS,
