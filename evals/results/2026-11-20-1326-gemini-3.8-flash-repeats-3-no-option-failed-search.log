@@ -1,0 +1,98 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.15, pytest-9.2.0, pluggy-1.7.0
+rootdir: /home/pepe/Projects/travel-planner
+configfile: pyproject.toml
+plugins: asyncio-1.5.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 27 items / 21 deselected / 6 selected
+
+evals/llm/test_assistant_llm.py 2026-11-20 13:26:13,998 INFO GET /healthz -> 200 request_id=req-3f4016ff51c84ee3 caller=-
+2026-11-20 13:26:14,366 INFO POST /_control/reset -> 200 request_id=req-807af156687c4c9f caller=-
+2026-11-20 13:26:21,485 INFO POST /v1/offers/search -> 200 request_id=req-3032a62073bc4a9f caller=caller-4991f6af3691
+
+--- Find us a hotel in Reykjavik for the whole trip.
+No matching accommodation options were found in Reykjavik for the full duration of your trip (**2030-06-10 to 2030-06-22**, 12 nights) for **2 travelers**. All queried suppliers responded, but none had available options covering this entire period within your remaining budget of **4,500.00 USD** (no specific group preferences are saved).
+
+You may want to try searching in the application for shorter, split stays across different dates or checking back later for new provider availability.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:26:28,669 INFO POST /_control/reset -> 200 request_id=req-34727a01cd474b6d caller=-
+2026-11-20 13:26:34,809 INFO POST /v1/offers/search -> 200 request_id=req-672f711651c74948 caller=caller-4991f6af3691
+2026-11-20 13:26:36,969 INFO POST /v1/offers/search -> 200 request_id=req-0e4a41b2fd444470 caller=caller-4991f6af3691
+
+--- Find us a hotel in Reykjavik for the whole trip.
+No accommodation options were found in Reykjavik for the entire trip duration (**2030-06-10 to 2030-06-22**, 12 nights for 2 travelers). All queried suppliers responded, but none have matching offers available for those dates.
+
+### Trip Context
+- **Dates:** 2030-06-10 to 2030-06-22
+- **Travelers:** 2
+- **Total Budget:** 4500.00 USD (Remaining: 4500.00 USD)
+- **Saved Preferences:** None specified
+
+You may want to try splitting the stay across multiple shorter date ranges or searching again later. Please note that as a read-only assistant, I cannot modify the trip or add items directly; any changes or additions must be made by an editor in the application.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False), ('search_offers', False)]]
+.2026-11-20 13:26:41,033 INFO POST /_control/reset -> 200 request_id=req-32066ff1e7644e08 caller=-
+2026-11-20 13:26:47,287 INFO POST /v1/offers/search -> 200 request_id=req-b2fc13685ac14366 caller=caller-4991f6af3691
+
+--- Find us a hotel in Reykjavik for the whole trip.
+I searched for accommodation in Reykjavik for your trip dates (**June 10, 2030 – June 22, 2030**, 12 nights) for 2 travelers, but all queried suppliers returned no matching options.
+
+### Trip Context:
+- **Remaining Budget:** 4500.00 USD (out of 4500.00 USD total budget; no expenses committed yet)
+- **Saved Preferences:** None specified
+- **Itinerary Status:** Currently empty, missing accommodation for the entire stay (June 10 to June 22)
+
+Since no single accommodation covers the full 12-night stay, you might consider searching for shorter date ranges or splitting your stay across multiple accommodations. Once you find an option in the application, an editor can add it to the itinerary or proceed with booking.
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', False)]]
+.2026-11-20 13:26:51,964 INFO POST /_control/reset -> 200 request_id=req-202382ddf5fe4b40 caller=-
+2026-11-20 13:26:51,969 INFO POST /_control/scenario -> 200 request_id=req-06b04d9180134d73 caller=-
+2026-11-20 13:26:51,972 INFO POST /_control/scenario -> 200 request_id=req-966fec6467b74077 caller=-
+2026-11-20 13:27:01,599 INFO POST /v1/offers/search -> 503 request_id=req-1e67dd71f3984142 caller=caller-4991f6af3691
+
+--- Find accommodation in Lisbon for us.
+The accommodation search for Lisbon could not be retrieved because the travel provider service returned an error (all queried suppliers, Supplier A and Supplier B, were unavailable). This indicates a retrieval failure rather than a lack of available options.
+
+### Trip Context
+- **Dates:** 2030-06-10 to 2030-06-22
+- **Destination:** Lisbon (first of 3 destinations: Lisbon, Madrid, Paris)
+- **Travelers:** 2
+- **Remaining Budget:** 4500.00 USD (out of 4500.00 USD total budget)
+- **Saved Preferences:** None recorded
+
+Please try searching again later in the application once the provider service is back online. An editor can then add and book selected options directly in the trip.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', True)]]
+.2026-11-20 13:27:10,996 INFO POST /_control/reset -> 200 request_id=req-9a0891196a654075 caller=-
+2026-11-20 13:27:11,000 INFO POST /_control/scenario -> 200 request_id=req-62609365b27e4c3d caller=-
+2026-11-20 13:27:11,002 INFO POST /_control/scenario -> 200 request_id=req-5b8963780fd74269 caller=-
+2026-11-20 13:27:18,770 INFO POST /v1/offers/search -> 503 request_id=req-8723320328fa401d caller=caller-4991f6af3691
+
+--- Find accommodation in Lisbon for us.
+The accommodation search for Lisbon could not be retrieved because the queried travel suppliers (`supplier-a` and `supplier-b`) encountered an error (`PROVIDER_UNAVAILABLE`) and failed to complete the search.
+
+### Trip Context
+- **Trip Dates:** 2030-06-10 to 2030-06-22 (Destinations: Lisbon, Madrid, Paris)
+- **Travelers:** 2
+- **Remaining Budget:** 4500.00 USD (Total budget: 4500.00 USD; no expenses booked or estimated yet)
+- **Preferences:** None specified
+
+Please try searching again later in the application, or have an editor add accommodation options once the provider services are available.
+[tools: [('get_trip', False), ('get_itinerary', False), ('get_costs', False), ('search_offers', True)]]
+.2026-11-20 13:27:22,548 INFO POST /_control/reset -> 200 request_id=req-4a86db9463df4d90 caller=-
+2026-11-20 13:27:22,552 INFO POST /_control/scenario -> 200 request_id=req-55bb544a9dc24e58 caller=-
+2026-11-20 13:27:22,555 INFO POST /_control/scenario -> 200 request_id=req-394d4ed98eeb4dee caller=-
+2026-11-20 13:27:28,599 INFO POST /v1/offers/search -> 503 request_id=req-c19361d639b045a6 caller=caller-4991f6af3691
+
+--- Find accommodation in Lisbon for us.
+I was unable to retrieve accommodation options for Lisbon because the search failed. The travel providers (Supplier A and Supplier B) were unavailable and did not complete the search.
+
+Please try searching again later directly in the application.
+
+### Trip Summary Context:
+- **Destinations:** Lisbon, Madrid, Paris
+- **Trip Dates:** June 10, 2030 – June 22, 2030
+- **Travelers:** 2
+- **Remaining Budget:** 4500.00 USD (out of 4500.00 USD total budget)
+- **Saved Preferences:** None
+[tools: [('get_trip', False), ('get_costs', False), ('get_itinerary', False), ('search_offers', True)]]
+.
+
+================= 6 passed, 21 deselected in 79.16s (0:01:19) ==================
