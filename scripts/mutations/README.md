@@ -49,6 +49,7 @@ Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it
 | `documents` | 12 | 11 | "in-flight requests not deduplicated" (see below) |
 | `mcp` | 28 (2026-11-20) | 28 | — |
 | `planning` | 2 (2026-11-20) | 2 | — |
+| `rate-limit` | 2 (2026-11-20) | 2 | — |
 | `secrets` | 7 | 7 | — |
 | `ui-unit` (Vitest) | 11 | 6 | does not reread on reconnect, reapply with the old version, ignores booking events, buttons for all roles, sends terms other than the reviewed ones |
 | `ui-e2e` (Playwright) | 11 | 10 | "unknown looks confirmed" |
@@ -99,4 +100,11 @@ The last 4 belong to the gaps checker and were run with the runner after commit 
 
 The other suites (`bookings`, `documents`, `tracing`, `secrets`, `ui-unit`, `ui-e2e`) were not rerun on 2026-11-20; their results are from 2026-11-18.
 
-**Total:** 80 distinct mutations (62 + 13 + 2 `planning` + 3 new `mcp`). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
+**Shared provider rate limit, 2026-11-20** (new `rate-limit` suite, run alone with `python3 scripts/mutations/run.py rate-limit` once the code was committed, with nothing else running; the tree was clean afterwards):
+
+| Suite | Mutation | Result |
+| --- | --- | --- |
+| `rate-limit` | a shorter 429 shortens the stored wait (no GREATEST) | Killed (3 tests) |
+| `rate-limit` | the provider is called during the shared rate limit | Killed (4 tests) |
+
+**Total:** 82 distinct mutations (62 + 13 + 2 `planning` + 3 new `mcp` + 2 `rate-limit`). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
