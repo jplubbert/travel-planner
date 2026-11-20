@@ -45,9 +45,9 @@ Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it
 
 | Suite | Mutations | Killed | Survivors |
 | --- | --- | --- | --- |
-| `bookings` | 17 (rerun 2026-11-20) | 17 | — |
+| `bookings` | 20 (2026-11-20, after the review fixes) | 20 | — |
 | `tracing` | 3 (rerun 2026-11-20) | 3 | — |
-| `documents` | 12 (rerun 2026-11-20) | 11 | "in-flight requests not deduplicated" (see below) |
+| `documents` | 14 (2026-11-20, after the review fixes) | 13 | "in-flight requests not deduplicated" (see below) |
 | `mcp` | 28 (2026-11-20) | 28 | — |
 | `planning` | 2 (2026-11-20) | 2 | — |
 | `rate-limit` | 2 (2026-11-20) | 2 | — |
@@ -136,4 +136,15 @@ The last 4 belong to the gaps checker and were run with the runner after commit 
 
 Several are killed by only 1 or 2 tests ("removing a participant does nothing", "`_overlaps` with `<=`", "half-even rounding"): they are detected, but by a single case each.
 
-**Total:** 98 distinct mutations (62 + 13 + 2 `planning` + 3 new `mcp` + 2 `rate-limit` + 16 `core`). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
+**Independent review fixes, 2026-11-20** (run with `python3 scripts/mutations/run.py bookings documents` on `53a3555`, once committed, with nothing else running; afterwards `git diff -- backend/ frontend/src` was empty and there were no `.orig` files). **`bookings` 20 of 20 killed, `documents` 13 of 14**, the survivor being the known defence-in-depth one. New or changed mutations:
+
+| Suite | Mutation | Tests that failed |
+| --- | --- | --- |
+| `bookings` | item re-check without the trip lock | 1 (a removal in progress when the booking is recorded) |
+| `bookings` | item not re-checked before recording | 2 |
+| `bookings` | configured pending poll interval ignored | 1 |
+| `documents` | download and sweep without hash check (was "download without hash check"; the check is now shared with the sweep) | 3 |
+| `documents` | a viewer's download writes and enqueues | 2 |
+| `documents` | sweep only detects missing files | 1 |
+
+**Total:** 103 distinct mutations (62 + 13 + 2 `planning` + 3 new `mcp` + 2 `rate-limit` + 16 `core` + 5 from the review fixes). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
