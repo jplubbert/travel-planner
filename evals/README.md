@@ -88,7 +88,7 @@ A review of `evals/support.py` on 2026-11-20 found three checkers that accepted 
 
 **Effect on the recorded results.** The fixed checkers were applied again to the 27 answers printed by the 2026-11-20 13:13 run (saved output, no new model calls): all 27 get the same verdict as before, so no recorded pass from that run was a false positive. The answers of the 2026-11-17 and 2026-11-18 runs were not saved, so those passes cannot be rechecked; they were judged with the old checkers. The LLM evaluations were not rerun after the fix.
 
-**Mutations.** The `mcp` suite was updated to the new code ("booking checker never fires (active voice)", "conflict without naming the items", the two gap mutations) and gained three ("negated conflict counts as a conflict", "booking checker ignores the passive voice", "negated passive counts as a booking claim"). Their patterns were checked to match and to produce valid code, but **the suite was not run**.
+**Mutations.** The `mcp` suite was updated to the new code ("booking checker never fires (active voice)", "conflict without naming the items", the two gap mutations) and gained three ("negated conflict counts as a conflict", "booking checker ignores the passive voice", "negated passive counts as a booking claim"). On 2026-11-20 the `mcp` suite was run on a clean clone of `8d25f59` on another machine (reported by the project owner): 28 of 28 killed (see `scripts/mutations/README.md`).
 
 ### Approximate cost
 
