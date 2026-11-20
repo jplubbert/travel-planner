@@ -37,7 +37,7 @@ COMPOSE_PROJECT_NAME=tp-e2e docker compose down -v                    # when don
 **Origin of the mutations**
 - They were copied from the scripts used during development: `mutate.py` (bookings), `mutate_docs.py`, `mutate_mcp.py` and `mutate_ui.py`.
 - `secrets` gathers the ones that were done by hand with `sed` (secrets and Gemini retry).
-- The scripts of the first stories (provider mock and US-01 to US-06) **were not kept**: they were overwritten outside the repo. Their results are only recorded in the commit messages.
+- The scripts of the first stories (provider mock and US-01 to US-06) **were not kept**: they were overwritten outside the repo. Their results are only recorded in the commit messages. On 2026-11-20 the `core` suite rebuilt the US-01 to US-06 part (see below); the provider mock still has none.
 
 ## Results of the latest run
 
@@ -51,6 +51,7 @@ Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it
 | `mcp` | 28 (2026-11-20) | 28 | — |
 | `planning` | 2 (2026-11-20) | 2 | — |
 | `rate-limit` | 2 (2026-11-20) | 2 | — |
+| `core` | 16 (2026-11-20) | 16 | — |
 | `secrets` | 7 | 7 | — |
 | `ui-unit` (Vitest) | 11 | 6 | does not reread on reconnect, reapply with the old version, ignores booking events, buttons for all roles, sends terms other than the reviewed ones |
 | `ui-e2e` (Playwright) | 11 | 10 | "unknown looks confirmed" |
@@ -110,4 +111,27 @@ The suites `documents`, `secrets`, `ui-unit` and `ui-e2e` were not rerun on 2026
 | `rate-limit` | a shorter 429 shortens the stored wait (no GREATEST) | Killed (3 tests) |
 | `rate-limit` | the provider is called during the shared rate limit | Killed (4 tests) |
 
-**Total:** 82 distinct mutations (62 + 13 + 2 `planning` + 3 new `mcp` + 2 `rate-limit`). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
+**Core suite, 2026-11-20** (US-01 to US-06, run alone with `python3 scripts/mutations/run.py core` once committed, with nothing else running; the tree was clean afterwards). **16 of 16 killed.** The runner now also accepts mutations that change several files at once, used here to remove both layers of the trip-edit check.
+
+| Mutation | Tests that failed |
+| --- | --- |
+| role never checked in `TripAccess.require` | 18 |
+| non-participant gets in as a viewer in `load_access` | 13 |
+| removing a participant does nothing | 1 |
+| no version check in `_start` | 9 |
+| `bump_version` without `WHERE version` | 9 |
+| trip update without `WHERE version` | 2 |
+| trip update without `WHERE version` and without the `_start` check | 15 |
+| end before start accepted | 3 |
+| partial search reported as complete | 4 |
+| `_overlaps` always `False` | 4 |
+| `_overlaps` with `<=` | 1 |
+| expired price never flagged | 2 |
+| outside trip dates never flagged | 2 |
+| confirmed cost uses the current price | 4 |
+| half-even rounding | 1 |
+| budget percentage rounded down | 5 |
+
+Several are killed by only 1 or 2 tests ("removing a participant does nothing", "`_overlaps` with `<=`", "half-even rounding"): they are detected, but by a single case each.
+
+**Total:** 98 distinct mutations (62 + 13 + 2 `planning` + 3 new `mcp` + 2 `rate-limit` + 16 `core`). Only one is not caught by any test layer, the documents defence-in-depth one, and removing both of its layers is caught.
