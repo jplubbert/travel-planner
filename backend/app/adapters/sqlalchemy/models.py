@@ -264,3 +264,13 @@ class JobRow(Base):
     request_id: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(TZ)
     updated_at: Mapped[datetime] = mapped_column(TZ)
+
+
+class ProviderRateLimitRow(Base):
+    """One row per provider: no process calls it before ``not_before`` (a 429's
+    Retry-After, shared by every API and worker process)."""
+
+    __tablename__ = "provider_rate_limits"
+
+    provider: Mapped[str] = mapped_column(String(64), primary_key=True)
+    not_before: Mapped[datetime] = mapped_column(TZ)

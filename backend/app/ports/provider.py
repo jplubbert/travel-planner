@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Protocol
 
 from app.domain.provider import (
@@ -25,3 +26,16 @@ class ProviderClient(Protocol):
 
     async def get_booking(self, booking_id: str) -> ProviderBooking: ...
     async def get_booking_by_reference(self, client_reference: str) -> ProviderBooking: ...
+
+
+class ProviderRateLimits(Protocol):
+    """When each provider may be called again, shared by every API and worker process.
+
+    Each method commits on its own, independently of any unit of work: a recorded limit
+    must hold even if the caller's transaction rolls back."""
+
+    async def not_before(self, provider: str) -> datetime | None: ...
+
+    async def hold_until(self, provider: str, until: datetime) -> datetime:
+        """Never shortens an existing wait; returns the stored ``not_before``."""
+        ...

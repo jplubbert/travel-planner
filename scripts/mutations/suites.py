@@ -270,6 +270,18 @@ PLANNING = [
      "        if False:", "missing transport never reported"),
 ]
 
+# --- Shared provider rate limit (added 2026-11-20) -------------------------------------------
+RLA = "backend/app/adapters/sqlalchemy/rate_limits.py"
+RLD = "backend/app/domain/rate_limit.py"
+RATE_LIMIT = [
+    (RLA, '            set_={"not_before": func.greatest(ProviderRateLimitRow.not_before,\n'
+          '                                              new.excluded.not_before)},',
+     '            set_={"not_before": new.excluded.not_before},',
+     "a shorter 429 shortens the stored wait (no GREATEST)"),
+    (RLD, "        if until is not None and now < until:", "        if False:",
+     "the provider is called during the shared rate limit"),
+]
+
 _E2E_ENV = {"E2E_BASE_URL": "http://localhost:5174", "E2E_MOCK_URL": "http://localhost:14010"}
 
 SUITES = {
@@ -308,6 +320,13 @@ SUITES = {
         "command": PYTEST + ["tests/unit", "tests/integration/test_us11_preferences.py",
                             "tests/integration/test_us04_itinerary.py",
                             "evals/deterministic/test_mcp_contract.py"],
+    },
+    "rate-limit": {
+        "description": "provider rate limit shared between processes (ADR 0003)",
+        "mutations": RATE_LIMIT,
+        "command": PYTEST + ["tests/unit", "tests/integration/test_rate_limit.py",
+                            "tests/integration/test_us07_us08_bookings.py",
+                            "tests/integration/test_us03_search.py"],
     },
     "ui-unit": {
         "description": "UI against Vitest",

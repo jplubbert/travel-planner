@@ -68,7 +68,7 @@ ADR 0003. Rehearsed in Docker (see [demo](demo.md), step 5).
 | Estimated versus confirmed price | The offer is copied into the item with `validUntil`. Costs separate estimated and confirmed, and the accepted price is immutable | `test_us04_itinerary.py`, `test_us05_costs.py` |
 | Reproducible USD totals | `Decimal`, no floating point, *half-up* to cents, documented in `rounding` | `tests/unit/test_costs.py` |
 | Recovery after disconnection | SSE events are only notifications; with `ready` on every (re)connection the UI re-reads with `GET` | `test_status_channel.py`; e2e "re-reads on reconnect" |
-| Slow, down or rate-limited provider | Total deadline per call (`PROVIDER_TIMEOUT_SECONDS`), explicit partial or failed search, `lastError` and `nextStep` on bookings, and reconciliation never retries before `Retry-After` | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py` |
+| Slow, down or rate-limited provider | Total deadline per call (`PROVIDER_TIMEOUT_SECONDS`), explicit partial or failed search, `lastError` and `nextStep` on bookings. A `429`'s `Retry-After` is stored in PostgreSQL (`provider_rate_limits.not_before`, never shortened) and holds for every API and worker process: until then nobody calls the provider, user requests answer at once with the rate-limit error and its `retryAfter`, and the worker reschedules its job for `not_before` (ADR 0003, note of 2026-11-20) | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py`, `test_rate_limit.py` (unit and integration) |
 | A background operation can be traced | The request's `X-Request-Id` is passed to the job, and the worker uses it in its logs and in provider calls | `test_request_id_propagation.py` |
 | The assistant does not make things up or write | Tools are read-only (architecture test). The instructions require data from the tools, and there are automatic checkers for prices, claims, dates, constraints, conflicts, gaps and saved preferences | `evals/` (deterministic by default; with a model: on 2026-11-20, 24 of 27 with 3 repeats of the 9 cases, the 3 failures being a too-strict amounts check, since changed; the 2 affected cases then passed 6 of 6) |
 
@@ -98,7 +98,7 @@ The tests were also checked by injecting faults: [`scripts/mutations/`](../scrip
   - model evaluations are probabilistic: on 2026-11-20 the 9 cases ran 3 times each (24 of 27; the 3 failures were a too-strict check, since changed, and the 2 affected cases then passed 6 of 6). Three repeats is a small sample, and token usage was not measured.
 - **Reconciliation:**
   - concluding `rejected` after resubmitting depends on the provider honoring idempotency for identical in-flight requests (ADR 0003, documented risk);
-  - `Retry-After` is respected per job, but there is no rate limiter shared between workers.
+  - the shared rate limit covers the provider as a whole, not each supplier (the contract's `429` does not say which one): a `429` for one supplier pauses calls for all of them during its `Retry-After`. It adds one PostgreSQL read before every provider call. It only reacts to `429`s; there is no client-side quota that would avoid them.
 - **Quotes:** refreshed by hand, item by item (ADR 0004). Search results are not cached.
 - **No cancellation or refunds** (out of scope). An item with an active booking cannot be removed.
 - **Sample data:** the fixtures cover Lisbon, Madrid and Paris in June 2030, with simplified itinerary rules (`docs/assumptions.md`).

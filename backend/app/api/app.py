@@ -12,10 +12,12 @@ from app.adapters.document_html import HtmlDocumentRenderer
 from app.adapters.gemini_model import GeminiChatModel
 from app.adapters.local_storage import LocalDocumentStorage
 from app.adapters.provider_http import HttpProviderClient
+from app.adapters.sqlalchemy.rate_limits import SqlProviderRateLimits
 from app.adapters.sqlalchemy.uow import make_engine, session_factory
 from app.api.errors import error_response, install_error_handlers
 from app.api.routes import assistant, bookings, documents, itinerary, search, trips
 from app.config import Settings
+from app.domain.rate_limit import RateLimitedProvider
 from app.mcp.server import build_mcp_server
 from app.observability import request_id_var
 from app.ports.assistant import ChatModel
@@ -45,6 +47,9 @@ def create_app(
         await engine.dispose()
 
     clock = clock or SystemClock()
+    # Every provider call (API and MCP) honours and records the shared rate limit.
+    provider = RateLimitedProvider(provider, SqlProviderRateLimits(session_factory(engine)),
+                                   clock)
     mcp_server = build_mcp_server(session_factory(engine), provider, clock,
                                   settings.mcp_token_secret)
     mcp_app = mcp_server.streamable_http_app(

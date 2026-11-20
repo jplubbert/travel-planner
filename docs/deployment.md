@@ -63,7 +63,7 @@ All configuration is read from the environment (`backend/app/config.py`, documen
 - Deduplication (unique key only among active jobs) prevents enqueuing the same reconciliation or generation twice.
 - The provider's rate limits are global. More workers does not mean more reconciliations per second if the provider responds `429`.
 - Reconciliation uses exponential backoff (`BOOKING_RETRY_BASE_SECONDS` up to `BOOKING_RETRY_MAX_SECONDS`), but **never retries before the `Retry-After`** of a provider `429`, even if it exceeds the backoff maximum (since 2026-11-18, `retry_delay` in `app/domain/reservations.py`, with tests).
-- What is missing is a limiter shared between replicas: each worker respects the `Retry-After` of its own jobs, but not one received by another. **Pending for production.**
+- Since 2026-11-20 the `Retry-After` is shared between replicas: it is stored in PostgreSQL (`provider_rate_limits`), and no API or worker process calls the provider before it (ADR 0003, note of 2026-11-20). There is no proactive quota (requests per second) on our side: the limit only starts with the provider's first `429`.
 
 ## Observability
 

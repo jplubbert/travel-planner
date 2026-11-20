@@ -33,6 +33,7 @@ from app.domain.provider import (
     ProviderError,
     ProviderNotFound,
     ProviderRateLimited,
+    ProviderWaitRequired,
     ReferenceConflict,
 )
 from app.domain.trips import get_trip
@@ -245,6 +246,11 @@ async def send(
     try:
         result = await provider.create_booking(_request(booking),
                                                idempotency_key=booking.idempotency_key)
+    except ProviderWaitRequired as exc:
+        if booking.status != S.SUBMITTED:  # a reconciliation resend: nothing sent or learned
+            return exc
+        error = exc
+        await _record_failure(uow, provider, clock, booking, exc)  # back to draft, like a 429
     except ProviderError as exc:
         error = exc
         await _record_failure(uow, provider, clock, booking, exc)
@@ -370,6 +376,8 @@ async def sync_booking(
         assert booking.provider_booking_id is not None
         try:
             result = await provider.get_booking(booking.provider_booking_id)
+        except ProviderWaitRequired as exc:
+            return _wait(exc, clock)
         except ProviderError as exc:
             booking.note_error(error_info(exc, now), now)  # still pending: it was accepted
             delay = retry_delay(exc, attempts, policy)
@@ -382,6 +390,8 @@ async def sync_booking(
     # unknown: look it up by reference first
     try:
         found = await provider.get_booking_by_reference(booking.client_reference)
+    except ProviderWaitRequired as exc:
+        return _wait(exc, clock)
     except ProviderNotFound:
         found = None
     except ProviderError as exc:
@@ -400,7 +410,16 @@ async def sync_booking(
         return SyncResult(False, policy.unknown_grace_seconds - waited)
     # Still not visible after the grace period: re-send the same request with the same key.
     error = await send(uow, provider, clock, booking)
+    if isinstance(error, ProviderWaitRequired):
+        return _wait(error, clock)
     return _after(booking, retry_delay(error, attempts, policy))
+
+
+def _wait(exc: ProviderWaitRequired, clock: "Clock") -> SyncResult:
+    """The provider was not called (shared rate limit): try again at ``not_before``,
+    leaving the booking as it was."""
+    assert exc.not_before is not None
+    return SyncResult(False, max(0.0, (exc.not_before - clock.now()).total_seconds()))
 
 
 def _after(booking: Booking, retry_in: float) -> SyncResult:

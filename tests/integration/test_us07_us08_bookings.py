@@ -71,6 +71,15 @@ async def scenario(mock_control, supplier, mode, **extra):
                                                 **extra})).raise_for_status()
 
 
+async def expire_rate_limit(app):
+    """Ends the shared provider rate limit now instead of waiting for it."""
+    from sqlalchemy import text
+
+    async with app.state.sessions() as session:
+        await session.execute(text("UPDATE provider_rate_limits SET not_before = now()"))
+        await session.commit()
+
+
 def failing_post(make_app, provider_client, mock_control, mode, **extra):
     """An app whose booking POST hits a supplier failure, while the offer re-check before
     it still succeeds (the scenario is switched on right before the POST)."""
@@ -232,6 +241,17 @@ async def test_not_accepted_goes_back_to_draft_and_retry_reuses_the_key(
     assert r.status_code == 409 and r.json()["code"] == "BOOKING_IN_PROGRESS"
 
     await mock_control.delete("/scenario")
+    if mode == "rate_limited":
+        # Within the 7 s the provider asked for, the retry is refused at once without
+        # calling it (shared rate limit); once they pass, it goes through.
+        r = await ana.post(f"/trips/{shared_trip['id']}/bookings/{b['bookingId']}/retry")
+        waiting = r.json()
+        assert waiting["status"] == "draft" and waiting["canRetry"] is True
+        assert waiting["lastError"]["code"] == "PROVIDER_RATE_LIMITED"
+        assert 1 <= waiting["lastError"]["retryAfterSeconds"] <= 7
+        assert waiting["lastError"]["providerRequestId"] is None  # never reached it
+        assert await provider_bookings(provider_client) == []
+        await expire_rate_limit(api.app)
     r = await ana.post(f"/trips/{shared_trip['id']}/bookings/{b['bookingId']}/retry")
     assert r.status_code == 200
     retried = r.json()

@@ -37,7 +37,8 @@ MOCK_SUPPLIER_DEADLINE = 1.0
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://travel:travel@localhost:5432/travel_test"
 )
-DATA_TABLES = "trips, trip_members, trip_changes, itinerary_items, bookings, documents, jobs"
+DATA_TABLES = ("trips, trip_members, trip_changes, itinerary_items, bookings, documents, jobs, "
+               "provider_rate_limits")
 
 
 async def _recreate_database(url: str) -> None:
@@ -300,6 +301,8 @@ def make_worker(app: FastAPI, provider_client: Any, storage_dir: Path) -> Callab
     from app.adapters.clock import SystemClock
     from app.adapters.document_html import HtmlDocumentRenderer
     from app.adapters.local_storage import LocalDocumentStorage
+    from app.adapters.sqlalchemy.rate_limits import SqlProviderRateLimits
+    from app.domain.rate_limit import RateLimitedProvider
     from app.domain.reservations import ReconcilePolicy
     from app.workers.worker import JobWorker
 
@@ -308,7 +311,10 @@ def make_worker(app: FastAPI, provider_client: Any, storage_dir: Path) -> Callab
         defaults = {"unknown_grace_seconds": 0.0, "submitted_stale_seconds": 0.0,
                     "pending_poll_seconds": 0.0, "retry_base_seconds": 0.0,
                     "retry_max_seconds": 0.0}
-        return JobWorker(app.state.sessions, provider or provider_client,
+        # Wrapped like in production (app.workers.__main__): the shared rate limit applies.
+        guarded = RateLimitedProvider(provider or provider_client,
+                                      SqlProviderRateLimits(app.state.sessions), SystemClock())
+        return JobWorker(app.state.sessions, guarded,
                          storage or LocalDocumentStorage(storage_dir),
                          renderer or HtmlDocumentRenderer(), SystemClock(),
                          ReconcilePolicy(**{**defaults, **policy}),

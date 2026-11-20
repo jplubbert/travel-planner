@@ -145,10 +145,19 @@ class ProviderRateLimited(ProviderError):
     code = "PROVIDER_RATE_LIMITED"
 
     def __init__(self, message: str, *, retry_after_seconds: int | None = None,
-                 provider_request_id: str | None = None) -> None:
+                 provider_request_id: str | None = None,
+                 not_before: datetime | None = None) -> None:
         super().__init__(message, provider_code="RATE_LIMITED",
                          provider_request_id=provider_request_id)
         self.retry_after_seconds = retry_after_seconds
+        # When the provider may be called again (the shared limit, see domain.rate_limit).
+        self.not_before = not_before
+
+
+class ProviderWaitRequired(ProviderRateLimited):
+    """Not sent: the provider asked every caller to wait (an earlier 429's Retry-After,
+    shared between processes) and that time has not come. Same code and meaning as a 429
+    for callers, so nothing was done at the provider."""
 
 
 class ProviderUnavailable(ProviderError):
