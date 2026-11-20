@@ -70,7 +70,7 @@ ADR 0003. Rehearsed in Docker (see [demo](demo.md), step 5).
 | Recovery after disconnection | SSE events are only notifications; with `ready` on every (re)connection the UI re-reads with `GET` | `test_status_channel.py`; e2e "re-reads on reconnect" |
 | Slow, down or rate-limited provider | Total deadline per call (`PROVIDER_TIMEOUT_SECONDS`), explicit partial or failed search, `lastError` and `nextStep` on bookings, and reconciliation never retries before `Retry-After` | `test_us03_search.py`, `test_provider_client.py`, `test_us07_us08_bookings.py` |
 | A background operation can be traced | The request's `X-Request-Id` is passed to the job, and the worker uses it in its logs and in provider calls | `test_request_id_propagation.py` |
-| The assistant does not make things up or write | Tools are read-only (architecture test). The instructions require data from the tools, and there are automatic checkers for prices, claims, dates, constraints, conflicts, gaps and saved preferences | `evals/` (deterministic by default; with a model, 8 of 9 cases have passed: 5 of 5 on 2026-11-17, and 7 of 7 plus 1 of 1 on 2026-11-18; the preferences case has not been run) |
+| The assistant does not make things up or write | Tools are read-only (architecture test). The instructions require data from the tools, and there are automatic checkers for prices, claims, dates, constraints, conflicts, gaps and saved preferences | `evals/` (deterministic by default; with a model: on 2026-11-20, 24 of 27 with 3 repeats of the 9 cases, the 3 failures being a too-strict amounts check, since changed; the 2 affected cases then passed 6 of 6) |
 
 The tests were also checked by injecting faults: [`scripts/mutations/`](../scripts/mutations/README.md).
 
@@ -95,7 +95,7 @@ The tests were also checked by injecting faults: [`scripts/mutations/`](../scrip
   - with several API replicas, the proxy for `/trips/{id}/events` must stay unbuffered.
 - **Assistant:**
   - shares the process and connection pool with the API;
-  - model evaluations are probabilistic: 8 of the 9 cases have passed with the real model (5 of 5 on 2026-11-17; on 2026-11-18, 7 of 7 and then the gaps case, 1 of 1), but each case only once: there is no pass rate and no measurement of token usage. The preferences case (2026-11-20) has not been run with the model.
+  - model evaluations are probabilistic: on 2026-11-20 the 9 cases ran 3 times each (24 of 27; the 3 failures were a too-strict check, since changed, and the 2 affected cases then passed 6 of 6). Three repeats is a small sample, and token usage was not measured.
 - **Reconciliation:**
   - concluding `rejected` after resubmitting depends on the provider honoring idempotency for identical in-flight requests (ADR 0003, documented risk);
   - `Retry-After` is respected per job, but there is no rate limiter shared between workers.

@@ -73,6 +73,16 @@ def assert_grounded(body: dict, extra: set[Decimal] = frozenset()) -> None:
     assert not invented, f"amounts not found in tool results: {sorted(invented)}"
 
 
+def assert_no_offer_amounts(body: dict) -> None:
+    """No offer was retrieved, so the answer cites no prices: only trip and cost amounts
+    from the tool results (budget, "0.00 USD used", remaining), never invented ones.
+    Until 2026-11-20 only the budget was accepted; see evals/README.md."""
+    assert not [o for c in body["toolCalls"]
+                if c["name"] == "search_offers" and not c["isError"]
+                for o in c["result"]["offers"]], "expected no offers to be retrieved"
+    assert_grounded(body)
+
+
 def assert_no_booking_claim(body: dict) -> None:
     assert not claims_a_booking(body["answer"]), body["answer"]
     assert all(c["name"] in {"list_my_trips", "get_trip", "get_itinerary", "get_costs",
@@ -100,7 +110,7 @@ async def test_says_so_when_no_option_exists(api, llm_app, trip_payload, mock_co
     body = await ask(api, llm_app, trip, "Find us a hotel in Reykjavik for the whole trip.",
                      user="ana")
     assert says_no_option(body["answer"]), body["answer"]
-    assert not cited_amounts(body["answer"]) - {Decimal(trip["budget"]["amount"])}
+    assert_no_offer_amounts(body)
     assert_no_booking_claim(body)
 
 
@@ -138,7 +148,7 @@ async def test_reports_a_failed_search_instead_of_no_results(api, llm_app, share
     assert any(c["isError"] for c in body["toolCalls"])
     assert re.search(r"fail|unavailable|could not|couldn't|error|not able|no pude|falló",
                      body["answer"], re.IGNORECASE), body["answer"]
-    assert not cited_amounts(body["answer"]) - {Decimal("4500.00")}
+    assert_no_offer_amounts(body)
 
 
 LISBON = {"name": "Lisbon", "destinations": ["Lisbon"], "startsOn": "2030-06-10",
