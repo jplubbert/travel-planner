@@ -175,7 +175,7 @@ It needs `GEMINI_API_KEY` in `.env` and `docker compose up -d api` so the API re
 
 | Step | How it was verified | Status |
 | --- | --- | --- |
-| 1. Full flow (except the optional conflict 1.5) | `frontend/e2e/flow.spec.ts` "full flow", with the same clicks, on Docker from scratch (`scripts/e2e.sh`, 5 of 5 on 2026-11-18) | Run (automated) |
+| 1. Full flow (except the optional conflict 1.5) | `frontend/e2e/flow.spec.ts` "full flow", with the same clicks, on Docker from scratch (`scripts/e2e.sh`, 5 of 5 on 2026-11-18).<br>**Also run by hand by the candidate from the UI** on 2026-11-18: create the trip, search, add to the itinerary, refresh the quote, book (`confirmed`) and generate the document (result reported by the candidate; not reproduced by the agent). Adding participants and the Costs checks were not part of that manual run | Run (automated) and, for those steps, by hand by the candidate |
 | 1.5 Schedule conflict | Backend in `tests/integration/test_us04_itinerary.py`. Repeated via the API on the clean stack (2026-11-18 00:19): both items get `SCHEDULE_CONFLICT` ("Overlaps with 'Sintra day trip'." and vice versa). An empty budget gives `422` | Via the API, run. In the UI **not rehearsed** |
 | 2. Permissions 403 and 404 | e2e "permissions" | Run (automated) |
 | 3. 409 with reapply and re-read on reconnect | e2e "version 409", with the channel cut by Playwright instead of DevTools | Run (automated). Blocking with DevTools **not rehearsed by hand** |
