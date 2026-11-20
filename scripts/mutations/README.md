@@ -47,13 +47,13 @@ Run on 2026-11-18 with this runner, **with nothing else running**. Afterwards it
 | --- | --- | --- | --- |
 | `bookings` | 17 (rerun 2026-11-20) | 17 | — |
 | `tracing` | 3 (rerun 2026-11-20) | 3 | — |
-| `documents` | 12 | 11 | "in-flight requests not deduplicated" (see below) |
+| `documents` | 12 (rerun 2026-11-20) | 11 | "in-flight requests not deduplicated" (see below) |
 | `mcp` | 28 (2026-11-20) | 28 | — |
 | `planning` | 2 (2026-11-20) | 2 | — |
 | `rate-limit` | 2 (2026-11-20) | 2 | — |
 | `core` | 16 (2026-11-20) | 16 | — |
-| `secrets` | 7 | 7 | — |
-| `ui-unit` (Vitest) | 11 | 6 | does not reread on reconnect, reapply with the old version, ignores booking events, buttons for all roles, sends terms other than the reviewed ones |
+| `secrets` | 7 (rerun 2026-11-20) | 7 | — |
+| `ui-unit` (Vitest) | 11 (rerun 2026-11-20) | 6 | does not reread on reconnect, reapply with the old version, ignores booking events, buttons for all roles, sends terms other than the reviewed ones |
 | `ui-e2e` (Playwright) | 11 | 10 | "unknown looks confirmed" |
 
 **Reading the survivors**
@@ -102,7 +102,9 @@ The last 4 belong to the gaps checker and were run with the runner after commit 
 
 **Run of 2026-11-20 on `5069c99`** (another machine, reported by the project owner): `bookings` and `tracing`, **20 of 20 killed** (`bookings` 17 of 17, `tracing` 3 of 3).
 
-The suites `documents`, `secrets`, `ui-unit` and `ui-e2e` were not rerun on 2026-11-20; their results are from 2026-11-18.
+**Run of 2026-11-20 on `f1a62a1`** (another machine, reported by the project owner): `documents` 11 of 12, `secrets` 7 of 7 and `ui-unit` 6 of 11, the same results as on 2026-11-18. The survivors are read as explained above ("Reading the survivors").
+
+`ui-e2e` was not rerun on 2026-11-20; its result (10 of 11) is from 2026-11-18.
 
 **Shared provider rate limit, 2026-11-20** (new `rate-limit` suite, run alone with `python3 scripts/mutations/run.py rate-limit` once the code was committed, with nothing else running; the tree was clean afterwards):
 
