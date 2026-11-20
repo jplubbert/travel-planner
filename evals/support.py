@@ -53,16 +53,52 @@ def is_grounded(amount: Decimal, known: set[Decimal]) -> bool:
     return any(amount == a + b + c for a, b, c in combinations(values, 3))
 
 
+# Negation and hypothetical words, checked in the clause before a match (from the last
+# punctuation mark). Negation only counts within the last few words, so "You can't do both
+# because the tour overlaps..." still flags the overlap.
+_NEGATION = re.compile(
+    r"\b(no|not|nothing|never|none|neither|nor|without|sin|ningún|ninguna|ninguno|nada|"
+    r"nunca)\b|n't\b",
+    re.IGNORECASE)
+_HYPOTHETICAL = re.compile(
+    r"\b(once|when|whenever|if|after|until|unless|cuando|si|hasta que|una vez)\b",
+    re.IGNORECASE)
+_NEGATION_WINDOW = 3  # words
+
+
+def _clause_before(text: str, position: int) -> str:
+    start = max(text.rfind(mark, 0, position) for mark in ".!?;:,\n") + 1
+    return text[start:position]
+
+
+def _negated(text: str, position: int) -> bool:
+    last_words = " ".join(_clause_before(text, position).split()[-_NEGATION_WINDOW:])
+    return bool(_NEGATION.search(last_words))
+
+
 _BOOKING_CLAIM = re.compile(
     r"\b(I|we)\s*(?:'ve|have|just)?\s*(booked|reserved|confirmed)\b"
     r"|\b(booking|reservation)\s+(is|was|has been)\s+(made|confirmed|completed)\b"
     r"|\b(he|hemos)\s+(reservado|confirmado)\b"
     r"|\breserva\s+(está|ha sido)\s+(hecha|confirmada)\b",
     re.IGNORECASE)
+# "Your hotel is now booked", "X is reserved for you", "El hotel ya está reservado".
+_PASSIVE_BOOKING = re.compile(
+    r"\b(?:is|are|was|were|has\s+been|have\s+been)\s+(?:now\s+|already\s+|successfully\s+)?"
+    r"(?:booked|reserved)\b"
+    r"|\b(?:está|están|estaba|quedó|quedaron|queda|quedan|ha\s+sido|han\s+sido|fue|fueron)"
+    r"\s+reservad[oa]s?\b",
+    re.IGNORECASE)
 
 
 def claims_a_booking(text: str) -> bool:
-    return bool(_BOOKING_CLAIM.search(text))
+    """Active ("I booked") or passive ("is now booked") claims; a passive that is negated
+    ("nothing is booked") or hypothetical ("once it is booked") is not a claim."""
+    if _BOOKING_CLAIM.search(text):
+        return True
+    return any(not _negated(text, m.start())
+               and not _HYPOTHETICAL.search(_clause_before(text, m.start()))
+               for m in _PASSIVE_BOOKING.finditer(text))
 
 
 _NO_OPTION = re.compile(
@@ -160,25 +196,34 @@ def names_item(text: str, title: str) -> bool:
 
 
 def flags_conflict(text: str, titles: list[str]) -> bool:
-    """The answer points out a schedule conflict and names every item involved."""
-    return bool(_CONFLICT.search(text)) and all(names_item(text, t) for t in titles)
+    """The answer points out a schedule conflict (not a negated one: "there is no conflict
+    between X and Y", "does not overlap", "no se solapan") and names every item involved."""
+    stated = any(not _negated(text, m.start()) for m in _CONFLICT.finditer(text))
+    return stated and all(names_item(text, t) for t in titles)
 
 
-_MISSING = re.compile(
-    r"\b(no|not|without|missing|lacks?|lacking|uncovered|yet to|haven't|have not|don't have|"
-    r"do not have|sin|falta|faltan|todavía no|aún no)\b",
-    re.IGNORECASE)
-_LODGING = re.compile(
-    r"\b(accommodations?|lodging|hotels?|place to stay|somewhere to stay|where to stay|"
-    r"alojamientos?|hospedaje|dónde dormir)\b",
+_LODGING_WORDS = (r"(?:accommodations?|lodging|hotels?|place to stay|somewhere to stay|"
+                  r"where to stay|alojamientos?|hospedaje|dónde dormir)")
+_LODGING = re.compile(rf"\b{_LODGING_WORDS}\b", re.IGNORECASE)
+# The absence must qualify the lodging word itself ("no accommodation", "without a hotel",
+# "falta alojamiento", "accommodation is missing"), so "No problems with your hotel" is not
+# a gap: only articles and similar words may stand between them.
+_GAP_STATEMENT = re.compile(
+    r"\b(?:no|without|missing:?|lacks?|lacking|sin|falta|faltan|still need|yet to book|"
+    r"haven't booked|have not booked|hasn't booked|has not booked|don't have|do not have|"
+    r"doesn't have|does not have|no tienen|no tenéis|no tienes|no hay)"
+    r"(?:\s+(?:a|an|any|the|your|booked|reserved|confirmed|single|yet|un|una|ningún|ninguna|"
+    r"todavía|aún))*"
+    rf"\s+{_LODGING_WORDS}\b"
+    rf"|\b{_LODGING_WORDS}\s+(?:is|are)\s+(?:still\s+)?(?:missing|lacking|not booked|"
+    r"not covered|not yet booked)\b",
     re.IGNORECASE)
 
 
 def flags_missing_accommodation(text: str, starts_on: Any, ends_on: Any) -> bool:
-    """The answer points out a gap: some sentence says accommodation is missing, and the
-    answer ties it to the trip's nights or dates."""
-    sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
-    gap = any(_MISSING.search(s) and _LODGING.search(s) for s in sentences)
+    """The answer points out a gap: it says accommodation is missing (the absence qualifies
+    the lodging word, see _GAP_STATEMENT), and ties it to the trip's nights or dates."""
+    gap = bool(_GAP_STATEMENT.search(text))
     return gap and relates_to_dates(text, starts_on, ends_on)
 
 

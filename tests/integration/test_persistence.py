@@ -1,5 +1,7 @@
 """Schema/migration consistency and repository round-trips against PostgreSQL."""
 
+import asyncio
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -64,6 +66,61 @@ async def test_uncommitted_work_is_rolled_back(uow_factory):
         # no commit: e.g. the request failed before finishing
     async with uow_factory() as uow:
         assert await uow.trips.get(trip_id) is None
+
+
+# --- Compare-and-set in the repository alone (no _start version check in front) ---------------
+
+
+async def saved_version(uow_factory, trip_id) -> tuple[int, str]:
+    async with uow_factory() as uow:
+        trip = await uow.trips.get(trip_id)
+        assert trip is not None
+        return trip.version, trip.name
+
+
+async def test_update_writes_only_when_the_expected_version_matches(uow_factory):
+    trip = await make_trip(uow_factory)  # version 1
+    async with uow_factory() as uow:
+        assert await uow.trips.update(replace(trip, name="A", version=2), expected_version=1)
+        await uow.commit()
+    async with uow_factory() as uow:  # stale: version 1 is gone
+        assert not await uow.trips.update(replace(trip, name="B", version=2),
+                                          expected_version=1)
+        await uow.commit()
+    assert await saved_version(uow_factory, trip.id) == (2, "A")
+
+
+async def test_bump_version_claims_each_version_once(uow_factory):
+    trip = await make_trip(uow_factory)
+    async with uow_factory() as uow:
+        assert await uow.trips.bump_version(trip.id, expected_version=1, now=NOW)
+        assert not await uow.trips.bump_version(trip.id, expected_version=1, now=NOW)
+        await uow.commit()
+    assert await saved_version(uow_factory, trip.id) == (2, "T")
+
+
+@pytest.mark.parametrize("operation", ["update", "bump_version"])
+async def test_concurrent_writers_on_one_version_exactly_one_wins(uow_factory, operation):
+    """Two transactions expecting version 1 at once. The second blocks on the row lock of
+    the first; once the first commits it re-checks the condition and finds version 2."""
+    trip = await make_trip(uow_factory)
+
+    async def write(uow, name):
+        if operation == "update":
+            return await uow.trips.update(replace(trip, name=name, version=2),
+                                          expected_version=1)
+        return await uow.trips.bump_version(trip.id, expected_version=1, now=NOW)
+
+    async with uow_factory() as first, uow_factory() as second:
+        assert await write(first, "first")
+        late = asyncio.create_task(write(second, "second"))
+        await asyncio.sleep(0.3)
+        assert not late.done()  # waiting for the first transaction's row lock
+        await first.commit()
+        assert await asyncio.wait_for(late, timeout=5) is False
+        await second.commit()
+    version, name = await saved_version(uow_factory, trip.id)
+    assert version == 2 and name in ("first", "T")
 
 
 async def test_database_enforces_a_single_organizer(uow_factory):

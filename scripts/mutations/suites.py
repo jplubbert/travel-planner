@@ -150,8 +150,8 @@ MCP = [
          "", "Gemini with automatic function calling"),
     (SP, "    if amount in known:\n        return True",
          "    if True:\n        return True", "price checker accepts everything"),
-    (SP, "    return bool(_BOOKING_CLAIM.search(text))", "    return False",
-         "booking checker never fires"),
+    (SP, "    if _BOOKING_CLAIM.search(text):\n        return True", "    if False:\n        return True",
+         "booking checker never fires (active voice)"),
 ]
 
 # US-11 checks for dates, restrictions and conflicts (added 2026-11-18).
@@ -160,8 +160,8 @@ MCP.extend([
      "    return True", "dates checker accepts everything"),
     (SP, "        if key and sum(w in words for w in key) * 2 >= len(key):",
      "        if True:", "restrictions checker accepts everything"),
-    (SP, "    return bool(_CONFLICT.search(text)) and all(names_item(text, t) for t in titles)",
-     "    return bool(_CONFLICT.search(text))", "conflict without naming the items"),
+    (SP, "    return stated and all(names_item(text, t) for t in titles)",
+     "    return stated", "conflict without naming the items"),
     (SP, "    return bool(_CHANGE_CLAIM.search(text))", "    return False",
      "changes checker never fires"),
     (SP, "        if price in amounts or (key and all(w in words for w in key)):",
@@ -172,15 +172,28 @@ MCP.extend([
 MCP.extend([
     (SP, "    return gap and relates_to_dates(text, starts_on, ends_on)", "    return gap",
      "gap not tied to the nights"),
-    (SP, "    gap = any(_MISSING.search(s) and _LODGING.search(s) for s in sentences)",
+    (SP, "    gap = bool(_GAP_STATEMENT.search(text))",
      "    gap = bool(_LODGING.search(text))", "gap without a word of absence"),
-    (SP, "    gap = any(_MISSING.search(s) and _LODGING.search(s) for s in sentences)",
-     "    gap = bool(_MISSING.search(text) and _LODGING.search(text))",
-     "absence and accommodation in different sentences"),
+    (SP, "    gap = bool(_GAP_STATEMENT.search(text))",
+     "    gap = any(re.search(r\"\\b(no|not|without|missing)\\b\", s, re.I) and _LODGING.search(s)\n"
+     "              for s in re.split(r\"(?<=[.!?])\\s+\", text))",
+     "gap as 'no' and a lodging word in one sentence (the 2026-11-20 false positive)"),
     (SP, '        "the answer does not point out the nights without accommodation"\n'
          '    assert not claims_a_change(body["answer"]), body["answer"]',
      '        "the answer does not point out the nights without accommodation"',
      "gaps without checking changes"),
+])
+
+# Checker false positives fixed on 2026-11-20 (negation, passive voice).
+MCP.extend([
+    (SP, "    stated = any(not _negated(text, m.start()) for m in _CONFLICT.finditer(text))",
+     "    stated = bool(_CONFLICT.search(text))", "negated conflict counts as a conflict"),
+    (SP, "    return any(not _negated(text, m.start())\n               and not _HYPOTHETICAL",
+     "    return False and any(not _negated(text, m.start())\n               and not _HYPOTHETICAL",
+     "booking checker ignores the passive voice"),
+    (SP, "    return any(not _negated(text, m.start())\n               and not _HYPOTHETICAL",
+     "    return any(True\n               and not _HYPOTHETICAL",
+     "negated passive counts as a booking claim"),
 ])
 
 # --- from mutate_ui ----------------------------------------

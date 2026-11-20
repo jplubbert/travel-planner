@@ -71,10 +71,24 @@ Each case verifies the answer automatically (`evals/support.py`):
 **Limitations:**
 - The checks are heuristic: regular expressions and keywords in English and Spanish (the assistant answers in the user's language).
 - The amounts check accepts sums of up to 3 terms and differences of 2, so a more complex calculation, even if correct, would be flagged as unbacked.
-- The US-11 checks are tuned to the **strict** side: a paraphrase without the keywords does not count as a mention. For example, "late check-in is not possible" does not quote "No check-in after 22:00", and "tranvía" (Spanish for tram) does not name the "Historic tram tour". A false negative fails the case and the answer printed with `-s` is reviewed; it never passes silently.
+- The US-11 checks are tuned to the **strict** side: a paraphrase without the keywords does not count as a mention. For example, "late check-in is not possible" does not quote "No check-in after 22:00", and "tranvía" (Spanish for tram) does not name the "Historic tram tour". A false negative fails the case and the answer printed with `-s` is reviewed. The checks can also have **false positives** (an answer that should fail and passes): see "Checker false positives found on 2026-11-20" below.
 - Of the gaps, only nights without accommodation are evaluated with the model. Since 2026-11-20 the app also computes missing transport between consecutive destinations (`MISSING_TRANSPORT`, which the model had mentioned on its own on 2026-11-18), but there is no LLM case for it.
-- The preferences check compares words with the saved text: an answer that translates the preferences (for example "baño privado" for "Private bathroom") fails it. It is a false negative that is reviewed with `-s`, never a silent pass.
+- The preferences check compares words with the saved text: an answer that translates the preferences (for example "baño privado" for "Private bathroom") fails it. It is a false negative, reviewed with `-s`.
 - The model is probabilistic, which is why `EVAL_REPEATS` exists to measure the pass rate.
+
+### Checker false positives found on 2026-11-20
+
+A review of `evals/support.py` on 2026-11-20 found three checkers that accepted answers they should reject. For each one, a test with the exact phrase was added to `evals/deterministic/test_answer_checks.py` first and failed; then the checker was fixed.
+
+| Checker | False positive | Fix |
+| --- | --- | --- |
+| `flags_conflict` | "There is no conflict between the Historic tram tour and the Sintra day trip." counted as pointing out the conflict: it only looked for a conflict word and the item names | A conflict word only counts if none of the 3 words before it in its clause is a negation (no, not, n't, without, nothing, never, sin, ningún, nada…). "Does not overlap", "don't clash", "without any conflict", "no se solapan", "sin conflictos" and "no hay ningún conflicto" are no longer conflicts; "no worries about the budget, but X overlaps with Y" still is |
+| `flags_missing_accommodation` | "No problems with your hotel" counted as a gap: any absence word and any lodging word in the same sentence were enough | The absence must qualify the lodging word itself: "no / without / missing / sin / falta / no tienen / haven't booked + (articles) + accommodation", or "accommodation is (still) missing / not booked". "No issues with the accommodation" is not a gap |
+| `claims_a_booking` | Did not detect "Your hotel is now booked" or "X is reserved for you": only active voice ("I booked") and "booking is confirmed" | Passive voice in English ("is / are / was / has been (now / already) booked / reserved") and Spanish ("está / quedó / ha sido / fue reservado"), unless negated ("nothing is booked", "no está reservado") or hypothetical in its clause ("once it is booked", "cuando esté reservado") |
+
+**Effect on the recorded results.** The fixed checkers were applied again to the 27 answers printed by the 2026-11-20 13:13 run (saved output, no new model calls): all 27 get the same verdict as before, so no recorded pass from that run was a false positive. The answers of the 2026-11-17 and 2026-11-18 runs were not saved, so those passes cannot be rechecked; they were judged with the old checkers. The LLM evaluations were not rerun after the fix.
+
+**Mutations.** The `mcp` suite was updated to the new code ("booking checker never fires (active voice)", "conflict without naming the items", the two gap mutations) and gained three ("negated conflict counts as a conflict", "booking checker ignores the passive voice", "negated passive counts as a booking claim"). Their patterns were checked to match and to produce valid code, but **the suite was not run**.
 
 ### Approximate cost
 

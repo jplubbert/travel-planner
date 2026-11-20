@@ -193,3 +193,68 @@ def test_relates_to_preferences(text, related):
 
 def test_empty_preferences_never_count_as_related():
     assert relates_to_preferences("You prefer a private bathroom.", "") is False
+
+
+# --- False positives found on 2026-11-20 (each case failed before its fix) -------------------
+
+CONFLICT_TITLES = ["Historic tram tour", "Sintra day trip"]
+
+
+@pytest.mark.parametrize("text", [
+    "There is no conflict between the Historic tram tour and the Sintra day trip.",
+    "The Historic tram tour does not overlap with the Sintra day trip.",
+    "The tram tour and the Sintra day trip don't clash.",
+    "The tram tour fits without any conflict with the Sintra day trip.",
+    "El Historic tram tour y el Sintra day trip no se solapan.",
+    "Sin conflictos: el Historic tram tour y el Sintra day trip están en horarios distintos.",
+    "No hay ningún conflicto entre el Historic tram tour y el Sintra day trip.",
+])
+def test_negated_conflict_is_not_a_conflict(text):
+    assert flags_conflict(text, CONFLICT_TITLES) is False
+
+
+@pytest.mark.parametrize("text", [
+    "No worries about the budget, but the Historic tram tour overlaps with the Sintra day trip.",
+    "There is no problem with the hotel; however, the tram tour and the Sintra day trip clash.",
+])
+def test_conflict_after_an_unrelated_negation_is_still_a_conflict(text):
+    assert flags_conflict(text, CONFLICT_TITLES) is True
+
+
+@pytest.mark.parametrize("text", [
+    # "No problems with your hotel" (the exact phrase), with the trip's nights so that only
+    # the gap part of the check decides.
+    "No problems with your hotel: it covers your 4 nights from June 10 to 14.",
+    "No issues with the accommodation for your 4 nights.",
+    "There is nothing wrong with your hotel for the 4 nights.",
+])
+def test_no_and_hotel_in_one_sentence_is_not_a_gap(text):
+    assert flags_missing_accommodation(text, START, END) is False
+
+
+@pytest.mark.parametrize("text", [
+    "You haven't booked any accommodation for your 4 nights yet.",
+    "Accommodation is still missing for the 4 nights.",
+    "Todavía no tienen alojamiento para las cuatro noches.",
+])
+def test_other_ways_of_saying_accommodation_is_missing(text):
+    assert flags_missing_accommodation(text, START, END) is True
+
+
+@pytest.mark.parametrize("text,claims", [
+    ("Your hotel is now booked.", True),
+    ("The Alfama apartment is reserved for you.", True),
+    ("The hotel has been booked for June 10 to 14.", True),
+    ("El hotel ya está reservado.", True),
+    ("El apartamento ha sido reservado para ustedes.", True),
+    ("La habitación quedó reservada.", True),
+    # Negated or hypothetical passives are not claims.
+    ("The hotel is not booked yet.", False),
+    ("Nothing is booked until an editor confirms it in the app.", False),
+    ("Once your hotel is booked, the price is fixed.", False),
+    ("It can be reserved by an editor in the app.", False),
+    ("El hotel no está reservado todavía.", False),
+    ("Cuando el hotel esté reservado, el precio queda fijo.", False),
+])
+def test_passive_booking_claims(text, claims):
+    assert claims_a_booking(text) is claims
